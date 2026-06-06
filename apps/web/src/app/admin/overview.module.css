@@ -1,0 +1,48 @@
+.page { padding: 2rem; max-width: 1000px; }
+
+.pageHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; }
+.title { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 0.25rem; }
+.subtitle { font-size: 0.9rem; color: var(--text-secondary); }
+.newExamBtn { padding: 0.625rem 1.25rem; background: var(--brand); color: white; font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-md); border: none; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background .15s; }
+.newExamBtn:hover { background: var(--brand-dark); }
+
+.skeletonGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.skeleton { height: 100px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+.statGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.statCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+.statLabel { font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 0.5rem; }
+.statValue { font-size: 2rem; font-weight: 600; letter-spacing: -0.03em; color: var(--text-primary); line-height: 1; margin-bottom: 0.375rem; }
+.statGreen { color: var(--brand); }
+.statAmber { color: var(--warning); }
+.statSub { font-size: 0.78rem; color: var(--text-tertiary); }
+
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 2rem; }
+.sectionHeader { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+.sectionTitle { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.seeAll { font-size: 0.8rem; color: var(--brand); font-weight: 500; }
+
+.tableHead { display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.4fr .7fr .6fr; gap: 1rem; padding: 0.625rem 1.5rem; font-size: 0.72rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .05em; background: var(--bg); }
+.tableRow { display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.4fr .7fr .6fr; gap: 1rem; padding: 0.875rem 1.5rem; align-items: center; border-top: 1px solid var(--border); font-size: 0.875rem; transition: background .1s; }
+.tableRow:hover { background: var(--bg); }
+.examName { font-weight: 500; color: var(--text-primary); }
+.cell { color: var(--text-secondary); }
+
+.subBar { display: inline-block; width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.subFill { display: block; height: 100%; background: var(--brand); border-radius: 2px; }
+.subText { font-size: 0.8rem; color: var(--text-secondary); }
+
+.statusTag { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 20px; text-transform: uppercase; letter-spacing: .04em; }
+.statusActive { background: var(--brand-light); color: var(--brand-dark); }
+.statusDone { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+
+.viewBtn { font-size: 0.8rem; color: var(--brand); font-weight: 500; padding: 0.25rem 0; }
+
+.quickActions { margin-bottom: 2rem; }
+.actionGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.actionCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.375rem; cursor: pointer; transition: border-color .15s, background .15s; text-align: left; }
+.actionCard:hover { border-color: var(--brand); background: var(--brand-light); }
+.actionIcon { font-size: 1.5rem; margin-bottom: 0.25rem; }
+.actionLabel { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+.actionDesc { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
