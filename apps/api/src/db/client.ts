@@ -5,13 +5,14 @@ function getDb() {
   if (!url) {
     throw new Error('DATABASE_URL is not set')
   }
-  return postgres(url, {
+  _db = postgres(url, {
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
+    prepare: false,
   })
+  return _db
 }
-
 // Create db instance - called lazily on first use
 let _db: ReturnType<typeof postgres> | undefined
 
