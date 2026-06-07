@@ -24,16 +24,18 @@ const app = Fastify({
 })
 
 async function start() {
-  await app.register(cors, {
-    origin: (origin, cb) => {
-      const allowed =
-        !origin ||
-        (!!origin && origin.endsWith(`.${APP_DOMAIN}`)) ||
-        (NODE_ENV === 'development' && !!origin && origin.includes('localhost'))
-      cb(null, allowed)
-    },
-    credentials: true,
-  })
+ await app.register(cors, {
+  origin: (origin, cb) => {
+    const allowed =
+      !origin ||
+      origin.includes('localhost') ||
+      origin.includes('vercel.app') ||
+      origin.includes('railway.app') ||
+      (!!origin && origin.endsWith(`.${APP_DOMAIN}`))
+    cb(null, allowed)
+  },
+  credentials: true,
+})
 
   await app.register(jwt, { secret: JWT_SECRET })
   await app.register(cookie)
