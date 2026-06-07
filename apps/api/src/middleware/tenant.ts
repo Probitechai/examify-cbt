@@ -8,11 +8,13 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
   const host = request.hostname
   let subdomain: string | null = null
 
-  if (process.env.NODE_ENV === 'development') {
-    subdomain = (request.headers['x-school-subdomain'] as string) ?? extractSubdomain(host) ?? 'greensprings'
-  } else {
-    subdomain = extractSubdomain(host)
-  }
+
+// Always check header first in both dev and production
+subdomain = (request.headers['x-school-subdomain'] as string) ?? extractSubdomain(host)
+
+if (!subdomain && process.env.NODE_ENV === 'development') {
+  subdomain = 'greensprings'
+}
 
   if (!subdomain) {
     return reply.status(400).send({
