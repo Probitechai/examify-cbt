@@ -8,28 +8,16 @@ export class ApiError extends Error {
   }
 }
 function getSchoolSubdomain(): string {
-  if (typeof window === 'undefined') return 'greensprings'
-  
-  const hostname = window.location.hostname
-  const parts = hostname.split('.')
-  
-  // Production: subdomain.examify-cbt-web.vercel.app
-  // Check for known subdomains
-  if (parts.length >= 2) {
-    const sub = parts[0]
-    if (sub !== 'examify-cbt-web' && sub !== 'localhost' && sub !== 'www') {
-      return sub
+  try {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('examify_school')
+      if (stored && stored.length > 0) return stored
     }
+  } catch {
+    // ignore
   }
-  
-  // Development fallback — check localStorage for selected school
-  const stored = localStorage.getItem('examify_school')
-  if (stored) return stored
-  
-  // Default fallback
   return 'greensprings'
 }
-
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = Cookies.get('examify_token')
   const headers: HeadersInit = {
