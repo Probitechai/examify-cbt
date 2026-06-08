@@ -6,13 +6,14 @@ import { useAuthStore } from '../../hooks/useAuth'
 import styles from './admin.layout.module.css'
 
 const NAV = [
-  { href: '/admin',                icon: '▦',  label: 'Overview'        },
-  { href: '/admin/users',          icon: '👥', label: 'Students & Staff' },
-  { href: '/admin/users/import',   icon: '📥', label: 'Import students'  },
-  { href: '/admin/exams',          icon: '📋', label: 'Exams'           },
-  { href: '/admin/questions',      icon: '❓', label: 'Question bank'   },
-  { href: '/admin/results',        icon: '📊', label: 'Results'         },
-  { href: '/teacher',              icon: '📝', label: 'Teacher Portal'  },
+  { href: '/admin',              icon: '▦',  label: 'Overview'        },
+  { href: '/admin/users',        icon: '👥', label: 'Students & Staff' },
+  { href: '/admin/users/import', icon: '📥', label: 'Import students'  },
+  { href: '/admin/exams',        icon: '📋', label: 'Exams'           },
+  { href: '/admin/timetable',    icon: '🗓', label: 'Timetable'       },
+  { href: '/admin/questions',    icon: '❓', label: 'Question bank'   },
+  { href: '/admin/results',      icon: '📊', label: 'Results'         },
+  { href: '/teacher',            icon: '📝', label: 'Teacher Portal'  },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
