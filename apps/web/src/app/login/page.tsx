@@ -12,6 +12,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [school, setSchool] = useState(() => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('examify_school') ?? 'greensprings'
+  }
+  return 'greensprings'
+})
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -78,7 +84,21 @@ export default function LoginPage() {
               autoComplete="current-password"
             />
           </div>
-
+<div className={styles.field}>
+  <label htmlFor="school" className={styles.label}>School</label>
+  <select
+    id="school"
+    className={styles.input}
+    value={school}
+    onChange={e => {
+      setSchool(e.target.value)
+      localStorage.setItem('examify_school', e.target.value)
+    }}
+  >
+    <option value="greensprings">Greensprings Academy (Demo)</option>
+    <option value="fmandt">F.M. & T Covenant Schools</option>
+  </select>
+</div>
           {error && <p className={styles.error} role="alert">{error}</p>}
 
           <button type="submit" className={styles.btn} disabled={submitting}>
