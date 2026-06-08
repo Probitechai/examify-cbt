@@ -31,6 +31,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setSubmitting(true)
+    localStorage.setItem('examify_school', school)  // ← add this line
     try {
       const { token, user } = await api.login(email.trim(), password)
       setAuth(token, user)
