@@ -9,6 +9,7 @@ const NAV = [
   { href: '/admin',           icon: '▦',  label: 'Overview'        },
   { href: '/admin/users',     icon: '👥', label: 'Students & Staff' },
   { href: '/admin/exams',     icon: '📋', label: 'Exams'           },
+  { href: '/admin/questions', icon: '❓', label: 'Question bank'   },
   { href: '/admin/results',   icon: '📊', label: 'Results'         },
   { href: '/teacher',         icon: '📝', label: 'Teacher Portal'  },
 ]
