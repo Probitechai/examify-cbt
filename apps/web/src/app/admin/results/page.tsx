@@ -1,122 +1,279 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import styles from './results.module.css'
+import { useState, useEffect } from 'react'
 
-const MOCK_RESULTS = [
-  { studentName: 'Amara Obi', admissionNo: 'GS/2024/001', classLevel: 'SS2', classArm: 'A', score: 82, percentage: 82, passed: true, status: 'submitted' },
-  { studentName: 'Tunde Adeyemi', admissionNo: 'GS/2024/002', classLevel: 'SS2', classArm: 'A', score: 74, percentage: 74, passed: true, status: 'submitted' },
-  { studentName: 'Ngozi Eze', admissionNo: 'GS/2024/003', classLevel: 'SS2', classArm: 'B', score: 91, percentage: 91, passed: true, status: 'submitted' },
-  { studentName: 'Emeka Nwosu', admissionNo: 'GS/2024/004', classLevel: 'SS2', classArm: 'A', score: 43, percentage: 43, passed: false, status: 'submitted' },
-  { studentName: 'Halima Sule', admissionNo: 'GS/2024/005', classLevel: 'SS2', classArm: 'B', score: 67, percentage: 67, passed: true, status: 'submitted' },
-  { studentName: 'Chidi Okafor', admissionNo: 'GS/2024/006', classLevel: 'SS2', classArm: 'A', score: 55, percentage: 55, passed: true, status: 'submitted' },
-  { studentName: 'Aisha Musa', admissionNo: 'GS/2024/007', classLevel: 'SS2', classArm: 'B', score: 38, percentage: 38, passed: false, status: 'submitted' },
-  { studentName: 'Obinna Eze', admissionNo: 'GS/2024/008', classLevel: 'SS2', classArm: 'A', score: 0, percentage: 0, passed: false, status: 'in_progress' },
-]
+interface ExamResult {
+  student_name: string
+  admission_no: string
+  class_level: string
+  class_arm: string
+  score: number
+  percentage: number
+  passed: boolean
+  status: string
+  submitted_at: string
+}
 
-export default function ResultsPage() {
-  const router = useRouter()
-  const [sort, setSort] = useState<'percentage' | 'name'>('percentage')
+interface Stats {
+  total: number
+  submitted: number
+  passed: number
+  avgScore: number
+}
+
+interface Exam {
+  id: string
+  title: string
+  subject: string
+  class_level: string
+  status: string
+  scheduled_at: string
+}
+
+export default function AdminResultsPage() {
+  const [exams, setExams] = useState<Exam[]>([])
+  const [selectedExam, setSelectedExam] = useState<Exam | null>(null)
+  const [results, setResults] = useState<ExamResult[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loadingExams, setLoadingExams] = useState(true)
+  const [loadingResults, setLoadingResults] = useState(false)
   const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all')
+  const [sort, setSort] = useState<'percentage' | 'name'>('percentage')
+  const [exporting, setExporting] = useState(false)
 
-  const submitted = MOCK_RESULTS.filter(r => r.status === 'submitted')
-  const stats = {
-    total: MOCK_RESULTS.length,
-    submitted: submitted.length,
-    passed: submitted.filter(r => r.passed).length,
-    failed: submitted.filter(r => !r.passed).length,
-    avg: Math.round(submitted.reduce((s, r) => s + r.percentage, 0) / (submitted.length || 1)),
-    highest: Math.max(...submitted.map(r => r.percentage)),
-    lowest: Math.min(...submitted.map(r => r.percentage)),
+  function getToken() {
+    return document.cookie.split(';')
+      .find(c => c.trim().startsWith('examify_token='))?.split('=')[1]
   }
 
-  const filtered = MOCK_RESULTS
-    .filter(r => filter === 'all' || (filter === 'passed' ? r.passed : !r.passed))
-    .sort((a, b) => sort === 'percentage' ? b.percentage - a.percentage : a.studentName.localeCompare(b.studentName))
+  useEffect(() => {
+    const token = getToken()
+    if (!token) return
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-School-Subdomain': 'greensprings',
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(r => r.json())
+      .then(d => setExams(d.exams ?? []))
+      .catch(console.error)
+      .finally(() => setLoadingExams(false))
+  }, [])
+
+  async function loadResults(exam: Exam) {
+    setSelectedExam(exam)
+    setLoadingResults(true)
+    setResults([])
+    setStats(null)
+    const token = getToken()
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${exam.id}/results`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-School-Subdomain': 'greensprings',
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await res.json()
+      setResults(data.results ?? [])
+      setStats(data.stats ?? null)
+    } catch (err) {
+      console.error('Failed to load results:', err)
+    } finally {
+      setLoadingResults(false)
+    }
+  }
+
+  function exportToCSV() {
+    if (!selectedExam || results.length === 0) return
+    setExporting(true)
+
+    const headers = ['Rank','Student Name','Admission No','Class','Arm','Score','Percentage','Result','Status','Submitted At']
+    const rows = results.map((r, i) => [
+      r.status === 'submitted' ? i + 1 : '',
+      r.student_name ?? '',
+      r.admission_no ?? '',
+      r.class_level ?? '',
+      r.class_arm ?? '',
+      r.score ?? '',
+      r.percentage ? `${Math.round(r.percentage * 10) / 10}%` : '',
+      r.passed === true ? 'Pass' : r.passed === false ? 'Fail' : '',
+      r.status ?? '',
+      r.submitted_at ? new Date(r.submitted_at).toLocaleString('en-NG') : '',
+    ])
+
+    const summaryRows = [
+      [],
+      ['SUMMARY'],
+      ['Total Students', stats?.total ?? results.length],
+      ['Submitted', stats?.submitted ?? ''],
+      ['Passed', stats?.passed ?? ''],
+      ['Failed', (stats?.submitted ?? 0) - (stats?.passed ?? 0)],
+      ['Average Score', stats?.avgScore ? `${stats.avgScore}%` : ''],
+      ['Pass Rate', stats?.submitted ? `${Math.round((stats.passed / stats.submitted) * 100)}%` : ''],
+    ]
+
+    const allRows = [headers, ...rows, ...summaryRows]
+    const csv = allRows.map(row =>
+      row.map((cell: any) => {
+        const str = String(cell ?? '')
+        return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
+      }).join(',')
+    ).join('\n')
+
+    const bom = '\uFEFF'
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${selectedExam.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-results.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExporting(false)
+  }
+
+  const filteredResults = results
+    .filter(r => {
+      if (filter === 'passed') return r.passed
+      if (filter === 'failed') return !r.passed && r.status === 'submitted'
+      return true
+    })
+    .sort((a, b) => sort === 'name'
+      ? a.student_name.localeCompare(b.student_name)
+      : (b.percentage ?? 0) - (a.percentage ?? 0))
 
   function getScoreColor(pct: number) {
-    if (pct >= 70) return styles.scoreHigh
-    if (pct >= 50) return styles.scoreMid
-    return styles.scoreLow
+    if (pct >= 70) return '#1a6b4a'
+    if (pct >= 50) return '#d97706'
+    return '#dc2626'
   }
 
+  function formatDate(iso: string) {
+    if (!iso) return ''
+    return new Date(iso).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+
+  const passRate = stats && stats.submitted > 0
+    ? Math.round((stats.passed / stats.submitted) * 100) : 0
+
   return (
-    <div className={styles.page}>
-      <div className={styles.pageHeader}>
-        <div>
-          <h1 className={styles.title}>Results</h1>
-          <p className={styles.subtitle}>Third Term English Examination · SS2</p>
-        </div>
-        <button className={styles.exportBtn}>↓ Export CSV</button>
+    <div style={{ padding: '2rem', maxWidth: '1100px', fontFamily: 'var(--font-body)' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Results</h1>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>View and export exam results for all students</p>
       </div>
 
-      <div className={styles.statGrid}>
-        <div className={styles.statCard}><p className={styles.statLabel}>Submitted</p><p className={styles.statValue}>{stats.submitted}<span>/{stats.total}</span></p></div>
-        <div className={styles.statCard}><p className={styles.statLabel}>Pass rate</p><p className={`${styles.statValue} ${styles.statGreen}`}>{Math.round((stats.passed / (stats.submitted || 1)) * 100)}%</p></div>
-        <div className={styles.statCard}><p className={styles.statLabel}>Class average</p><p className={styles.statValue}>{stats.avg}%</p></div>
-        <div className={styles.statCard}><p className={styles.statLabel}>Highest score</p><p className={`${styles.statValue} ${styles.statGreen}`}>{stats.highest}%</p></div>
-        <div className={styles.statCard}><p className={styles.statLabel}>Lowest score</p><p className={`${styles.statValue} ${styles.statRed}`}>{stats.lowest}%</p></div>
-        <div className={styles.statCard}><p className={styles.statLabel}>Failed</p><p className={`${styles.statValue} ${styles.statRed}`}>{stats.failed}</p></div>
-      </div>
-
-      <div className={styles.controls}>
-        <div className={styles.filterRow}>
-          {(['all', 'passed', 'failed'] as const).map(f => (
-            <button key={f} className={`${styles.filterBtn} ${filter === f ? styles.filterActive : ''}`} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All students' : f === 'passed' ? 'Passed' : 'Failed'}
-            </button>
-          ))}
+      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Select an exam to view results</p>
         </div>
-        <select className={styles.sortSelect} value={sort} onChange={e => setSort(e.target.value as 'percentage' | 'name')}>
-          <option value="percentage">Sort by score</option>
-          <option value="name">Sort by name</option>
-        </select>
-      </div>
-
-      <div className={styles.tableWrap}>
-        <div className={styles.tableHead}>
-          <span>Rank</span>
-          <span>Student</span>
-          <span>Adm. No.</span>
-          <span>Class</span>
-          <span>Score</span>
-          <span>Result</span>
-          <span>Status</span>
-        </div>
-        {filtered.map((r, i) => (
-          <div key={r.admissionNo} className={styles.tableRow}>
-            <span className={styles.rank}>{r.status === 'submitted' ? i + 1 : '—'}</span>
-            <span className={styles.nameCell}>
-              <span className={styles.rowAvatar}>{r.studentName.charAt(0)}</span>
-              <span className={styles.studentName}>{r.studentName}</span>
-            </span>
-            <span className={styles.cell}>{r.admissionNo}</span>
-            <span className={styles.cell}>{r.classLevel} {r.classArm}</span>
-            <span>
-              {r.status === 'submitted' ? (
-                <div className={styles.scoreWrap}>
-                  <div className={styles.scoreBar}>
-                    <div className={`${styles.scoreFill} ${getScoreColor(r.percentage)}`} style={{ width: `${r.percentage}%` }} />
-                  </div>
-                  <span className={`${styles.scorePct} ${getScoreColor(r.percentage)}`}>{r.percentage}%</span>
-                </div>
-              ) : <span className={styles.cell}>—</span>}
-            </span>
-            <span>
-              {r.status === 'submitted' ? (
-                <span className={`${styles.resultPill} ${r.passed ? styles.passed : styles.failed}`}>
-                  {r.passed ? 'Pass' : 'Fail'}
-                </span>
-              ) : '—'}
-            </span>
-            <span>
-              <span className={`${styles.statusPill} ${r.status === 'submitted' ? styles.statusDone : styles.statusPending}`}>
-                {r.status === 'submitted' ? 'Submitted' : 'In progress'}
-              </span>
-            </span>
+        {loadingExams ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading exams…</div>
+        ) : exams.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No exams found.</div>
+        ) : exams.map(exam => (
+          <div key={exam.id} onClick={() => loadResults(exam)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border)', cursor: 'pointer', background: selectedExam?.id === exam.id ? 'var(--brand-light)' : 'transparent', transition: 'background 0.15s' }}>
+            <div>
+              <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{exam.title}</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{exam.subject} · {exam.class_level} · {formatDate(exam.scheduled_at)}</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', textTransform: 'uppercase' as const, background: exam.status === 'active' ? 'var(--brand-light)' : 'var(--bg)', color: exam.status === 'active' ? 'var(--brand-dark)' : 'var(--text-secondary)', border: exam.status !== 'active' ? '1px solid var(--border)' : 'none' }}>{exam.status}</span>
+              {selectedExam?.id === exam.id && <span style={{ color: 'var(--brand)' }}>✓</span>}
+            </div>
           </div>
         ))}
       </div>
+
+      {selectedExam && !loadingResults && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            {[
+              { label: 'Total', value: stats?.total ?? 0, color: 'var(--text-primary)' },
+              { label: 'Submitted', value: stats?.submitted ?? 0, color: 'var(--text-primary)' },
+              { label: 'Passed', value: stats?.passed ?? 0, color: '#1a6b4a' },
+              { label: 'Failed', value: (stats?.submitted ?? 0) - (stats?.passed ?? 0), color: '#dc2626' },
+              { label: 'Avg score', value: stats?.avgScore ? `${stats.avgScore}%` : '—', color: 'var(--text-primary)' },
+              { label: 'Pass rate', value: `${passRate}%`, color: passRate >= 50 ? '#1a6b4a' : '#dc2626' },
+            ].map(s => (
+              <div key={s.label} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '0.375rem' }}>{s.label}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: 600, color: s.color, letterSpacing: '-0.02em' }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'flex', gap: '0.375rem' }}>
+              {(['all', 'passed', 'failed'] as const).map(f => (
+                <button key={f} onClick={() => setFilter(f)} style={{ padding: '0.5rem 1rem', fontSize: '0.825rem', fontWeight: 500, borderRadius: '20px', cursor: 'pointer', background: filter === f ? '#1a6b4a' : 'white', color: filter === f ? 'white' : 'var(--text-secondary)', border: `1.5px solid ${filter === f ? '#1a6b4a' : 'var(--border)'}` }}>
+                  {f === 'all' ? 'All students' : f === 'passed' ? 'Passed' : 'Failed'}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <select value={sort} onChange={e => setSort(e.target.value as 'percentage' | 'name')} style={{ padding: '0.5rem 0.875rem', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.825rem', color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }}>
+                <option value="percentage">Sort by score</option>
+                <option value="name">Sort by name</option>
+              </select>
+              <button onClick={exportToCSV} disabled={exporting || results.length === 0} style={{ padding: '0.5rem 1.25rem', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', cursor: exporting ? 'not-allowed' : 'pointer' }}>
+                {exporting ? '⏳ Exporting…' : '↓ Export CSV'}
+              </button>
+            </div>
+          </div>
+
+          {results.length === 0 ? (
+            <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📊</div>
+              <p>No results yet. Students haven't submitted this exam.</p>
+            </div>
+          ) : (
+            <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.8fr 0.7fr 1fr', gap: '0.75rem', padding: '0.625rem 1.25rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                <span>Rank</span><span>Student</span><span>Adm. No.</span><span>Class</span><span>Score</span><span>Result</span><span>Status</span>
+              </div>
+              {filteredResults.map((r, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.8fr 0.7fr 1fr', gap: '0.75rem', padding: '0.875rem 1.25rem', alignItems: 'center', borderTop: '1px solid var(--border)', fontSize: '0.875rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{r.status === 'submitted' ? i + 1 : '—'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                    <span style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--brand-light)', color: 'var(--brand-dark)', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{r.student_name?.charAt(0)}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{r.student_name}</span>
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.admission_no ?? '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.class_level} {r.class_arm}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                    {r.status === 'submitted' ? (
+                      <>
+                        <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden', maxWidth: 80 }}>
+                          <div style={{ width: `${r.percentage}%`, height: '100%', background: getScoreColor(r.percentage), borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: '0.825rem', fontWeight: 600, color: getScoreColor(r.percentage), minWidth: 36 }}>{Math.round(r.percentage * 10) / 10}%</span>
+                      </>
+                    ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                  </span>
+                  <span>
+                    {r.status === 'submitted' && (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', background: r.passed ? 'var(--brand-light)' : 'var(--danger-light)', color: r.passed ? 'var(--brand-dark)' : 'var(--danger)' }}>
+                        {r.passed ? 'Pass' : 'Fail'}
+                      </span>
+                    )}
+                  </span>
+                  <span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', background: r.status === 'submitted' ? 'var(--bg)' : 'var(--warning-light)', color: r.status === 'submitted' ? 'var(--text-secondary)' : 'var(--warning)', border: r.status === 'submitted' ? '1px solid var(--border)' : 'none' }}>
+                      {r.status === 'submitted' ? 'Submitted' : r.status === 'in_progress' ? 'In progress' : r.status}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {selectedExam && loadingResults && (
+        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading results…</div>
+      )}
     </div>
   )
 }
