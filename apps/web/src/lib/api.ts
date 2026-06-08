@@ -50,31 +50,36 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   login: async (email: string, password: string) => {
-    const data = await request<any>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    })
-
-    // Normalise response — ensure school object always exists
-    const user = data.user ?? {}
-    return {
-      token: data.token,
-      user: {
-        id: user.id ?? '',
-        role: user.role ?? 'student',
-        email: user.email ?? email,
-        fullName: user.fullName ?? user.full_name ?? '',
-        classLevel: user.classLevel ?? user.class_level,
-        classArm: user.classArm ?? user.class_arm,
-        school: user.school ?? {
-          id: '',
-          name: 'Greensprings Academy',
-          subdomain: 'greensprings',
-        },
+  const data = await request<any>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  })
+  const user = data.user ?? {}
+  
+  // Save subdomain from server response — most reliable source
+  const subdomain = user.school?.subdomain
+  if (subdomain && typeof window !== 'undefined') {
+    window.localStorage.setItem('examify_school', subdomain)
+    console.log('School subdomain set to:', subdomain)
+  }
+  
+  return {
+    token: data.token,
+    user: {
+      id: user.id ?? '',
+      role: user.role ?? 'student',
+      email: user.email ?? email,
+      fullName: user.fullName ?? user.full_name ?? '',
+      classLevel: user.classLevel ?? user.class_level,
+      classArm: user.classArm ?? user.class_arm,
+      school: user.school ?? {
+        id: '',
+        name: 'F.M. & T Covenant Schools',
+        subdomain: 'fmandt',
       },
-    }
-  },
-
+    },
+  }
+},
   me: async () => {
     const data = await request<any>('/auth/me')
     const user = data.user ?? {}
