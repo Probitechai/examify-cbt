@@ -106,3 +106,62 @@
 
 .submitSideBtn { width: 100%; padding: 0.75rem; background: var(--danger); color: white; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 500; transition: opacity 0.15s; }
 .submitSideBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── INSTRUCTIONS SCREEN ──────────────────────────────────────────────────── */
+.instructionsScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background: var(--bg); }
+.instructionsCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 2.5rem 2rem; width: 100%; max-width: 600px; }
+.instructionsHeader { text-align: center; margin-bottom: 1.75rem; }
+.instructionsIcon { font-size: 3rem; margin-bottom: 0.75rem; }
+.instructionsTitle { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 0.375rem; }
+.instructionsSubtitle { font-size: 0.9rem; color: var(--text-secondary); }
+
+.examInfoGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.75rem; }
+.examInfoItem { background: var(--bg); border-radius: var(--radius-md); padding: 0.875rem 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.examInfoLabel { font-size: 0.72rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+.examInfoValue { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+
+.instructionsList { margin-bottom: 1.75rem; }
+.instructionsListTitle { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
+.instructionsList ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.instructionsList li { display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; }
+.instructionBullet { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+.customInstructions { margin-top: 1.25rem; background: var(--brand-light); border: 1px solid var(--brand); border-radius: var(--radius-md); padding: 1rem; }
+.customInstructions h3 { font-size: 0.825rem; font-weight: 600; color: var(--brand-dark); margin-bottom: 0.5rem; }
+.customInstructions p { font-size: 0.875rem; color: var(--brand-dark); line-height: 1.6; }
+
+.instructionsFooter { display: flex; gap: 0.875rem; justify-content: space-between; }
+.backBtn { padding: 0.75rem 1.25rem; border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background: transparent; cursor: pointer; transition: all 0.15s; }
+.backBtn:hover { background: var(--bg); }
+.startBtn { flex: 1; padding: 0.875rem; background: var(--brand); color: white; font-size: 0.95rem; font-weight: 600; border-radius: var(--radius-md); border: none; cursor: pointer; transition: background 0.15s; }
+.startBtn:hover { background: var(--brand-dark); }
+
+/* ── CONFIRM DIALOG ───────────────────────────────────────────────────────── */
+.confirmBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+.confirmDialog { background: var(--surface); border-radius: var(--radius-xl); padding: 2rem; width: 100%; max-width: 420px; text-align: center; border: 1px solid var(--border); }
+.confirmIcon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.confirmTitle { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem; }
+.confirmMsg { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem; }
+.confirmActions { display: flex; gap: 0.75rem; }
+.confirmCancel { flex: 1; padding: 0.75rem; border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background: transparent; cursor: pointer; }
+.confirmCancel:hover { background: var(--bg); }
+.confirmSubmit { flex: 1; padding: 0.75rem; background: var(--brand); color: white; font-size: 0.875rem; font-weight: 600; border-radius: var(--radius-md); border: none; cursor: pointer; }
+.confirmSubmit:hover { background: var(--brand-dark); }
+
+/* ── UNANSWERED WARNING ───────────────────────────────────────────────────── */
+.unansweredWarning { font-size: 0.75rem; color: var(--warning); background: var(--warning-light); border-radius: var(--radius-sm); padding: 0.375rem 0.625rem; text-align: center; margin-bottom: 0.5rem; }
+
+/* ── ANSWER REVIEW ────────────────────────────────────────────────────────── */
+.reviewSection { width: 100%; margin-top: 1.5rem; text-align: left; }
+.reviewTitle { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; text-align: center; }
+.reviewList { display: flex; flex-direction: column; gap: 0.75rem; max-height: 400px; overflow-y: auto; padding-right: 0.25rem; }
+.reviewItem { display: flex; gap: 0.875rem; padding: 0.875rem; border-radius: var(--radius-md); border: 1.5px solid var(--border); }
+.reviewCorrect { background: var(--brand-light); border-color: var(--brand); }
+.reviewWrong { background: var(--danger-light); border-color: var(--danger); }
+.reviewNum { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; background: white; }
+.reviewCorrect .reviewNum { color: var(--brand); }
+.reviewWrong .reviewNum { color: var(--danger); }
+.reviewContent { flex: 1; }
+.reviewQ { font-size: 0.825rem; color: var(--text-primary); font-weight: 500; margin-bottom: 0.375rem; line-height: 1.4; }
+.reviewAnswer { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
+.reviewCorrectAnswer { font-size: 0.78rem; color: var(--brand-dark); font-weight: 500; }
