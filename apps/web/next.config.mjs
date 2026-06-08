@@ -20,4 +20,5 @@ const nextConfig = {
   },
 }
 
+
 export default nextConfig // v2
