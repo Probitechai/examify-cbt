@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
-import { api } from '../../lib/api'
 import styles from './overview.module.css'
 
 interface Stats {
@@ -28,23 +27,63 @@ export default function AdminOverview() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // In production, fetch real stats. Using mock for now.
-    setTimeout(() => {
-      setStats({
-        totalStudents: 312,
-        activeExams: 2,
-        completedExams: 8,
-        avgPassRate: 74,
-        recentExams: [
-          { id: '1', title: 'Third Term English', subject: 'English Language', status: 'active', scheduledAt: new Date().toISOString(), submitted: 78, total: 104 },
-          { id: '2', title: 'Third Term Mathematics', subject: 'Mathematics', status: 'active', scheduledAt: new Date().toISOString(), submitted: 45, total: 104 },
-          { id: '3', title: 'Third Term Chemistry', subject: 'Chemistry', status: 'completed', scheduledAt: new Date(Date.now() - 86400000 * 2).toISOString(), submitted: 102, total: 104 },
-          { id: '4', title: 'Third Term Biology', subject: 'Biology', status: 'completed', scheduledAt: new Date(Date.now() - 86400000 * 4).toISOString(), submitted: 104, total: 104 },
-        ],
+  const token = document.cookie.split(';')
+    .find(c => c.trim().startsWith('examify_token='))?.split('=')[1]
+  if (!token) return
+
+  const subdomain = localStorage.getItem('examify_school') ?? 'greensprings'
+
+  async function loadStats() {
+    try {
+      // Fetch real exams
+      const examsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-School-Subdomain': subdomain,
+          'Content-Type': 'application/json'
+        }
       })
+      const examsData = await examsRes.json()
+      const exams = examsData.exams ?? []
+
+      // Fetch real students count
+      const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-School-Subdomain': subdomain,
+          'Content-Type': 'application/json'
+        }
+      })
+      const usersData = await usersRes.json()
+      const students = usersData.users ?? []
+
+      const activeExams = exams.filter((e: any) => e.status === 'active')
+      const completedExams = exams.filter((e: any) => e.status === 'completed')
+
+      setStats({
+        totalStudents: students.length,
+        activeExams: activeExams.length,
+        completedExams: completedExams.length,
+        avgPassRate: 0,
+        recentExams: exams.slice(0, 4).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          subject: e.subject,
+          status: e.status,
+          scheduledAt: e.scheduled_at,
+          submitted: 0,
+          total: students.length,
+        }))
+      })
+    } catch (err) {
+      console.error('Failed to load stats:', err)
+    } finally {
       setLoading(false)
-    }, 600)
-  }, [])
+    }
+  }
+
+  loadStats()
+}, [])
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })
