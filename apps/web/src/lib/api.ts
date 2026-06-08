@@ -90,10 +90,8 @@ export const api = {
     request<{ exams: any[] }>('/exams/available'),
 
   startExam: (examId: string) =>
-  request<{ sessionId: string; resumed: boolean }>(`/exams/${examId}/start`, { 
-    method: 'POST',
-    body: JSON.stringify({}),
-  }),
+    request<{ sessionId: string; resumed: boolean }>(`/exams/${examId}/start`, { method: 'POST' }),
+
   getExamSession: (examId: string) =>
     request<{ session: any; questions: any[]; totalQuestions: number }>(`/exams/${examId}/session`),
 
@@ -104,10 +102,8 @@ export const api = {
     }),
 
   submitExam: (sessionId: string) =>
-  request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, { 
-    method: 'POST',
-    body: JSON.stringify({}),
-  }),
+    request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, { method: 'POST' }),
+
   // Admin / Teacher
   getExams: () =>
     request<{ exams: any[] }>('/exams'),
@@ -126,4 +122,10 @@ export const api = {
 
   createQuestion: (data: any) =>
     request<{ questionId: string }>('/questions', { method: 'POST', body: JSON.stringify(data) }),
+
+  deleteQuestion: (id: string) =>
+    request<{ deleted: boolean }>(`/questions/${id}`, { method: 'DELETE' }),
+
+  createExam: (data: any) =>
+    request<{ examId: string }>('/exams', { method: 'POST', body: JSON.stringify(data) }),
 }

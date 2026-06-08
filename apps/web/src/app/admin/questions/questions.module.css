@@ -1,0 +1,61 @@
+.page { padding: 2rem; max-width: 1100px; }
+.pageHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.title { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 0.25rem; }
+.subtitle { font-size: 0.9rem; color: var(--text-secondary); }
+.addBtn { padding: 0.625rem 1.25rem; background: var(--brand); color: white; font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-md); border: none; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+.addBtn:hover { background: var(--brand-dark); }
+
+.filterRow { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.search { flex: 1; min-width: 200px; padding: 0.625rem 1rem; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; color: var(--text-primary); outline: none; transition: border-color .15s; }
+.search:focus { border-color: var(--brand); }
+.sel { padding: 0.625rem 1rem; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; color: var(--text-primary); cursor: pointer; outline: none; }
+.deleteBtn { display: flex; align-items: center; gap: 0.375rem; padding: 0.625rem 1rem; background: var(--danger-light); color: var(--danger); border: 1.5px solid #fecaca; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+.deleteBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.tableWrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.tableHead { display: grid; grid-template-columns: 36px 1fr 120px 80px 120px 90px 70px 100px 70px; gap: 0.75rem; padding: 0.625rem 1.25rem; font-size: 0.72rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .05em; background: var(--bg); border-bottom: 1px solid var(--border); }
+.tableRow { display: grid; grid-template-columns: 36px 1fr 120px 80px 120px 90px 70px 100px 70px; gap: 0.75rem; padding: 0.875rem 1.25rem; align-items: center; border-top: 1px solid var(--border); font-size: 0.875rem; transition: background .1s; }
+.tableRow:hover { background: var(--bg); }
+.rowSelected { background: var(--brand-light) !important; }
+.qText { font-size: 0.825rem; color: var(--text-primary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cell { color: var(--text-secondary); font-size: 0.8rem; }
+.diffPill { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 20px; text-transform: capitalize; }
+.diffEasy { background: var(--brand-light); color: var(--brand-dark); }
+.diffMedium { background: var(--warning-light); color: var(--warning); }
+.diffHard { background: var(--danger-light); color: var(--danger); }
+.editBtn { font-size: 0.78rem; color: var(--brand); font-weight: 500; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); transition: background .1s; }
+.editBtn:hover { background: var(--brand-light); }
+
+.loading { display: flex; flex-direction: column; gap: 0; }
+.skeleton { height: 56px; background: var(--bg); border-top: 1px solid var(--border); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.empty { padding: 3rem; text-align: center; color: var(--text-secondary); font-size: 0.9rem; }
+
+/* Modal */
+.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 1rem; }
+.modal { background: var(--surface); border-radius: var(--radius-xl); width: 100%; max-width: 560px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto; }
+.modalHeader { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 1.75rem 0; }
+.modalTitle { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+.closeBtn { color: var(--text-tertiary); font-size: 1rem; padding: 0.25rem; }
+.modalBody { padding: 1.25rem 1.75rem; display: flex; flex-direction: column; gap: 1rem; }
+.modalFooter { display: flex; gap: 0.75rem; justify-content: flex-end; padding: 0 1.75rem 1.5rem; }
+
+.formRow { display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 0.875rem; }
+.formField { display: flex; flex-direction: column; gap: 0.4rem; }
+.formField label { font-size: 0.825rem; font-weight: 500; color: var(--text-primary); }
+.formField input, .formField select, .formField textarea { padding: 0.625rem 0.875rem; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; color: var(--text-primary); outline: none; transition: border-color .15s; font-family: var(--font-body); }
+.formField input:focus, .formField select:focus, .formField textarea:focus { border-color: var(--brand); background: white; }
+.formField textarea { resize: vertical; line-height: 1.6; }
+
+.hint { font-size: 0.78rem; color: var(--text-tertiary); }
+.optionsGrid { display: flex; flex-direction: column; gap: 0.625rem; }
+.optionField { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 0.875rem; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-md); transition: border-color .15s; }
+.optionCorrect { border-color: var(--brand); background: var(--brand-light); }
+.optKey { width: 28px; height: 28px; border-radius: 50%; background: white; border: 1.5px solid var(--border-strong); font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
+.optKeySelected { background: var(--brand); border-color: var(--brand); color: white; }
+.optionField input { flex: 1; background: transparent; border: none; font-size: 0.875rem; color: var(--text-primary); outline: none; font-family: var(--font-body); }
+
+.error { font-size: 0.875rem; color: var(--danger); background: var(--danger-light); border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 0.625rem 0.875rem; }
+.cancelBtn { padding: 0.625rem 1.25rem; border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); background: transparent; cursor: pointer; }
+.saveBtn { padding: 0.625rem 1.25rem; background: var(--brand); color: white; font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-md); border: none; cursor: pointer; }
+.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
