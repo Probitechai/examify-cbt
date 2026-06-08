@@ -90,7 +90,10 @@ export const api = {
     request<{ exams: any[] }>('/exams/available'),
 
   startExam: (examId: string) =>
-    request<{ sessionId: string; resumed: boolean }>(`/exams/${examId}/start`, { method: 'POST' }),
+  request<{ sessionId: string; resumed: boolean }>(`/exams/${examId}/start`, { 
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
 
   getExamSession: (examId: string) =>
     request<{ session: any; questions: any[]; totalQuestions: number }>(`/exams/${examId}/session`),
@@ -102,7 +105,10 @@ export const api = {
     }),
 
   submitExam: (sessionId: string) =>
-    request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, { method: 'POST' }),
+  request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, { 
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
 
   // Admin / Teacher
   getExams: () =>
