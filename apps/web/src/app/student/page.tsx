@@ -11,7 +11,6 @@ const StudentDashboard = dynamic(() => import('./StudentDashboard2'), {
   )
 })
 
-
 export default function StudentPage() {
   return <StudentDashboard />
 }
