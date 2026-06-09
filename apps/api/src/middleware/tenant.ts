@@ -8,7 +8,6 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
   const host = request.hostname
   let subdomain: string | null = null
 
-
 // Always check header first in both dev and production
 // Always read header first — works in both dev and production
 subdomain = (request.headers['x-school-subdomain'] as string) ?? extractSubdomain(host)
