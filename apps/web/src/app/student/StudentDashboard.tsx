@@ -111,7 +111,9 @@ export default function StudentDashboard() {
 
   const availableExams = exams.filter(e => canStart(e))
   const completedExams = exams.filter(e => isCompleted(e))
-  const upcomingExams = exams.filter(e => !canStart(e) && !isCompleted(e) && e.status === 'scheduled')
+  const upcomingExams = exams.filter(e => {
+    return !canStart(e) && !isCompleted(e) && e.status === 'scheduled'
+  })
 
   if (isLoading || !user) {
     return (
