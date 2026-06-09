@@ -63,10 +63,13 @@ export async function examRoutes(app: FastifyInstance) {
       const studentClass = request.user.classLevel ?? request.user.class_level ?? 'SS2'
       const result = await tdb.query`
         SELECT e.id, e.title, e.subject, e.duration_minutes,
-               e.scheduled_at, e.ends_at, e.status,
-               es.status AS session_status
-        FROM exams e
-        LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}
+       e.scheduled_at, e.ends_at, e.status,
+       es.status AS session_status,
+       es.passed,
+       es.score,
+       es.percentage
+FROM exams e
+LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}
         WHERE e.status IN ('scheduled', 'active')
         AND (e.class_level = ${studentClass} OR e.class_level IS NULL)
         ORDER BY e.scheduled_at ASC
