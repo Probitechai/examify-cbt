@@ -1,7 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 
-const StudentDashboard = dynamic(() => import('./StudentDashboard'), {
+const StudentDashboard = dynamic(() => import('./StudentDashboard2'), {
   ssr: false,
   loading: () => (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
