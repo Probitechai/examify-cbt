@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthStore } from '../hooks/useAuth'
-import { api } from '../lib/api'
+import { useAuthStore } from '../../hooks/useAuth'
+import { api } from '../../lib/api'
 
 interface ExamSummary {
   id: string
