@@ -23,17 +23,14 @@ interface StudentStats {
   totalExams: number
   completed: number
   passed: number
-  failed: number
-  avgScore: number
+  available: number
 }
 
 export default function StudentDashboard() {
   const router = useRouter()
   const { user, isLoading, hydrate, logout } = useAuthStore()
   const [exams, setExams] = useState<ExamSummary[]>([])
-  const [stats, setStats] = useState<StudentStats>({
-    totalExams: 0, completed: 0, passed: 0, failed: 0, avgScore: 0
-  })
+  const [stats, setStats] = useState<StudentStats>({ totalExams: 0, completed: 0, passed: 0, available: 0 })
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -55,19 +52,21 @@ export default function StudentDashboard() {
       .then((d: any) => {
         const examList = d.exams ?? []
         setExams(examList)
-
-        // Calculate stats
         const completed = examList.filter((e: any) =>
           e.session_status === 'submitted' || e.sessionStatus === 'submitted'
         )
-        const passed = completed.filter((e: any) => e.passed)
-
+        const available = examList.filter((e: any) =>
+          e.status === 'active' &&
+          e.session_status !== 'submitted' &&
+          e.session_status !== 'timed_out' &&
+          e.sessionStatus !== 'submitted' &&
+          e.sessionStatus !== 'timed_out'
+        )
         setStats({
           totalExams: examList.length,
           completed: completed.length,
-          passed: passed.length,
-          failed: completed.length - passed.length,
-          avgScore: 0,
+          passed: completed.filter((e: any) => e.passed).length,
+          available: available.length,
         })
       })
       .catch(console.error)
@@ -75,9 +74,9 @@ export default function StudentDashboard() {
   }, [user])
 
   function getGreeting() {
-    const hour = currentTime.getHours()
-    if (hour < 12) return 'Good morning'
-    if (hour < 17) return 'Good afternoon'
+    const h = currentTime.getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
     return 'Good evening'
   }
 
@@ -87,61 +86,32 @@ export default function StudentDashboard() {
     })
   }
 
-  function formatTime(iso: string) {
-    const date = new Date(iso)
-    return date.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })
-  }
-
   function formatDateTime(iso: string) {
-    const date = new Date(iso)
-    return date.toLocaleString('en-NG', {
+    return new Date(iso).toLocaleString('en-NG', {
       weekday: 'short', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit'
     })
   }
 
-  function isToday(iso: string) {
-    const date = new Date(iso)
-    const today = new Date()
-    return date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
+  function getSessionStatus(e: ExamSummary) { return e.session_status ?? e.sessionStatus }
+  function getScheduledAt(e: ExamSummary) { return e.scheduled_at ?? e.scheduledAt }
+  function getDuration(e: ExamSummary) { return e.duration_minutes ?? e.durationMinutes }
+
+  function canStart(e: ExamSummary) {
+    const ss = getSessionStatus(e)
+    return e.status === 'active' && ss !== 'submitted' && ss !== 'timed_out'
   }
 
-  function getSessionStatus(exam: ExamSummary) {
-    return exam.session_status ?? exam.sessionStatus
-  }
-
-  function getScheduledAt(exam: ExamSummary) {
-    return exam.scheduled_at ?? exam.scheduledAt
-  }
-
-  function getDuration(exam: ExamSummary) {
-    return exam.duration_minutes ?? exam.durationMinutes
-  }
-
-  function canStart(exam: ExamSummary) {
-    const ss = getSessionStatus(exam)
-    return exam.status === 'active' && ss !== 'submitted' && ss !== 'timed_out'
-  }
-
-  function isCompleted(exam: ExamSummary) {
-    const ss = getSessionStatus(exam)
+  function isCompleted(e: ExamSummary) {
+    const ss = getSessionStatus(e)
     return ss === 'submitted' || ss === 'timed_out'
   }
 
-  function isInProgress(exam: ExamSummary) {
-    return getSessionStatus(exam) === 'in_progress'
-  }
+  function isInProgress(e: ExamSummary) { return getSessionStatus(e) === 'in_progress' }
 
-  // Split exams into sections
-  const todayExams = exams.filter(e => isToday(getScheduledAt(e)) && canStart(e))
-const availableExams = exams.filter(e => canStart(e) && !isToday(getScheduledAt(e)))
-const allAvailable = exams.filter(e => canStart(e))
+  const availableExams = exams.filter(e => canStart(e))
   const completedExams = exams.filter(e => isCompleted(e))
-  const upcomingExams = exams.filter(e =>
-    !canStart(e) && !isCompleted(e) && e.status === 'scheduled'
-  )
+  const upcomingExams = exams.filter(e => !canStart(e) && !isCompleted(e) && e.status === 'scheduled')
 
   if (isLoading || !user) {
     return (
@@ -155,7 +125,7 @@ const allAvailable = exams.filter(e => canStart(e))
   const initials = user.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f7f7f5', fontFamily: 'var(--font-body, system-ui)' }}>
+    <div style={{ minHeight: '100vh', background: '#f7f7f5', fontFamily: 'system-ui, sans-serif' }}>
 
       {/* Header */}
       <header style={{ background: 'white', borderBottom: '1px solid #e5e5e0', position: 'sticky', top: 0, zIndex: 10 }}>
@@ -175,8 +145,7 @@ const allAvailable = exams.filter(e => canStart(e))
             <div style={{ width: 38, height: 38, background: '#1a6b4a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.875rem' }}>
               {initials}
             </div>
-            <button
-              onClick={() => { logout(); router.push('/login') }}
+            <button onClick={() => { logout(); router.push('/login') }}
               style={{ fontSize: '0.825rem', color: '#6b6b65', padding: '0.375rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: 8, background: 'transparent', cursor: 'pointer' }}>
               Sign out
             </button>
@@ -194,16 +163,16 @@ const allAvailable = exams.filter(e => canStart(e))
               {getGreeting()}, {user.fullName.split(' ')[0]}! 👋
             </h1>
             <p style={{ fontSize: '0.9rem', opacity: 0.85 }}>
-              {allAvailable.length > 0
-                ? `You have ${allAvailable.length} exam${allAvailable.length > 1 ? 's' : ''} available to take`
+              {availableExams.length > 0
+                ? `You have ${availableExams.length} exam${availableExams.length > 1 ? 's' : ''} available to take`
                 : completedExams.length > 0
                 ? `You have completed ${completedExams.length} exam${completedExams.length > 1 ? 's' : ''} — well done!`
                 : 'No exams available at the moment. Check back later.'}
             </p>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: '1.25rem 1.75rem', textAlign: 'center', backdropFilter: 'blur(10px)' }}>
-            <p style={{ fontSize: '0.72rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Class</p>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>{user.classLevel} {user.classArm}</p>
+          <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 16, padding: '1.25rem 1.75rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.72rem', opacity: 0.8, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Class</p>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{user.classLevel} {user.classArm}</p>
           </div>
         </div>
 
@@ -213,7 +182,7 @@ const allAvailable = exams.filter(e => canStart(e))
             { label: 'Total exams', value: stats.totalExams, icon: '📋', color: '#1a6b4a', bg: '#e8f5ee' },
             { label: 'Completed', value: stats.completed, icon: '✅', color: '#1e40af', bg: '#eff6ff' },
             { label: 'Passed', value: stats.passed, icon: '🏆', color: '#1a6b4a', bg: '#e8f5ee' },
-            { label: 'Available now', value: allAvailable.length, icon: '⏰', color: '#d97706', bg: '#fffbeb' },
+            { label: 'Available now', value: stats.available, icon: '⏰', color: '#d97706', bg: '#fffbeb' },
           ].map(s => (
             <div key={s.label} style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 14, padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ width: 44, height: 44, background: s.bg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', flexShrink: 0 }}>
@@ -227,6 +196,7 @@ const allAvailable = exams.filter(e => canStart(e))
           ))}
         </div>
 
+        {/* Exam sections */}
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {[1,2,3].map(i => (
@@ -243,31 +213,23 @@ const allAvailable = exams.filter(e => canStart(e))
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-            {/* Available exams */}
-            {allAvailable.length > 0 && (
+            {availableExams.length > 0 && (
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                   <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#1a1a18' }}>Available Exams</h2>
-                  <span style={{ background: '#1a6b4a', color: 'white', fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: 20 }}>{allAvailable.length}</span>
+                  <span style={{ background: '#1a6b4a', color: 'white', fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: 20 }}>{availableExams.length}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {allAvailable.map(exam => (
-                    <ExamCard
-                      key={exam.id}
-                      exam={exam}
-                      type="available"
+                  {availableExams.map(exam => (
+                    <ExamCard key={exam.id} exam={exam} type="available"
                       onStart={() => router.push(`/student/exam/${exam.id}`)}
-                      formatDateTime={formatDateTime}
-                      getDuration={getDuration}
-                      getScheduledAt={getScheduledAt}
-                      isInProgress={isInProgress}
-                    />
+                      formatDateTime={formatDateTime} getDuration={getDuration}
+                      getScheduledAt={getScheduledAt} isInProgress={isInProgress} />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* Upcoming exams */}
             {upcomingExams.length > 0 && (
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -276,22 +238,15 @@ const allAvailable = exams.filter(e => canStart(e))
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {upcomingExams.map(exam => (
-                    <ExamCard
-                      key={exam.id}
-                      exam={exam}
-                      type="upcoming"
-                      onStart={() => {}}
-                      formatDateTime={formatDateTime}
-                      getDuration={getDuration}
-                      getScheduledAt={getScheduledAt}
-                      isInProgress={isInProgress}
-                    />
+                    <ExamCard key={exam.id} exam={exam} type="upcoming"
+                      onStart={() => {}} formatDateTime={formatDateTime}
+                      getDuration={getDuration} getScheduledAt={getScheduledAt}
+                      isInProgress={isInProgress} />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* Completed exams */}
             {completedExams.length > 0 && (
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -300,16 +255,10 @@ const allAvailable = exams.filter(e => canStart(e))
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {completedExams.map(exam => (
-                    <ExamCard
-                      key={exam.id}
-                      exam={exam}
-                      type="completed"
-                      onStart={() => {}}
-                      formatDateTime={formatDateTime}
-                      getDuration={getDuration}
-                      getScheduledAt={getScheduledAt}
-                      isInProgress={isInProgress}
-                    />
+                    <ExamCard key={exam.id} exam={exam} type="completed"
+                      onStart={() => {}} formatDateTime={formatDateTime}
+                      getDuration={getDuration} getScheduledAt={getScheduledAt}
+                      isInProgress={isInProgress} />
                   ))}
                 </div>
               </section>
@@ -332,71 +281,28 @@ function ExamCard({ exam, type, onStart, formatDateTime, getDuration, getSchedul
   isInProgress: (exam: ExamSummary) => boolean
 }) {
   const inProgress = isInProgress(exam)
-
-  const borderColor = type === 'available'
-    ? inProgress ? '#d97706' : '#1a6b4a'
-    : type === 'upcoming' ? '#3b82f6' : '#e5e5e0'
-
-  const badgeBg = type === 'available'
-    ? inProgress ? '#fffbeb' : '#e8f5ee'
-    : type === 'upcoming' ? '#eff6ff' : '#f1f1ef'
-
-  const badgeColor = type === 'available'
-    ? inProgress ? '#d97706' : '#0f4a32'
-    : type === 'upcoming' ? '#1e40af' : '#6b6b65'
-
-  const badgeText = type === 'available'
-    ? inProgress ? 'In progress' : 'Open now'
-    : type === 'upcoming' ? 'Scheduled'
-    : 'Completed'
+  const borderColor = type === 'available' ? (inProgress ? '#d97706' : '#1a6b4a') : type === 'upcoming' ? '#3b82f6' : '#e5e5e0'
+  const badgeBg = type === 'available' ? (inProgress ? '#fffbeb' : '#e8f5ee') : type === 'upcoming' ? '#eff6ff' : '#f1f1ef'
+  const badgeColor = type === 'available' ? (inProgress ? '#d97706' : '#0f4a32') : type === 'upcoming' ? '#1e40af' : '#6b6b65'
+  const badgeText = type === 'available' ? (inProgress ? 'In progress' : 'Open now') : type === 'upcoming' ? 'Scheduled' : 'Completed'
 
   return (
-    <div style={{
-      background: 'white',
-      border: `1.5px solid ${borderColor}`,
-      borderRadius: 14,
-      padding: '1.25rem 1.5rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '1rem',
-      flexWrap: 'wrap',
-      transition: 'box-shadow 0.15s',
-    }}>
+    <div style={{ background: 'white', border: `1.5px solid ${borderColor}`, borderRadius: 14, padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' as const }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: 20, background: badgeBg, color: badgeColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {badgeText}
-          </span>
-          <span style={{ fontSize: '0.78rem', color: '#6b6b65', background: '#f7f7f5', padding: '0.2rem 0.625rem', borderRadius: 20 }}>
-            {exam.subject}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.5rem', flexWrap: 'wrap' as const }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: 20, background: badgeBg, color: badgeColor, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{badgeText}</span>
+          <span style={{ fontSize: '0.78rem', color: '#6b6b65', background: '#f7f7f5', padding: '0.2rem 0.625rem', borderRadius: 20 }}>{exam.subject}</span>
         </div>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem', lineHeight: 1.3 }}>
-          {exam.title}
-        </h3>
-        <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.8rem', color: '#6b6b65' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem', lineHeight: 1.3 }}>{exam.title}</h3>
+        <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' as const, fontSize: '0.8rem', color: '#6b6b65' }}>
           <span>⏱ {getDuration(exam)} minutes</span>
           <span>📅 {formatDateTime(getScheduledAt(exam))}</span>
         </div>
       </div>
 
       {type === 'available' && (
-        <button
-          onClick={onStart}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: inProgress ? '#d97706' : '#1a6b4a',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '0.875rem',
-            borderRadius: 10,
-            border: 'none',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            transition: 'background 0.15s',
-          }}>
+        <button onClick={onStart}
+          style={{ padding: '0.75rem 1.5rem', background: inProgress ? '#d97706' : '#1a6b4a', color: 'white', fontWeight: 600, fontSize: '0.875rem', borderRadius: 10, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
           {inProgress ? 'Continue →' : 'Start exam →'}
         </button>
       )}
