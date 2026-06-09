@@ -135,11 +135,9 @@ export default function StudentDashboard() {
   }
 
   // Split exams into sections
-  const todayExams = exams.filter(e =>
-    exam => isToday(getScheduledAt(e)) && canStart(e)
-  )
-  const availableExams = exams.filter(e => canStart(e) && exam => !isToday(getScheduledAt(e)))
-  const allAvailable = exams.filter(e => canStart(e))
+  const todayExams = exams.filter(e => isToday(getScheduledAt(e)) && canStart(e))
+const availableExams = exams.filter(e => canStart(e) && !isToday(getScheduledAt(e)))
+const allAvailable = exams.filter(e => canStart(e))
   const completedExams = exams.filter(e => isCompleted(e))
   const upcomingExams = exams.filter(e =>
     !canStart(e) && !isCompleted(e) && e.status === 'scheduled'
