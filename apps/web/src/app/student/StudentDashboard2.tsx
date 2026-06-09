@@ -52,22 +52,20 @@ export default function StudentDashboard() {
       .then((d: any) => {
         const examList = d.exams ?? []
         setExams(examList)
-        const completed = examList.filter((e: any) =>
-          e.session_status === 'submitted' || e.sessionStatus === 'submitted'
-        )
-        const available = examList.filter((e: any) =>
-          e.status === 'active' &&
-          e.session_status !== 'submitted' &&
-          e.session_status !== 'timed_out' &&
-          e.sessionStatus !== 'submitted' &&
-          e.sessionStatus !== 'timed_out'
-        )
-        setStats({
-          totalExams: examList.length,
-          completed: completed.length,
-          passed: completed.filter((e: any) => e.passed).length,
-          available: available.length,
-        })
+       const completed = examList.filter((e: any) => {
+  const ss = e.session_status ?? e.sessionStatus
+  return ss === 'submitted' || ss === 'timed_out'
+})
+const available = examList.filter((e: any) => {
+  const ss = e.session_status ?? e.sessionStatus
+  return e.status === 'active' && ss !== 'submitted' && ss !== 'timed_out'
+})
+setStats({
+  totalExams: examList.length,
+  completed: completed.length,
+  passed: completed.filter((e: any) => e.passed === true).length,
+  available: available.length,
+})
       })
       .catch(console.error)
       .finally(() => setLoading(false))
