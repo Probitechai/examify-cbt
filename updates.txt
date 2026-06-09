@@ -1,0 +1,3 @@
+Let admin be able to add more subjects for the school during setup
+allow question where multiple answers can be selected for a question. e.g. select all that applies
+allow admin to create exam time tablw foe the term

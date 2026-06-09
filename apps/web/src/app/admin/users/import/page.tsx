@@ -115,7 +115,7 @@ export default function ImportStudentsPage() {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
-            'X-School-Subdomain': 'greensprings',
+            'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
           },
           body: JSON.stringify({
             students: batch.map(r => ({

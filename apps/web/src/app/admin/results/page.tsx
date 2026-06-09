@@ -51,7 +51,7 @@ export default function AdminResultsPage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'X-School-Subdomain': 'greensprings',
+        'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
         'Content-Type': 'application/json'
       }
     })
@@ -71,7 +71,7 @@ export default function AdminResultsPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${exam.id}/results`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-School-Subdomain': 'greensprings',
+          'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
           'Content-Type': 'application/json'
         }
       })
