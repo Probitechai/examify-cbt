@@ -1,4 +1,5 @@
 'use client'
+import AddQuestionModal from './AddQuestionModal'
 import SubjectSelector from '../../../components/SubjectSelector'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -190,22 +191,7 @@ export default function AdminQuestionsPage() {
   )
 }
 
-function AddQuestionModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [form, setForm] = useState({
-    subject: 'English Language',
-    classLevel: 'SS2',
-    topic: '',
-    questionText: '',
-    optionA: '',
-    optionB: '',
-    optionC: '',
-    optionD: '',
-    correctAnswer: 'A',
-    marks: 1,
-    difficulty: 'medium',
-  })
+
 
   function set(key: string, val: any) {
     setForm(f => ({ ...f, [key]: val }))

@@ -165,3 +165,10 @@
 .reviewQ { font-size: 0.825rem; color: var(--text-primary); font-weight: 500; margin-bottom: 0.375rem; line-height: 1.4; }
 .reviewAnswer { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
 .reviewCorrectAnswer { font-size: 0.78rem; color: var(--brand-dark); font-weight: 500; }
+
+/* Short answer question styles */
+.shortAnswerWrap { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0; }
+.shortAnswerHint { font-size: 0.875rem; color: var(--text-secondary); }
+.shortAnswerInput { padding: 0.875rem 1rem; background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius-md); font-size: 1rem; color: var(--text-primary); outline: none; transition: border-color 0.15s; font-family: var(--font-body); width: 100%; }
+.shortAnswerInput:focus { border-color: var(--brand); background: white; }
+.shortAnswerInput:disabled { opacity: 0.7; cursor: not-allowed; }
