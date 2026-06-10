@@ -34,6 +34,7 @@ function getSchoolSubdomain(): string {
   return 'greensprings'
 }
 
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = Cookies.get('examify_token')
   const subdomain = getSchoolSubdomain()
