@@ -14,12 +14,8 @@ export async function examRoutes(app: FastifyInstance) {
                e.scheduled_at, e.ends_at, e.status, e.total_marks,
                array_length(e.question_ids, 1) AS question_count,
                u.full_name AS created_by_name
-        FROM exams e JOIN users u ON u.id = e.created_by
-        WHERE e.school_id = ${request.schoolId}::uuid
-        WHERE e.school_id = ${request.schoolId}::uuid
-        WHERE e.school_id = ${request.schoolId}::uuid
-        WHERE e.school_id = ${request.schoolId}::uuid
-        WHERE e.school_id = \$\{request.schoolId\}::uuid
+        FROM exams e
+        JOIN users u ON u.id = e.created_by
         WHERE e.school_id = ${request.schoolId}::uuid
         ORDER BY e.scheduled_at DESC
       `
@@ -53,7 +49,7 @@ export async function examRoutes(app: FastifyInstance) {
         INSERT INTO exams (school_id, created_by, title, subject, class_level, class_arms,
           duration_minutes, total_marks, pass_mark, question_ids, scheduled_at, ends_at,
           randomise_questions, randomise_options, show_result_after)
-        VALUES (${request.schoolId}, ${request.user.id}, ${d.title}, ${d.subject},
+        VALUES (${request.schoolId}::uuid, ${request.user.id}::uuid, ${d.title}, ${d.subject},
           ${d.classLevel}, ${d.classArms ?? null}, ${d.durationMinutes}, ${d.totalMarks},
           ${d.passMark}, ${d.questionIds}::uuid[], ${d.scheduledAt}, ${d.endsAt},
           ${d.randomiseQuestions}, ${d.randomiseOptions}, ${d.showResultAfter})
@@ -70,10 +66,14 @@ export async function examRoutes(app: FastifyInstance) {
       const result = await tdb.query`
         SELECT e.id, e.title, e.subject, e.duration_minutes,
                e.scheduled_at, e.ends_at, e.status,
-               es.status AS session_status
+               es.status AS session_status,
+               es.passed,
+               es.score,
+               es.percentage
         FROM exams e
-        LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}
-        WHERE e.status IN ('scheduled', 'active')
+        LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}::uuid
+        WHERE e.school_id = ${request.schoolId}::uuid
+        AND e.status IN ('scheduled', 'active')
         AND (e.class_level = ${studentClass} OR e.class_level IS NULL)
         ORDER BY e.scheduled_at ASC
       `
@@ -88,17 +88,19 @@ export async function examRoutes(app: FastifyInstance) {
 
       const examRows = await tdb.query`
         SELECT id, status, duration_minutes, ends_at, question_ids, randomise_questions
-        FROM exams WHERE id = ${examId}
+        FROM exams
+        WHERE id = ${examId}::uuid
+        AND school_id = ${request.schoolId}::uuid
       ` as any[]
 
       const exam = examRows[0]
       if (!exam) return reply.status(404).send({ error: 'NOT_FOUND' })
       if (exam.status !== 'active') return reply.status(400).send({ error: 'EXAM_NOT_ACTIVE', message: 'This exam is not currently active.' })
-      // if (new Date() > new Date(exam.ends_at)) return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'This exam window has closed.' })
+      if (new Date() > new Date(exam.ends_at)) return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'This exam window has closed.' })
 
       const existingRows = await tdb.query`
         SELECT id, status FROM exam_sessions
-        WHERE exam_id = ${examId} AND student_id = ${request.user.id}
+        WHERE exam_id = ${examId}::uuid AND student_id = ${request.user.id}::uuid
         ORDER BY created_at DESC LIMIT 1
       ` as any[]
 
@@ -120,7 +122,7 @@ export async function examRoutes(app: FastifyInstance) {
 
       const insertRows = await tdb.query`
         INSERT INTO exam_sessions (school_id, exam_id, student_id, status, question_order, started_at, server_deadline)
-        VALUES (${request.schoolId}, ${examId}, ${request.user.id}, 'in_progress',
+        VALUES (${request.schoolId}::uuid, ${examId}::uuid, ${request.user.id}::uuid, 'in_progress',
                 ${questionOrder}::uuid[], now(), ${serverDeadline.toISOString()})
         ON CONFLICT (exam_id, student_id) DO UPDATE
           SET status = 'in_progress',
@@ -143,21 +145,24 @@ export async function examRoutes(app: FastifyInstance) {
       const sessionRows = await tdb.query`
         SELECT id, status, question_order, answers, started_at, server_deadline
         FROM exam_sessions
-        WHERE exam_id = ${examId} AND student_id = ${request.user.id}
+        WHERE exam_id = ${examId}::uuid
+        AND student_id = ${request.user.id}::uuid
         ORDER BY created_at DESC LIMIT 1
       ` as any[]
 
       const session = sessionRows[0]
       if (!session) return reply.status(404).send({ error: 'SESSION_NOT_FOUND' })
 
-      // if (new Date() > new Date(session.server_deadline) && session.status === 'in_progress') {
-      //   await tdb.query`UPDATE exam_sessions SET status = 'timed_out', submitted_at = now() WHERE id = ${session.id}`
-      //   return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'Your exam time has expired.' })
-      // }
+      if (new Date() > new Date(session.server_deadline) && session.status === 'in_progress') {
+        await tdb.query`UPDATE exam_sessions SET status = 'timed_out', submitted_at = now() WHERE id = ${session.id}::uuid`
+        return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'Your exam time has expired.' })
+      }
 
       const questionRows = await tdb.query`
         SELECT id, question_text, image_url, options, marks, type
-        FROM questions WHERE id = ANY(${session.question_order}::uuid[])
+        FROM questions
+        WHERE id = ANY(${session.question_order}::uuid[])
+        AND school_id = ${request.schoolId}::uuid
       ` as any[]
 
       const ordered = session.question_order
@@ -188,18 +193,20 @@ export async function examRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
       const sessionRows = await tdb.query`
         SELECT id, status, server_deadline FROM exam_sessions
-        WHERE id = ${sessionId} AND student_id = ${request.user.id}
+        WHERE id = ${sessionId}::uuid
+        AND student_id = ${request.user.id}::uuid
       ` as any[]
 
       const session = sessionRows[0]
       if (!session) return reply.status(404).send({ error: 'NOT_FOUND' })
       if (session.status !== 'in_progress') return reply.status(400).send({ error: 'SESSION_NOT_ACTIVE' })
+      if (new Date() > new Date(session.server_deadline)) return reply.status(410).send({ error: 'TIME_EXPIRED' })
 
       await tdb.query`
         UPDATE exam_sessions
         SET answers = answers || ${JSON.stringify(body.data.answers)}::jsonb,
             updated_at = now()
-        WHERE id = ${sessionId}
+        WHERE id = ${sessionId}::uuid
       `
       return reply.send({ saved: true })
     })
@@ -213,7 +220,7 @@ export async function examRoutes(app: FastifyInstance) {
       const sessionRows = await tdb.query`
         SELECT id, exam_id, status, answers, question_order
         FROM exam_sessions
-        WHERE student_id = ${request.user.id}
+        WHERE student_id = ${request.user.id}::uuid
         AND status = 'in_progress'
         ORDER BY created_at DESC LIMIT 1
       ` as any[]
@@ -225,16 +232,18 @@ export async function examRoutes(app: FastifyInstance) {
       const questionRows = await tdb.query`
         SELECT id, correct_answer, marks FROM questions
         WHERE id = ANY(${session.question_order}::uuid[])
+        AND school_id = ${request.schoolId}::uuid
       ` as any[]
 
       const examRows = await tdb.query`
         SELECT total_marks, pass_mark, show_result_after FROM exams
-        WHERE id = ${session.exam_id}
+        WHERE id = ${session.exam_id}::uuid
+        AND school_id = ${request.schoolId}::uuid
       ` as any[]
 
       const exam = examRows[0]
 
-      // Merge answers — handles array of snapshots or single object
+      // Merge answers
       let finalAnswers: Record<string, string> = {}
       if (Array.isArray(session.answers)) {
         for (const snapshot of session.answers) {
@@ -266,7 +275,7 @@ export async function examRoutes(app: FastifyInstance) {
             score = ${score},
             percentage = ${percentage},
             passed = ${passed}
-        WHERE id = ${session.id}
+        WHERE id = ${session.id}::uuid
       `
 
       const result = exam.show_result_after
@@ -285,8 +294,10 @@ export async function examRoutes(app: FastifyInstance) {
       const results = await tdb.query`
         SELECT u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm,
                es.score, es.percentage, es.passed, es.status, es.submitted_at
-        FROM exam_sessions es JOIN users u ON u.id = es.student_id
-        WHERE es.exam_id = ${examId}
+        FROM exam_sessions es
+        JOIN users u ON u.id = es.student_id
+        WHERE es.exam_id = ${examId}::uuid
+        AND es.school_id = ${request.schoolId}::uuid
         ORDER BY es.percentage DESC NULLS LAST
       ` as any[]
 
