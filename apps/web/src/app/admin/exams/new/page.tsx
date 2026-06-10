@@ -1,9 +1,9 @@
 'use client'
+import SubjectSelector from '../../../../components/SubjectSelector'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '../../../../lib/api'
+import { api } from '../../../lib/api'
 import styles from './new-exam.module.css'
-
 
 type Step = 'details' | 'questions' | 'review'
 
@@ -153,19 +153,11 @@ export default function AdminNewExamPage() {
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Subject</label>
-                <select className={styles.sel} value={details.subject}
-                  onChange={e => setDetail('subject', e.target.value)}>
-                  <option>English Language</option>
-                  <option>Mathematics</option>
-                  <option>Biology</option>
-                  <option>Chemistry</option>
-                  <option>Physics</option>
-                  <option>Economics</option>
-                  <option>Government</option>
-                  <option>Literature</option>
-                  <option>Geography</option>
-                  <option>Agricultural Science</option>
-                </select>
+                <SubjectSelector
+                  value={details.subject}
+                  onChange={val => setDetail('subject', val)}
+                  className={styles.sel}
+                />
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Class level</label>
