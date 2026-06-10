@@ -23,6 +23,7 @@ export async function authRoutes(app: FastifyInstance) {
       SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm
       FROM users
       WHERE email = ${email.toLowerCase()}
+      AND school_id = ${request.schoolId}::uuid
     ` as any[]
 
     const user = rows[0]
@@ -38,18 +39,20 @@ export async function authRoutes(app: FastifyInstance) {
 
     await db()`UPDATE users SET last_login_at = now() WHERE id = ${user.id}`
 
+    // Include schoolSubdomain in JWT so frontend never needs localStorage
     const token = (app as any).jwt.sign(
-  {
-    id: user.id,
-    schoolId: user.school_id,
-    role: user.role,
-    email: user.email,
-    fullName: user.full_name,
-    classLevel: user.class_level,
-    classArm: user.class_arm,
-  },
-  { expiresIn: '12h' }
-)
+      {
+        id: user.id,
+        schoolId: user.school_id,
+        schoolSubdomain: request.school.subdomain,
+        role: user.role,
+        email: user.email,
+        fullName: user.full_name,
+        classLevel: user.class_level,
+        classArm: user.class_arm,
+      },
+      { expiresIn: '12h' }
+    )
 
     return reply.send({
       token,
@@ -70,32 +73,33 @@ export async function authRoutes(app: FastifyInstance) {
   })
 
   app.get('/auth/me', {
-  preHandler: [
-    async (req: any, rep: any) => {
-      try {
-        await req.jwtVerify()
-      } catch {
-        return rep.status(401).send({ error: 'UNAUTHORIZED' })
+    preHandler: [
+      async (req: any, rep: any) => {
+        try {
+          await req.jwtVerify()
+        } catch {
+          return rep.status(401).send({ error: 'UNAUTHORIZED' })
+        }
       }
-    }
-  ]
-}, async (request: any, reply: any) => {
-  const tdb = tenantDb(request.schoolId)
-  const rows = await tdb.query`
-    SELECT id, role, email, full_name, phone, admission_no, class_level, class_arm
-    FROM users WHERE id = ${request.user.id}
-  ` as any[]
-  return reply.send({
-    user: {
-      ...rows[0],
-      school: {
-        id: request.school.id,
-        name: request.school.name,
-        subdomain: request.school.subdomain,
+    ]
+  }, async (request: any, reply: any) => {
+    const tdb = tenantDb(request.schoolId)
+    const rows = await tdb.query`
+      SELECT id, role, email, full_name, phone, admission_no, class_level, class_arm
+      FROM users WHERE id = ${request.user.id}
+      AND school_id = ${request.schoolId}::uuid
+    ` as any[]
+    return reply.send({
+      user: {
+        ...rows[0],
+        school: {
+          id: request.school.id,
+          name: request.school.name,
+          subdomain: request.school.subdomain,
+        }
       }
-    }
+    })
   })
-})
 
   app.post('/auth/change-password', {
     preHandler: [

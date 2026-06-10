@@ -58,6 +58,19 @@ export async function examRoutes(app: FastifyInstance) {
       return reply.status(201).send({ examId: rows[0].id })
     })
 
+  // ── Delete exam ───────────────────────────────────────────────────────────
+  app.delete('/exams/:examId', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const examId = (request.params as any).examId
+      const tdb = tenantDb(request.schoolId)
+      await tdb.query`
+        UPDATE exams SET status = 'cancelled'
+        WHERE id = ${examId}::uuid
+        AND school_id = ${request.schoolId}::uuid
+      `
+      return reply.send({ deleted: true })
+    })
+
   // ── Available exams for student ───────────────────────────────────────────
   app.get('/exams/available', { preHandler: [authenticate, requireRole('student')] },
     async (request: any, reply: any) => {
@@ -67,9 +80,7 @@ export async function examRoutes(app: FastifyInstance) {
         SELECT e.id, e.title, e.subject, e.duration_minutes,
                e.scheduled_at, e.ends_at, e.status,
                es.status AS session_status,
-               es.passed,
-               es.score,
-               es.percentage
+               es.passed, es.score, es.percentage
         FROM exams e
         LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}::uuid
         WHERE e.school_id = ${request.schoolId}::uuid
@@ -243,7 +254,6 @@ export async function examRoutes(app: FastifyInstance) {
 
       const exam = examRows[0]
 
-      // Merge answers
       let finalAnswers: Record<string, string> = {}
       if (Array.isArray(session.answers)) {
         for (const snapshot of session.answers) {
@@ -270,11 +280,8 @@ export async function examRoutes(app: FastifyInstance) {
 
       await tdb.query`
         UPDATE exam_sessions
-        SET status = 'submitted',
-            submitted_at = now(),
-            score = ${score},
-            percentage = ${percentage},
-            passed = ${passed}
+        SET status = 'submitted', submitted_at = now(),
+            score = ${score}, percentage = ${percentage}, passed = ${passed}
         WHERE id = ${session.id}::uuid
       `
 

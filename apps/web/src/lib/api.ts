@@ -7,22 +7,41 @@ export class ApiError extends Error {
     super(message)
   }
 }
+
+// Get school subdomain from JWT token — most reliable source
+// Falls back to localStorage, then to 'greensprings'
 function getSchoolSubdomain(): string {
   try {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('examify_school')
-      if (stored && stored.length > 0) return stored
+    if (typeof window === 'undefined') return 'greensprings'
+
+    // First try to get from JWT token
+    const token = Cookies.get('examify_token')
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.schoolSubdomain) {
+        // Keep localStorage in sync
+        window.localStorage.setItem('examify_school', payload.schoolSubdomain)
+        return payload.schoolSubdomain
+      }
     }
+
+    // Fall back to localStorage
+    const stored = window.localStorage.getItem('examify_school')
+    if (stored) return stored
+
   } catch {
-    // ignore
+    // ignore errors
   }
   return 'greensprings'
 }
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = Cookies.get('examify_token')
+  const subdomain = getSchoolSubdomain()
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    'X-School-Subdomain': getSchoolSubdomain(),
+    'X-School-Subdomain': subdomain,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   }
@@ -50,39 +69,44 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   login: async (email: string, password: string) => {
-  const data = await request<any>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
-  const user = data.user ?? {}
-  
-  // Save subdomain from server response — most reliable source
-  const subdomain = user.school?.subdomain
-  if (subdomain && typeof window !== 'undefined') {
-    window.localStorage.setItem('examify_school', subdomain)
-    console.log('School subdomain set to:', subdomain)
-  }
-  
-  return {
-    token: data.token,
-    user: {
-      id: user.id ?? '',
-      role: user.role ?? 'student',
-      email: user.email ?? email,
-      fullName: user.fullName ?? user.full_name ?? '',
-      classLevel: user.classLevel ?? user.class_level,
-      classArm: user.classArm ?? user.class_arm,
-      school: user.school ?? {
-        id: '',
-        name: 'F.M. & T Covenant Schools',
-        subdomain: 'fmandt',
+    const data = await request<any>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+    const user = data.user ?? {}
+
+    // Save subdomain from login response immediately
+    if (user.school?.subdomain && typeof window !== 'undefined') {
+      window.localStorage.setItem('examify_school', user.school.subdomain)
+    }
+
+    return {
+      token: data.token,
+      user: {
+        id: user.id ?? '',
+        role: user.role ?? 'student',
+        email: user.email ?? email,
+        fullName: user.fullName ?? user.full_name ?? '',
+        classLevel: user.classLevel ?? user.class_level,
+        classArm: user.classArm ?? user.class_arm,
+        school: user.school ?? {
+          id: '',
+          name: 'Greensprings Academy',
+          subdomain: 'greensprings',
+        },
       },
-    },
-  }
-},
+    }
+  },
+
   me: async () => {
     const data = await request<any>('/auth/me')
     const user = data.user ?? {}
+
+    // Always sync subdomain from server response
+    if (user.school?.subdomain && typeof window !== 'undefined') {
+      window.localStorage.setItem('examify_school', user.school.subdomain)
+    }
+
     return {
       user: {
         id: user.id ?? '',
@@ -105,10 +129,10 @@ export const api = {
     request<{ exams: any[] }>('/exams/available'),
 
   startExam: (examId: string) =>
-  request<{ sessionId: string; resumed: boolean }>(`/exams/${examId}/start`, { 
-    method: 'POST',
-    body: JSON.stringify({}),
-  }),
+    request<{ sessionId: string; resumed: boolean }>(`/exams/${examId}/start`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
 
   getExamSession: (examId: string) =>
     request<{ session: any; questions: any[]; totalQuestions: number }>(`/exams/${examId}/session`),
@@ -120,14 +144,20 @@ export const api = {
     }),
 
   submitExam: (sessionId: string) =>
-  request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, { 
-    method: 'POST',
-    body: JSON.stringify({}),
-  }),
+    request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
 
   // Admin / Teacher
   getExams: () =>
     request<{ exams: any[] }>('/exams'),
+
+  createExam: (data: any) =>
+    request<{ examId: string }>('/exams', { method: 'POST', body: JSON.stringify(data) }),
+
+  deleteExam: (examId: string) =>
+    request<{ deleted: boolean }>(`/exams/${examId}`, { method: 'DELETE' }),
 
   getResults: (examId: string) =>
     request<{ results: any[]; stats: any }>(`/exams/${examId}/results`),
@@ -146,7 +176,4 @@ export const api = {
 
   deleteQuestion: (id: string) =>
     request<{ deleted: boolean }>(`/questions/${id}`, { method: 'DELETE' }),
-
-  createExam: (data: any) =>
-    request<{ examId: string }>('/exams', { method: 'POST', body: JSON.stringify(data) }),
 }
