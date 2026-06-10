@@ -2,7 +2,7 @@
 import SubjectSelector from '../../../../components/SubjectSelector'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '../../../lib/api'
+import { api } from '../../../../lib/api'
 import styles from './new-exam.module.css'
 
 type Step = 'details' | 'questions' | 'review'
