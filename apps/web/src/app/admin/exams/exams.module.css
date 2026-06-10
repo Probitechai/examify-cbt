@@ -37,3 +37,18 @@
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
 .actionBtn { font-size: 0.8rem; color: var(--brand); font-weight: 500; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); transition: background .1s; }
 .actionBtn:hover { background: var(--brand-light); }
+
+.examList { display: flex; flex-direction: column; gap: 0.75rem; }
+.examCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.examCardLeft { flex: 1; min-width: 0; }
+.examCardTop { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.examTitle { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+.examMeta { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-secondary); flex-wrap: wrap; }
+.subject { font-size: 0.78rem; color: var(--text-secondary); background: var(--bg); padding: 0.2rem 0.625rem; border-radius: 20px; }
+.classBadge { font-size: 0.78rem; color: var(--brand-dark); background: var(--brand-light); padding: 0.2rem 0.625rem; border-radius: 20px; font-weight: 600; }
+.examCardRight { display: flex; gap: 0.5rem; flex-shrink: 0; }
+.resultsBtn { padding: 0.5rem 1rem; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.825rem; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+.resultsBtn:hover { background: var(--brand-light); color: var(--brand-dark); border-color: var(--brand); }
+.deleteBtn { padding: 0.5rem 1rem; background: var(--danger-light); border: 1.5px solid #fecaca; border-radius: var(--radius-md); font-size: 0.825rem; font-weight: 500; color: var(--danger); cursor: pointer; }
+.deleteBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.empty { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 4rem; text-align: center; color: var(--text-secondary); }
