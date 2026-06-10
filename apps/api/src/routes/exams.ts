@@ -14,7 +14,8 @@ export async function examRoutes(app: FastifyInstance) {
                e.scheduled_at, e.ends_at, e.status, e.total_marks,
                array_length(e.question_ids, 1) AS question_count,
                u.full_name AS created_by_name
-        FROM exams e JOIN users u ON u.id = e.created_by WHERE e.school_id = ${request.schoolId}::uuid
+        FROM exams e JOIN users u ON u.id = e.created_by
+        WHERE e.school_id = ${request.schoolId}::uuid
         ORDER BY e.scheduled_at DESC
       `
       return reply.send({ exams: result })
