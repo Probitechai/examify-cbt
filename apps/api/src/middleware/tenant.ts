@@ -2,20 +2,17 @@ import type { FastifyReply } from 'fastify'
 import { db } from '../db/client'
 
 export async function resolveTenant(request: any, reply: FastifyReply) {
-  // Skip health check
   if (request.url === '/health') return
 
   const host = request.hostname
   let subdomain: string | null = null
 
-// Always check header first in both dev and production
-// Always read header first — works in both dev and production
-subdomain = (request.headers['x-school-subdomain'] as string) ?? extractSubdomain(host)
+  // Always read X-School-Subdomain header first in both dev and production
+  subdomain = (request.headers['x-school-subdomain'] as string) ?? extractSubdomain(host)
 
-if (!subdomain && process.env.NODE_ENV === 'development') {
-  subdomain = 'greensprings'
-}
-}
+  if (!subdomain && process.env.NODE_ENV === 'development') {
+    subdomain = 'greensprings'
+  }
 
   if (!subdomain) {
     return reply.status(400).send({
