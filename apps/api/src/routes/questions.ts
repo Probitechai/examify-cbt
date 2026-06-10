@@ -27,7 +27,7 @@ export async function questionRoutes(app: FastifyInstance) {
                q.question_text, q.correct_answer, q.marks, q.difficulty,
                u.full_name AS created_by_name, q.created_at
         FROM questions q JOIN users u ON u.id = q.created_by
-        WHERE q.is_active = true
+        WHERE q.school_id = ${request.schoolId}::uuid AND q.is_active = true
         ORDER BY q.created_at DESC
         LIMIT 100
       `

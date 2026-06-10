@@ -14,7 +14,7 @@ export async function examRoutes(app: FastifyInstance) {
                e.scheduled_at, e.ends_at, e.status, e.total_marks,
                array_length(e.question_ids, 1) AS question_count,
                u.full_name AS created_by_name
-        FROM exams e JOIN users u ON u.id = e.created_by
+        FROM exams e JOIN users u ON u.id = e.created_by WHERE e.school_id = ${request.schoolId}::uuid
         ORDER BY e.scheduled_at DESC
       `
       return reply.send({ exams: result })
@@ -63,13 +63,10 @@ export async function examRoutes(app: FastifyInstance) {
       const studentClass = request.user.classLevel ?? request.user.class_level ?? 'SS2'
       const result = await tdb.query`
         SELECT e.id, e.title, e.subject, e.duration_minutes,
-       e.scheduled_at, e.ends_at, e.status,
-       es.status AS session_status,
-       es.passed,
-       es.score,
-       es.percentage
-FROM exams e
-LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}
+               e.scheduled_at, e.ends_at, e.status,
+               es.status AS session_status
+        FROM exams e
+        LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.user.id}
         WHERE e.status IN ('scheduled', 'active')
         AND (e.class_level = ${studentClass} OR e.class_level IS NULL)
         ORDER BY e.scheduled_at ASC
@@ -91,7 +88,7 @@ LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.us
       const exam = examRows[0]
       if (!exam) return reply.status(404).send({ error: 'NOT_FOUND' })
       if (exam.status !== 'active') return reply.status(400).send({ error: 'EXAM_NOT_ACTIVE', message: 'This exam is not currently active.' })
-       if (new Date() > new Date(exam.ends_at)) return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'This exam window has closed.' })
+      // if (new Date() > new Date(exam.ends_at)) return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'This exam window has closed.' })
 
       const existingRows = await tdb.query`
         SELECT id, status FROM exam_sessions
@@ -147,10 +144,10 @@ LEFT JOIN exam_sessions es ON es.exam_id = e.id AND es.student_id = ${request.us
       const session = sessionRows[0]
       if (!session) return reply.status(404).send({ error: 'SESSION_NOT_FOUND' })
 
-      if (new Date() > new Date(session.server_deadline) && session.status === 'in_progress') {
-         await tdb.query`UPDATE exam_sessions SET status = 'timed_out', submitted_at = now() WHERE id = ${session.id}`
-         return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'Your exam time has expired.' })
-       }
+      // if (new Date() > new Date(session.server_deadline) && session.status === 'in_progress') {
+      //   await tdb.query`UPDATE exam_sessions SET status = 'timed_out', submitted_at = now() WHERE id = ${session.id}`
+      //   return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'Your exam time has expired.' })
+      // }
 
       const questionRows = await tdb.query`
         SELECT id, question_text, image_url, options, marks, type
