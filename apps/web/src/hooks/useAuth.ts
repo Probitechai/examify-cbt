@@ -11,13 +11,20 @@ interface AuthState {
   hydrate: () => Promise<void>
 }
 
+function saveSubdomain(subdomain: string | undefined) {
+  if (subdomain && typeof window !== 'undefined') {
+    window.localStorage.setItem('examify_school', subdomain)
+  }
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isLoading: true,
 
   setAuth: (token, user) => {
-    Cookies.set('examify_token', token, { expires: 0.5, sameSite: 'strict' }) // 12h
+    Cookies.set('examify_token', token, { expires: 0.5, sameSite: 'strict' })
+    saveSubdomain(user?.school?.subdomain)
     set({ token, user, isLoading: false })
   },
 
@@ -32,6 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { api } = await import('../lib/api')
       const { user } = await api.me()
+      saveSubdomain(user?.school?.subdomain)
       set({ token, user, isLoading: false })
     } catch {
       Cookies.remove('examify_token')
