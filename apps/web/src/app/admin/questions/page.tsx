@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '../../../lib/api'
 import styles from './questions.module.css'
 
+
 interface Question {
   id: string
   type: string
