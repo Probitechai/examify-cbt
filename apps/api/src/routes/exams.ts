@@ -16,6 +16,11 @@ export async function examRoutes(app: FastifyInstance) {
                u.full_name AS created_by_name
         FROM exams e JOIN users u ON u.id = e.created_by
         WHERE e.school_id = ${request.schoolId}::uuid
+        WHERE e.school_id = ${request.schoolId}::uuid
+        WHERE e.school_id = ${request.schoolId}::uuid
+        WHERE e.school_id = ${request.schoolId}::uuid
+        WHERE e.school_id = \$\{request.schoolId\}::uuid
+        WHERE e.school_id = ${request.schoolId}::uuid
         ORDER BY e.scheduled_at DESC
       `
       return reply.send({ exams: result })
