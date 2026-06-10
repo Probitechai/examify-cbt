@@ -1,11 +1,10 @@
 'use client'
-import AddQuestionModal from './AddQuestionModal'
 import SubjectSelector from '../../../components/SubjectSelector'
+import AddQuestionModal from './AddQuestionModal'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '../../../lib/api'
 import styles from './questions.module.css'
-
 
 interface Question {
   id: string
@@ -187,133 +186,6 @@ export default function AdminQuestionsPage() {
           onSaved={() => { setShowAddForm(false); loadQuestions() }}
         />
       )}
-    </div>
-  )
-}
-
-
-
-  function set(key: string, val: any) {
-    setForm(f => ({ ...f, [key]: val }))
-  }
-
-  async function handleSave() {
-    if (!form.questionText.trim()) { setError('Question text is required'); return }
-    if (!form.optionA.trim() || !form.optionB.trim()) { setError('At least options A and B are required'); return }
-    setSaving(true)
-    setError('')
-    try {
-      await api.createQuestion({
-        type: 'mcq',
-        subject: form.subject,
-        classLevel: form.classLevel,
-        topic: form.topic || undefined,
-        questionText: form.questionText,
-        options: [
-          { key: 'A', text: form.optionA },
-          { key: 'B', text: form.optionB },
-          ...(form.optionC ? [{ key: 'C', text: form.optionC }] : []),
-          ...(form.optionD ? [{ key: 'D', text: form.optionD }] : []),
-        ],
-        correctAnswer: form.correctAnswer,
-        marks: form.marks,
-        difficulty: form.difficulty,
-      })
-      onSaved()
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to save question')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className={styles.backdrop} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className={styles.modal}>
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>New Question</h2>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <div className={styles.modalBody}>
-          <div className={styles.formRow}>
-            <div className={styles.formField}>
-              <label>Subject</label>
-              <SubjectSelector
-                value={form.subject}
-                onChange={val => set('subject', val)}
-                style={inputStyle}
-              />
-            </div>
-            <div className={styles.formField}>
-              <label>Class</label>
-              <select value={form.classLevel} onChange={e => set('classLevel', e.target.value)}>
-                <option>SS1</option><option>SS2</option><option>SS3</option>
-              </select>
-            </div>
-            <div className={styles.formField}>
-              <label>Difficulty</label>
-              <select value={form.difficulty} onChange={e => set('difficulty', e.target.value)}>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
-            </div>
-            <div className={styles.formField}>
-              <label>Marks</label>
-              <input type="number" min={1} max={10} value={form.marks}
-                onChange={e => set('marks', Number(e.target.value))} />
-            </div>
-          </div>
-
-          <div className={styles.formField}>
-            <label>Topic (optional)</label>
-            <input value={form.topic} onChange={e => set('topic', e.target.value)}
-              placeholder="e.g. Grammar, Algebra, Ecology" />
-          </div>
-
-          <div className={styles.formField}>
-            <label>Question text</label>
-            <textarea rows={3} value={form.questionText}
-              onChange={e => set('questionText', e.target.value)}
-              placeholder="Type the question here…" />
-          </div>
-
-          <p className={styles.hint}>Click the letter button to mark the correct answer</p>
-
-          <div className={styles.optionsGrid}>
-            {[
-              { key: 'A', field: 'optionA' },
-              { key: 'B', field: 'optionB' },
-              { key: 'C', field: 'optionC' },
-              { key: 'D', field: 'optionD' },
-            ].map(opt => (
-              <div key={opt.key}
-                className={`${styles.optionField} ${form.correctAnswer === opt.key ? styles.optionCorrect : ''}`}>
-                <button
-                  className={`${styles.optKey} ${form.correctAnswer === opt.key ? styles.optKeySelected : ''}`}
-                  onClick={() => set('correctAnswer', opt.key)}
-                  title="Mark as correct answer"
-                >
-                  {opt.key}
-                </button>
-                <input
-                  value={(form as any)[opt.field]}
-                  onChange={e => set(opt.field, e.target.value)}
-                  placeholder={`Option ${opt.key}${opt.key === 'C' || opt.key === 'D' ? ' (optional)' : ''}`}
-                />
-              </div>
-            ))}
-          </div>
-
-          {error && <p className={styles.error}>{error}</p>}
-        </div>
-        <div className={styles.modalFooter}>
-          <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save question'}
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
