@@ -1,9 +1,8 @@
 'use client'
 import SubjectSelector from '../../../components/SubjectSelector'
-'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '../../lib/api'
+import { api } from '../../../lib/api'
 import styles from './questions.module.css'
 
 interface Question {
