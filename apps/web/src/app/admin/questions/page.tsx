@@ -1,5 +1,4 @@
 'use client'
-import SubjectSelector from '../../../components/SubjectSelector'
 import AddQuestionModal from './AddQuestionModal'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
