@@ -70,23 +70,32 @@ export async function authRoutes(app: FastifyInstance) {
   })
 
   app.get('/auth/me', {
-    preHandler: [
-      async (req: any, rep: any) => {
-        try {
-          await req.jwtVerify()
-        } catch {
-          return rep.status(401).send({ error: 'UNAUTHORIZED' })
-        }
+  preHandler: [
+    async (req: any, rep: any) => {
+      try {
+        await req.jwtVerify()
+      } catch {
+        return rep.status(401).send({ error: 'UNAUTHORIZED' })
       }
-    ]
-  }, async (request: any, reply: any) => {
-    const tdb = tenantDb(request.schoolId)
-    const rows = await tdb.query`
-      SELECT id, role, email, full_name, phone, admission_no, class_level, class_arm
-      FROM users WHERE id = ${request.user.id}
-    ` as any[]
-    return reply.send({ user: rows[0] })
+    }
+  ]
+}, async (request: any, reply: any) => {
+  const tdb = tenantDb(request.schoolId)
+  const rows = await tdb.query`
+    SELECT id, role, email, full_name, phone, admission_no, class_level, class_arm
+    FROM users WHERE id = ${request.user.id}
+  ` as any[]
+  return reply.send({
+    user: {
+      ...rows[0],
+      school: {
+        id: request.school.id,
+        name: request.school.name,
+        subdomain: request.school.subdomain,
+      }
+    }
   })
+})
 
   app.post('/auth/change-password', {
     preHandler: [
