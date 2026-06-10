@@ -13,9 +13,9 @@ const NAV = [
   { href: '/admin/timetable',    icon: '🗓', label: 'Timetable'       },
   { href: '/admin/questions',    icon: '❓', label: 'Question bank'   },
   { href: '/admin/results',      icon: '📊', label: 'Results'         },
+  { href: '/admin/analytics',    icon: '📈', label: 'Analytics'       },
   { href: '/teacher',            icon: '📝', label: 'Teacher Portal'  },
 ]
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
