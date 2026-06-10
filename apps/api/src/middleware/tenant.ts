@@ -7,8 +7,14 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
   const host = request.hostname
   let subdomain: string | null = null
 
-  // Always read X-School-Subdomain header first in both dev and production
-  subdomain = (request.headers['x-school-subdomain'] as string) ?? extractSubdomain(host)
+  // Read header first — works in both dev and production
+  const headerSubdomain = request.headers['x-school-subdomain'] as string
+  const hostSubdomain = extractSubdomain(host)
+
+  subdomain = headerSubdomain ?? hostSubdomain
+
+  // Debug log
+  console.log(`[TENANT] host=${host} header=${headerSubdomain} extracted=${hostSubdomain} resolved=${subdomain}`)
 
   if (!subdomain && process.env.NODE_ENV === 'development') {
     subdomain = 'greensprings'
@@ -44,6 +50,8 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
         message: 'This school account is currently inactive.',
       })
     }
+
+    console.log(`[TENANT] Resolved to school: ${school.name} (${school.subdomain})`)
 
     request.schoolId = school.id
     request.schoolSubdomain = school.subdomain
