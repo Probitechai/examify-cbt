@@ -408,9 +408,8 @@ export default function ExamEngine() {
           <p className={styles.questionText}>
             {currentQuestion?.questionText ?? currentQuestion?.question_text}
           </p>
-          <div className={styles.options}>
-  {(currentQuestion?.type === 'mcq' || currentQuestion?.type === 'true_false' || currentQuestion?.options?.length > 0) && (
-    (currentQuestion?.options ?? []).map((opt: any) => {
+    <div className={styles.options}>
+            {(currentQuestion?.options ?? []).map((opt: any) => {
               const selected = answers[currentQuestion.id] === opt.key
               return (
                 <button
@@ -424,21 +423,20 @@ export default function ExamEngine() {
                 </button>
               )
             })}
-            
-  {(currentQuestion?.type === 'short_answer') && (
-    <div className={styles.shortAnswerWrap}>
-      <p className={styles.shortAnswerHint}>Type your answer below:</p>
-      <input
-        className={styles.shortAnswerInput}
-        type="text"
-        value={answers[currentQuestion.id] ?? ''}
-        onChange={e => selectAnswer(currentQuestion.id, e.target.value)}
-        disabled={examState === 'submitting'}
-        placeholder="Type your answer here…"
-        autoComplete="off"
-      />
-    </div>
-  )}
+            {currentQuestion?.type === 'short_answer' && (
+              <div className={styles.shortAnswerWrap}>
+                <p className={styles.shortAnswerHint}>Type your answer below:</p>
+                <input
+                  className={styles.shortAnswerInput}
+                  type="text"
+                  value={answers[currentQuestion.id] ?? ''}
+                  onChange={e => selectAnswer(currentQuestion.id, e.target.value)}
+                  disabled={examState === 'submitting'}
+                  placeholder="Type your answer here…"
+                  autoComplete="off"
+                />
+              </div>
+            )}
           </div>
           <div className={styles.navButtons}>
             <button className={styles.navBtn} onClick={() => setCurrentIndex(i => Math.max(0, i - 1))} disabled={currentIndex === 0}>← Previous</button>
