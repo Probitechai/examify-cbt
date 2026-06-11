@@ -94,7 +94,7 @@ export default function QuestionsPage() {
               🗑 Delete ({selected.length})
             </button>
           )}
-          <button onClick={() => router.push('/admin/questions/new')}
+          <button onClick={() => router.push('/admin/qbank/add')}
             style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
             + New question
           </button>
@@ -130,7 +130,7 @@ export default function QuestionsPage() {
               {questions.length === 0 ? 'Add your first question to get started.' : 'Try a different filter.'}
             </p>
             {questions.length === 0 && (
-              <button onClick={() => router.push('/admin/questions/new')}
+              <button onClick={() => router.push('/admin/qbank/add')}
                 style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
                 + Add first question
               </button>
