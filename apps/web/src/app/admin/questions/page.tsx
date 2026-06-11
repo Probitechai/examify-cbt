@@ -1,9 +1,8 @@
 'use client'
-import AddQuestionModal from './AddQuestionModal'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '../../../lib/api'
 import styles from './questions.module.css'
+import AddQuestionModal from './AddQuestionModal'
 
 interface Question {
   id: string
@@ -19,24 +18,46 @@ interface Question {
   created_at: string
 }
 
-export default function AdminQuestionsPage() {
+function getToken() {
+  if (typeof document === 'undefined') return ''
+  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
+}
+
+function getSubdomain() {
+  try {
+    const token = getToken()
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.schoolSubdomain) return payload.schoolSubdomain
+    }
+    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? 'greensprings'
+  } catch {}
+  return 'greensprings'
+}
+
+export default function QuestionsPage() {
   const router = useRouter()
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
   const [search, setSearch] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
-  const [classFilter, setClassFilter] = useState('')
-  const [diffFilter, setDiffFilter] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [deleting, setDeleting] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
 
   useEffect(() => { loadQuestions() }, [])
 
   async function loadQuestions() {
+    setLoading(true)
     try {
-      setLoading(true)
-      const data = await api.getQuestions() as any
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, {
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'X-School-Subdomain': getSubdomain(),
+          'Content-Type': 'application/json',
+        }
+      })
+      const data = await res.json()
       setQuestions(data.questions ?? [])
     } catch (err) {
       console.error('Failed to load questions:', err)
@@ -45,45 +66,65 @@ export default function AdminQuestionsPage() {
     }
   }
 
-  const filtered = questions.filter(q => {
-    if (search && !q.question_text.toLowerCase().includes(search.toLowerCase()) &&
-        !(q.topic ?? '').toLowerCase().includes(search.toLowerCase())) return false
-    if (subjectFilter && q.subject !== subjectFilter) return false
-    if (classFilter && q.class_level !== classFilter) return false
-    if (diffFilter && q.difficulty !== diffFilter) return false
-    return true
-  })
-
-  const subjects = [...new Set(questions.map(q => q.subject))].sort()
-  const classes = [...new Set(questions.map(q => q.class_level))].sort()
-
-  function toggleSelect(id: string) {
-    setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
-  }
-
-  function toggleSelectAll() {
-    if (selected.size === filtered.length) setSelected(new Set())
-    else setSelected(new Set(filtered.map(q => q.id)))
-  }
-
-  async function deleteSelected() {
-    if (!window.confirm(`Delete ${selected.size} question${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return
-    setDeleting(true)
+  async function handleDelete() {
+    if (!selected.length) return
+    if (!window.confirm(`Delete ${selected.length} question(s)? This cannot be undone.`)) return
     try {
-      await Promise.all([...selected].map(id => (api as any).deleteQuestion(id)))
-      setQuestions(qs => qs.filter(q => !selected.has(q.id)))
-      setSelected(new Set())
+      await Promise.all(selected.map(id =>
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${getToken()}`,
+            'X-School-Subdomain': getSubdomain(),
+          }
+        })
+      ))
+      setSelected([])
+      loadQuestions()
     } catch (err) {
       console.error('Failed to delete:', err)
-    } finally {
-      setDeleting(false)
     }
   }
 
-  function getDiffStyle(diff: string | null) {
-    if (diff === 'easy') return styles.diffEasy
-    if (diff === 'hard') return styles.diffHard
-    return styles.diffMedium
+  function toggleSelect(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const subjects = [...new Set(questions.map(q => q.subject))].sort()
+  const types = [...new Set(questions.map(q => q.type))].sort()
+
+  const filtered = questions.filter(q => {
+    if (search && !q.question_text.toLowerCase().includes(search.toLowerCase()) &&
+        !q.subject.toLowerCase().includes(search.toLowerCase())) return false
+    if (subjectFilter && q.subject !== subjectFilter) return false
+    if (typeFilter && q.type !== typeFilter) return false
+    return true
+  })
+
+  function getTypeLabel(type: string) {
+    const labels: Record<string, string> = {
+      mcq: 'MCQ',
+      true_false: 'True/False',
+      short_answer: 'Short Answer',
+      essay: 'Essay',
+    }
+    return labels[type] ?? type
+  }
+
+  function getTypeBadgeStyle(type: string) {
+    const colors: Record<string, { bg: string; color: string }> = {
+      mcq: { bg: '#eff6ff', color: '#1e40af' },
+      true_false: { bg: '#e8f5ee', color: '#0f4a32' },
+      short_answer: { bg: '#fffbeb', color: '#d97706' },
+      essay: { bg: '#fdf4ff', color: '#7e22ce' },
+    }
+    return colors[type] ?? { bg: '#f1f1ef', color: '#6b6b65' }
+  }
+
+  function getDifficultyStyle(diff: string | null) {
+    if (diff === 'easy') return { bg: '#e8f5ee', color: '#0f4a32' }
+    if (diff === 'hard') return { bg: '#fef2f2', color: '#dc2626' }
+    return { bg: '#fffbeb', color: '#d97706' }
   }
 
   function formatDate(iso: string) {
@@ -96,51 +137,50 @@ export default function AdminQuestionsPage() {
         <div>
           <h1 className={styles.title}>Question Bank</h1>
           <p className={styles.subtitle}>
-            {loading ? 'Loading...' : `${questions.length} questions across all subjects`}
+            {loading ? 'Loading…' : `${questions.length} questions across all subjects`}
           </p>
         </div>
-        <button className={styles.addBtn} onClick={() => setShowAddForm(true)}>
-          + New question
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {selected.length > 0 && (
+            <button onClick={handleDelete}
+              style={{ padding: '0.625rem 1.25rem', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 500, color: '#dc2626', cursor: 'pointer' }}>
+              🗑 Delete ({selected.length})
+            </button>
+          )}
+          <button className={styles.addBtn} onClick={() => setShowModal(true)}>
+            + New question
+          </button>
+        </div>
       </div>
 
-      <div className={styles.filterRow}>
-        <input className={styles.search} placeholder="Search questions or topics…"
-          value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' as const }}>
+        <input
+          className={styles.search}
+          placeholder="Search questions…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
         <select className={styles.sel} value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)}>
           <option value="">All subjects</option>
           {subjects.map(s => <option key={s}>{s}</option>)}
         </select>
-        <select className={styles.sel} value={classFilter} onChange={e => setClassFilter(e.target.value)}>
-          <option value="">All classes</option>
-          {classes.map(c => <option key={c}>{c}</option>)}
+        <select className={styles.sel} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+          <option value="">All types</option>
+          {types.map(t => <option key={t} value={t}>{getTypeLabel(t)}</option>)}
         </select>
-        <select className={styles.sel} value={diffFilter} onChange={e => setDiffFilter(e.target.value)}>
-          <option value="">All difficulties</option>
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard">Hard</option>
-        </select>
-        {selected.size > 0 && (
-          <button className={styles.deleteBtn} onClick={deleteSelected} disabled={deleting}>
-            {deleting ? 'Deleting...' : `Delete ${selected.size}`}
-          </button>
-        )}
       </div>
 
+      {/* Table */}
       <div className={styles.tableWrap}>
         <div className={styles.tableHead}>
-          <span><input type="checkbox"
-            checked={selected.size === filtered.length && filtered.length > 0}
-            onChange={toggleSelectAll} /></span>
+          <span style={{ width: 32 }}></span>
           <span>Question</span>
           <span>Subject</span>
-          <span>Class</span>
-          <span>Topic</span>
+          <span>Type</span>
           <span>Difficulty</span>
           <span>Marks</span>
           <span>Added</span>
-          <span></span>
         </div>
 
         {loading ? (
@@ -149,40 +189,52 @@ export default function AdminQuestionsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className={styles.empty}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>❓</div>
-            <p>No questions found.</p>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>❓</div>
+            <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+              {questions.length === 0 ? 'No questions yet' : 'No questions match this filter'}
+            </p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              {questions.length === 0 ? 'Add your first question to get started.' : 'Try a different filter.'}
+            </p>
             {questions.length === 0 && (
-              <button className={styles.addBtn} style={{ marginTop: '1rem' }}
-                onClick={() => setShowAddForm(true)}>
-                Add your first question
-              </button>
+              <button className={styles.addBtn} onClick={() => setShowModal(true)}>+ Add first question</button>
             )}
           </div>
-        ) : filtered.map(q => (
-          <div key={q.id} className={`${styles.tableRow} ${selected.has(q.id) ? styles.rowSelected : ''}`}>
-            <span><input type="checkbox" checked={selected.has(q.id)} onChange={() => toggleSelect(q.id)} /></span>
-            <span className={styles.qText}>{q.question_text}</span>
-            <span className={styles.cell}>{q.subject}</span>
-            <span className={styles.cell}>{q.class_level}</span>
-            <span className={styles.cell}>{q.topic ?? '—'}</span>
-            <span>
-              {q.difficulty
-                ? <span className={`${styles.diffPill} ${getDiffStyle(q.difficulty)}`}>{q.difficulty}</span>
-                : '—'}
-            </span>
-            <span className={styles.cell}>{q.marks} mk</span>
-            <span className={styles.cell}>{formatDate(q.created_at)}</span>
-            <span>
-              <button className={styles.editBtn} onClick={() => setShowAddForm(true)}>Edit</button>
-            </span>
-          </div>
-        ))}
+        ) : filtered.map(q => {
+          const typeBadge = getTypeBadgeStyle(q.type)
+          const diffBadge = getDifficultyStyle(q.difficulty)
+          return (
+            <div key={q.id} className={styles.tableRow} style={{ background: selected.includes(q.id) ? '#f0faf4' : undefined }}>
+              <span>
+                <input type="checkbox" checked={selected.includes(q.id)} onChange={() => toggleSelect(q.id)}
+                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1a6b4a' }} />
+              </span>
+              <span style={{ color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.5 }}>
+                {q.question_text.length > 100 ? q.question_text.slice(0, 100) + '…' : q.question_text}
+                {q.topic && <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>📌 {q.topic}</span>}
+              </span>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>{q.subject}</span>
+              <span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, background: typeBadge.bg, color: typeBadge.color }}>
+                  {getTypeLabel(q.type)}
+                </span>
+              </span>
+              <span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, background: diffBadge.bg, color: diffBadge.color, textTransform: 'capitalize' as const }}>
+                  {q.difficulty ?? 'medium'}
+                </span>
+              </span>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', textAlign: 'center' as const }}>{q.marks}</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>{formatDate(q.created_at)}</span>
+            </div>
+          )
+        })}
       </div>
 
-      {showAddForm && (
+      {showModal && (
         <AddQuestionModal
-          onClose={() => setShowAddForm(false)}
-          onSaved={() => { setShowAddForm(false); loadQuestions() }}
+          onClose={() => setShowModal(false)}
+          onSaved={() => { setShowModal(false); loadQuestions() }}
         />
       )}
     </div>
