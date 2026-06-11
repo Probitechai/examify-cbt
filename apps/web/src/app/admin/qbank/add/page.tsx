@@ -74,7 +74,7 @@ export default function NewQuestionPage() {
         setQText(''); setOptA(''); setOptB(''); setOptC(''); setOptD(''); setAnswer(''); setTopic(''); setCorrect('A')
         setSuccess(true); setTimeout(() => setSuccess(false), 2000)
       } else {
-        router.push('/admin/questions')
+        router.push('/admin/qbank')
       }
     } catch (e: any) { setError(e.message ?? 'Error') } finally { setSaving(false) }
   }
@@ -91,7 +91,7 @@ export default function NewQuestionPage() {
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '2rem 1.5rem', fontFamily: 'system-ui' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-        <button onClick={() => router.push('/admin/questions')}
+        <button onClick={() => router.push('/admin/qbank')}
           style={{ padding: '0.5rem 1rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
           ← Back
         </button>
@@ -248,7 +248,7 @@ export default function NewQuestionPage() {
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid #e5e5e0' }}>
-          <button onClick={() => router.push('/admin/questions')}
+          <button onClick={() => router.push('/admin/qbank')}
             style={{ padding: '0.75rem 1.25rem', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 500, color: '#6b6b65', background: 'white', cursor: 'pointer' }}>
             Cancel
           </button>
