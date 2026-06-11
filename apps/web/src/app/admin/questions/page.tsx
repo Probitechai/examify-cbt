@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './questions.module.css'
-import AddQuestionModal from './AddQuestionModal'
+import AddQuestionModal from './AddQuestionModal2'
 
 interface Question {
   id: string
