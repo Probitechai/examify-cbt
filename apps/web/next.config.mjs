@@ -20,4 +20,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig // v2
+export default nextConfig // v4 - cache bust
