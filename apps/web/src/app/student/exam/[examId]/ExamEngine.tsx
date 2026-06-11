@@ -424,7 +424,7 @@ export default function ExamEngine() {
                 </button>
               )
             })}
-            )}
+            
   {(currentQuestion?.type === 'short_answer') && (
     <div className={styles.shortAnswerWrap}>
       <p className={styles.shortAnswerHint}>Type your answer below:</p>
