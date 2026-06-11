@@ -11,7 +11,7 @@ const NAV = [
   { href: '/admin/users/import', icon: '📥', label: 'Import students'  },
   { href: '/admin/exams',        icon: '📋', label: 'Exams'           },
   { href: '/admin/timetable',    icon: '🗓', label: 'Timetable'       },
-  { href: '/admin/questions2',    icon: '❓', label: 'Question bank'   },
+  { href: '/admin/qbank',    icon: '❓', label: 'Question bank'   },
   { href: '/admin/results',      icon: '📊', label: 'Results'         },
   { href: '/admin/analytics',    icon: '📈', label: 'Analytics'       },
   { href: '/teacher',            icon: '📝', label: 'Teacher Portal'  },
