@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-
+import { sendEmail } from '../lib/email'
+import { resultReadyEmail } from '../emails/templates'
 export async function examRoutes(app: FastifyInstance) {
 
   // ── List exams (teacher/admin) ────────────────────────────────────────────
@@ -288,6 +289,36 @@ export async function examRoutes(app: FastifyInstance) {
       const result = exam.show_result_after
         ? { score, percentage: Math.round(percentage * 100) / 100, passed, totalMarks: exam.total_marks }
         : null
+
+      // Send result-ready email (fire and forget)
+      ;(async () => {
+        try {
+          const examRows2 = await tdb.query`
+            SELECT title, subject FROM exams WHERE id = ${session.exam_id}::uuid
+          ` as any[]
+          const userRows = await tdb.query`
+            SELECT email, full_name FROM users WHERE id = ${request.user.id}::uuid
+          ` as any[]
+          const examInfo = examRows2[0]
+          const userInfo = userRows[0]
+          if (examInfo && userInfo) {
+            const { subject, html } = resultReadyEmail({
+              schoolName: request.school.name,
+              fullName: userInfo.full_name,
+              examTitle: examInfo.title,
+              subject: examInfo.subject,
+              score,
+              totalMarks: exam.total_marks,
+              percentage,
+              passed,
+              loginUrl: 'https://examify-cbt-web.vercel.app/login',
+            })
+            await sendEmail({ to: userInfo.email, subject, html })
+          }
+        } catch (err: any) {
+          console.error('Failed to send result email:', err.message)
+        }
+      })()
 
       return reply.send({ submitted: true, result })
     })

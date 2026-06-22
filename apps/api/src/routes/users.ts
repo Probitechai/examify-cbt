@@ -3,7 +3,8 @@ import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-
+import { sendEmail } from '../lib/email'
+import { loginCredentialsEmail } from '../emails/templates'
 export async function userRoutes(app: FastifyInstance) {
 
   app.get('/users', { preHandler: [authenticate, requireRole('school_admin')] },
@@ -44,6 +45,20 @@ export async function userRoutes(app: FastifyInstance) {
                 ${passwordHash}, ${d.admissionNo ?? null}, ${d.classLevel ?? null}, ${d.classArm ?? null})
         RETURNING id
       ` as any[]
+
+      // Send login credentials email (fire and forget — don't block the response)
+      const { subject, html } = loginCredentialsEmail({
+        schoolName: request.school.name,
+        fullName: d.fullName,
+        email: d.email.toLowerCase(),
+        password: d.password,
+        loginUrl: 'https://examify-cbt-web.vercel.app/login',
+        role: d.role,
+      })
+      sendEmail({ to: d.email.toLowerCase(), subject, html }).catch(err =>
+        console.error('Failed to send credentials email:', err.message)
+      )
+
       return reply.status(201).send({ userId: rows[0].id })
     })
 
