@@ -49,11 +49,11 @@ export async function examRoutes(app: FastifyInstance) {
       const rows = await tdb.query`
         INSERT INTO exams (school_id, created_by, title, subject, class_level, class_arms,
           duration_minutes, total_marks, pass_mark, question_ids, scheduled_at, ends_at,
-          randomise_questions, randomise_options, show_result_after)
+          randomise_questions, randomise_options, show_result_after, status)
         VALUES (${request.schoolId}::uuid, ${request.user.id}::uuid, ${d.title}, ${d.subject},
           ${d.classLevel}, ${d.classArms ?? null}, ${d.durationMinutes}, ${d.totalMarks},
           ${d.passMark}, ${d.questionIds}::uuid[], ${d.scheduledAt}, ${d.endsAt},
-          ${d.randomiseQuestions}, ${d.randomiseOptions}, ${d.showResultAfter})
+          ${d.randomiseQuestions}, ${d.randomiseOptions}, ${d.showResultAfter}, 'active')
         RETURNING id
       ` as any[]
       return reply.status(201).send({ examId: rows[0].id })
