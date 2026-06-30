@@ -151,6 +151,19 @@ export default function ExamEngine() {
     try {
       const data = await api.submitExam(sessionIdRef.current) as any
       setResult(data.result)
+
+      // Re-fetch session to get questions with correct_answer now that exam is submitted
+      try {
+        const refreshed = await api.getExamSession(examId) as any
+        const parsedQuestions = (refreshed.questions ?? []).map((q: any) => ({
+          ...q,
+          options: typeof q.options === 'string' ? JSON.parse(q.options) : (q.options ?? [])
+        }))
+        setQuestions(parsedQuestions)
+      } catch (refreshErr) {
+        console.error('Failed to refresh questions for review:', refreshErr)
+      }
+
       setExamState('submitted')
     } catch {
       setError('Submission failed. Please check your connection and try again.')
@@ -308,8 +321,7 @@ export default function ExamEngine() {
                       const studentAnswer = answers[q.id]
                       const options = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options ?? [])
                       const isShortAnswer = q.type === 'short_answer' || options.length === 0
-                      console.log('DEBUG', { questionId: q.id, type: q.type, correct_answer: q.correct_answer, studentAnswer, options })
-
+                     
                       let isCorrect = false
                       let yourAnswerDisplay = 'Not answered'
                       let correctAnswerDisplay = ''
