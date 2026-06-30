@@ -46,13 +46,17 @@ export async function examRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: body.error.flatten() })
 
       const d = body.data
+      // Normalize "all" sentinel value to null — null means unrestricted (all class arms)
+      const normalizedClassArms = (d.classArms && d.classArms.length === 1 && d.classArms[0] === 'all')
+        ? null
+        : (d.classArms ?? null)
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
         INSERT INTO exams (school_id, created_by, title, subject, class_level, class_arms,
           duration_minutes, total_marks, pass_mark, question_ids, scheduled_at, ends_at,
           randomise_questions, randomise_options, show_result_after, status)
         VALUES (${request.schoolId}::uuid, ${request.user.id}::uuid, ${d.title}, ${d.subject},
-          ${d.classLevel}, ${d.classArms ?? null}, ${d.durationMinutes}, ${d.totalMarks},
+          ${d.classLevel}, ${normalizedClassArms}, ${d.durationMinutes}, ${d.totalMarks},
           ${d.passMark}, ${d.questionIds}::uuid[], ${d.scheduledAt}, ${d.endsAt},
           ${d.randomiseQuestions}, ${d.randomiseOptions}, ${d.showResultAfter}, 'active')
         RETURNING id
