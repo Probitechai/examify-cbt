@@ -171,15 +171,18 @@ export async function examRoutes(app: FastifyInstance) {
       }
 
       const questionRows = await tdb.query`
-        SELECT id, question_text, image_url, options, marks, type
+        SELECT id, question_text, image_url, options, marks, type, correct_answer
         FROM questions
         WHERE id = ANY(${session.question_order}::uuid[])
         AND school_id = ${request.schoolId}::uuid
       ` as any[]
 
+      const isFinished = session.status === 'submitted' || session.status === 'timed_out'
+
       const ordered = session.question_order
         .map((qId: string) => questionRows.find((q: any) => q.id === qId))
         .filter(Boolean)
+        .map((q: any) => isFinished ? q : { ...q, correct_answer: undefined })
 
       return reply.send({
         session: {
