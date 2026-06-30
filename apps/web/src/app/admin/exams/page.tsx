@@ -48,7 +48,8 @@ export default function ExamsPage() {
   const [exams, setExams] = useState<Exam[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
-  const [deleting, setDeleting] = useState<string | null>(null)
+   const [deleting, setDeleting] = useState<string | null>(null)
+  const [reminding, setReminding] = useState<string | null>(null)
 
   useEffect(() => {
     loadExams()
@@ -94,7 +95,27 @@ export default function ExamsPage() {
       setDeleting(null)
     }
   }
-
+  async function handleRemind(examId: string, title: string) {
+    setReminding(examId)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${examId}/remind`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'X-School-Subdomain': getSubdomain(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      })
+      const data = await res.json()
+      window.alert(data.message ?? `Reminder sent to ${data.sent} student(s).`)
+    } catch (err) {
+      console.error('Failed to send reminder:', err)
+      window.alert('Failed to send reminder. Please try again.')
+    } finally {
+      setReminding(null)
+    }
+  }
   const filtered = filter === 'all' ? exams : exams.filter(e => e.status === filter)
 
   function formatDate(iso: string) {
@@ -186,6 +207,15 @@ export default function ExamsPage() {
                 >
                   Results
                 </button>
+               {(exam.status === 'active' || exam.status === 'scheduled') && (
+                  <button
+                    className={styles.resultsBtn}
+                    onClick={() => handleRemind(exam.id, exam.title)}
+                    disabled={reminding === exam.id}
+                  >
+                    {reminding === exam.id ? 'Sending…' : '📧 Remind'}
+                  </button>
+                )}
                 {exam.status !== 'completed' && (
                   <button
                     className={styles.deleteBtn}
