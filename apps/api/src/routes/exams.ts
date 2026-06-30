@@ -2,8 +2,9 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-import { sendEmail } from '../lib/email'
-import { resultReadyEmail } from '../emails/templates'
+import { sendEmail, sendBulkEmails } from '../lib/email'
+import { resultReadyEmail, examReminderEmail } from '../emails/templates'
+
 export async function examRoutes(app: FastifyInstance) {
 
   // ── List exams (teacher/admin) ────────────────────────────────────────────
@@ -351,6 +352,64 @@ export async function examRoutes(app: FastifyInstance) {
           : 0,
       }
 
-      return reply.send({ results, stats })
+     return reply.send({ results, stats })
+    })
+
+  // ── Send exam reminder (manual trigger) ─────────────────────────────────────
+  app.post('/exams/:examId/remind', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+    async (request: any, reply: any) => {
+      const examId = (request.params as any).examId
+      const tdb = tenantDb(request.schoolId)
+
+      const examRows = await tdb.query`
+        SELECT id, title, subject, class_level, class_arms, scheduled_at, duration_minutes, status
+        FROM exams
+        WHERE id = ${examId}::uuid
+        AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+
+      const exam = examRows[0]
+      if (!exam) return reply.status(404).send({ error: 'NOT_FOUND' })
+
+      const studentRows = await tdb.query`
+        SELECT u.id, u.email, u.full_name
+        FROM users u
+        LEFT JOIN exam_sessions es ON es.exam_id = ${examId}::uuid AND es.student_id = u.id
+        WHERE u.school_id = ${request.schoolId}::uuid
+        AND u.role = 'student'
+        AND u.is_active = true
+        AND u.class_level = ${exam.class_level}
+        AND (
+          ${exam.class_arms === null} = true
+          OR u.class_arm = ANY(${exam.class_arms}::text[])
+        )
+        AND (es.id IS NULL OR es.status NOT IN ('submitted', 'in_progress', 'timed_out'))
+      ` as any[]
+
+      if (studentRows.length === 0) {
+        return reply.send({ sent: 0, message: 'No eligible students to remind — everyone has already started or submitted.' })
+      }
+
+      const emails = studentRows.map((s: any) => {
+        const { subject, html } = examReminderEmail({
+          schoolName: request.school.name,
+          fullName: s.full_name,
+          examTitle: exam.title,
+          subject: exam.subject,
+          scheduledAt: exam.scheduled_at,
+          durationMinutes: exam.duration_minutes,
+          loginUrl: 'https://examify-cbt-web.vercel.app/login',
+        })
+        return { to: s.email, subject, html }
+      })
+
+      const result = await sendBulkEmails(emails)
+
+      return reply.send({
+        sent: result.sent,
+        failed: result.failed,
+        total: studentRows.length,
+        message: `Reminder sent to ${result.sent} of ${studentRows.length} student(s).`,
+      })
     })
 }
