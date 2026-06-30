@@ -307,9 +307,26 @@ export default function ExamEngine() {
                     {questions.map((q: any, i: number) => {
                       const studentAnswer = answers[q.id]
                       const options = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options ?? [])
-                      const correctOption = options.find((o: any) => o.key === q.correct_answer)
-                      const studentOption = options.find((o: any) => o.key === studentAnswer)
-                      const isCorrect = studentAnswer === q.correct_answer
+                      const isShortAnswer = q.type === 'short_answer' || options.length === 0
+
+                      let isCorrect = false
+                      let yourAnswerDisplay = 'Not answered'
+                      let correctAnswerDisplay = ''
+
+                      if (isShortAnswer) {
+                        const studentTrimmed = (studentAnswer ?? '').toString().trim().toUpperCase()
+                        const correctTrimmed = (q.correct_answer ?? '').toString().trim().toUpperCase()
+                        isCorrect = studentTrimmed.length > 0 && studentTrimmed === correctTrimmed
+                        yourAnswerDisplay = studentAnswer ? studentAnswer.toString() : 'Not answered'
+                        correctAnswerDisplay = q.correct_answer ?? ''
+                      } else {
+                        const correctOption = options.find((o: any) => o.key === q.correct_answer)
+                        const studentOption = options.find((o: any) => o.key === studentAnswer)
+                        isCorrect = studentAnswer === q.correct_answer
+                        yourAnswerDisplay = studentAnswer ? `${studentAnswer}. ${studentOption?.text ?? ''}` : 'Not answered'
+                        correctAnswerDisplay = `${q.correct_answer}. ${correctOption?.text ?? ''}`
+                      }
+
                       return (
                         <div key={q.id} className={`${styles.reviewItem} ${isCorrect ? styles.reviewCorrect : styles.reviewWrong}`}>
                           <div className={styles.reviewNum}>
@@ -318,11 +335,11 @@ export default function ExamEngine() {
                           <div className={styles.reviewContent}>
                             <p className={styles.reviewQ}>{i + 1}. {q.question_text}</p>
                             <p className={styles.reviewAnswer}>
-                              Your answer: <strong>{studentAnswer ? `${studentAnswer}. ${studentOption?.text ?? ''}` : 'Not answered'}</strong>
+                              Your answer: <strong>{yourAnswerDisplay}</strong>
                             </p>
                             {!isCorrect && (
                               <p className={styles.reviewCorrectAnswer}>
-                                Correct answer: <strong>{q.correct_answer}. {correctOption?.text ?? ''}</strong>
+                                Correct answer: <strong>{correctAnswerDisplay}</strong>
                               </p>
                             )}
                           </div>
