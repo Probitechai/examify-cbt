@@ -3,6 +3,7 @@ import { db } from '../db/client'
 
 export async function resolveTenant(request: any, reply: FastifyReply) {
   if (request.url === '/health') return
+  if (request.url.startsWith('/api/cron/')) return
 
   const host = request.hostname
   let subdomain: string | null = null
