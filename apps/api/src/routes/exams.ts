@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { tenantDb } from '../db/client'
+import { tenantDb, db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail, sendBulkEmails } from '../lib/email'
 import { resultReadyEmail, examReminderEmail } from '../emails/templates'
@@ -416,4 +416,77 @@ export async function examRoutes(app: FastifyInstance) {
         message: `Reminder sent to ${result.sent} of ${studentRows.length} student(s).`,
       })
     })
+
+  // ── Cron: Auto-send exam reminders 24hrs before start ───────────────────────
+  app.post('/cron/send-reminders', async (request: any, reply: any) => {
+    const providedSecret = request.headers['x-cron-secret']
+    if (!process.env.CRON_SECRET || providedSecret !== process.env.CRON_SECRET) {
+      return reply.status(401).send({ error: 'UNAUTHORIZED' })
+    }
+
+    try {
+      const examRows = await db()`
+        SELECT e.id, e.title, e.subject, e.class_level, e.class_arms,
+               e.scheduled_at, e.duration_minutes, e.school_id, e.reminder_sent_at,
+               s.name AS school_name
+        FROM exams e
+        JOIN schools s ON s.id = e.school_id
+        WHERE e.status IN ('scheduled', 'active')
+        AND e.reminder_sent_at IS NULL
+        AND e.scheduled_at BETWEEN now() + interval '23 hours' AND now() + interval '25 hours'
+      ` as any[]
+
+      let totalSent = 0
+      let examsProcessed = 0
+
+      for (const exam of examRows) {
+        const tdb = tenantDb(exam.school_id)
+
+        const studentRows = await tdb.query`
+          SELECT u.id, u.email, u.full_name
+          FROM users u
+          LEFT JOIN exam_sessions es ON es.exam_id = ${exam.id}::uuid AND es.student_id = u.id
+          WHERE u.school_id = ${exam.school_id}::uuid
+          AND u.role = 'student'
+          AND u.is_active = true
+          AND u.class_level = ${exam.class_level}
+          AND (
+            ${exam.class_arms === null} = true
+            OR u.class_arm = ANY(${exam.class_arms}::text[])
+          )
+          AND (es.id IS NULL OR es.status NOT IN ('submitted', 'in_progress', 'timed_out'))
+        ` as any[]
+
+        if (studentRows.length > 0) {
+          const emails = studentRows.map((s: any) => {
+            const { subject, html } = examReminderEmail({
+              schoolName: exam.school_name,
+              fullName: s.full_name,
+              examTitle: exam.title,
+              subject: exam.subject,
+              scheduledAt: exam.scheduled_at,
+              durationMinutes: exam.duration_minutes,
+              loginUrl: 'https://examify-cbt-web.vercel.app/login',
+            })
+            return { to: s.email, subject, html }
+          })
+
+          const result = await sendBulkEmails(emails)
+          totalSent += result.sent
+        }
+
+        await db()`UPDATE exams SET reminder_sent_at = now() WHERE id = ${exam.id}`
+        examsProcessed++
+      }
+
+      return reply.send({
+        examsProcessed,
+        totalSent,
+        message: `Processed ${examsProcessed} exam(s), sent ${totalSent} reminder(s).`,
+      })
+    } catch (err: any) {
+      console.error('[CRON] send-reminders error:', err.message)
+      return reply.status(500).send({ error: 'SERVER_ERROR', message: err.message })
+    }
+  })
 }
