@@ -74,11 +74,11 @@ export default function BroadsheetPage() {
     const active = list.find((s: Session) => s.is_active)
     if (active) setSelectedSession(active.id)
 
-    // Get school name from JWT
+    // Get school name from /auth/me
     try {
-      const token = getToken()
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      setSchoolName(payload.schoolName ?? '')
+      const meRes = await fetch(`${API}/auth/me`, { headers: hdrs() })
+      const meData = await meRes.json()
+      setSchoolName(meData.user?.school?.name ?? '')
     } catch {}
   }
 
