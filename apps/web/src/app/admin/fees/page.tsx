@@ -538,32 +538,93 @@ export default function FeesPage() {
                   <option value="cheque">📄 Cheque</option>
                 </select>
               </div>
-              {paymentMethod === 'bank_transfer' && (
-                <div style={{ background: '#f0f7ff', border: '1.5px solid #bfdbfe', borderRadius: '10px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e40af', marginBottom: '0.25rem' }}>🏦 Bank Transfer Details</p>
+              {(paymentMethod === 'bank_transfer' || paymentMethod === 'cheque' || paymentMethod === 'card') && (
+                <div style={{ background: paymentMethod === 'cheque' ? '#fefce8' : paymentMethod === 'card' ? '#f5f3ff' : '#f0f7ff', border: `1.5px solid ${paymentMethod === 'cheque' ? '#fde68a' : paymentMethod === 'card' ? '#ddd6fe' : '#bfdbfe'}`, borderRadius: '10px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {/* Header changes per method */}
+                  <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e40af', marginBottom: '0.25rem' }}>
+                    {paymentMethod === 'bank_transfer' ? '🏦 Bank Transfer Details' : paymentMethod === 'cheque' ? '📄 Cheque Details' : '💳 Card / POS Details'}
+                  </p>
+
+                  {/* Payer name — all three methods */}
                   <div>
                     <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payer's full name</label>
                     <input style={inp} value={payerName} onChange={e => setPayerName(e.target.value)} placeholder="e.g. John Adebayo" />
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payer's bank</label>
-                    <select style={sel} value={payerBank} onChange={e => setPayerBank(e.target.value)}>
-                      <option value="">Select bank…</option>
-                      {['Access Bank','Citibank','Ecobank','Fidelity Bank','First Bank','First City Monument Bank','Globus Bank','Guaranty Trust Bank','Heritage Bank','Keystone Bank','Lotus Bank','Polaris Bank','Providus Bank','Stanbic IBTC Bank','Standard Chartered','Sterling Bank','Titan Trust Bank','Union Bank','United Bank for Africa','Unity Bank','Wema Bank','Zenith Bank'].map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+
+                  {/* Bank name — bank transfer and cheque */}
+                  {(paymentMethod === 'bank_transfer' || paymentMethod === 'cheque') && (
                     <div>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Account number (last 4 digits)</label>
-                      <input style={inp} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="e.g. 1234" maxLength={10} />
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>
+                        {paymentMethod === 'cheque' ? 'Issuing bank' : 'Payer\'s bank'}
+                      </label>
+                      <select style={sel} value={payerBank} onChange={e => setPayerBank(e.target.value)}>
+                        <option value="">Select bank…</option>
+                        {['Access Bank','Citibank','Ecobank','Fidelity Bank','First Bank','First City Monument Bank','Globus Bank','Guaranty Trust Bank','Heritage Bank','Keystone Bank','Lotus Bank','Polaris Bank','Providus Bank','Stanbic IBTC Bank','Standard Chartered','Sterling Bank','Titan Trust Bank','Union Bank','United Bank for Africa','Unity Bank','Wema Bank','Zenith Bank'].map(b => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Transfer reference</label>
-                      <input style={inp} value={transferReference} onChange={e => setTransferReference(e.target.value)} placeholder="e.g. TRF123456" />
+                  )}
+
+                  {/* Bank Transfer specific fields */}
+                  {paymentMethod === 'bank_transfer' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Account number (last 4 digits)</label>
+                        <input style={inp} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="e.g. 1234" maxLength={10} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Transfer reference</label>
+                        <input style={inp} value={transferReference} onChange={e => setTransferReference(e.target.value)} placeholder="e.g. TRF123456" />
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Cheque specific fields */}
+                  {paymentMethod === 'cheque' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Cheque number</label>
+                        <input style={inp} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="e.g. 000123" />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Cheque date</label>
+                        <input style={inp} type="date" value={transferReference} onChange={e => setTransferReference(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Card/POS specific fields */}
+                  {paymentMethod === 'card' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Card type</label>
+                          <select style={sel} value={payerBank} onChange={e => setPayerBank(e.target.value)}>
+                            <option value="">Select…</option>
+                            <option value="Verve">Verve</option>
+                            <option value="Mastercard">Mastercard</option>
+                            <option value="Visa">Visa</option>
+                            <option value="American Express">American Express</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Last 4 digits of card</label>
+                          <input style={inp} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="e.g. 4521" maxLength={4} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Approval/transaction code</label>
+                          <input style={inp} value={transferReference} onChange={e => setTransferReference(e.target.value)} placeholder="e.g. 123456" />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>POS terminal ID (optional)</label>
+                          <input style={inp} value={payerName.includes('|') ? payerName.split('|')[1] : ''} onChange={e => setPayerName(prev => prev.split('|')[0] + '|' + e.target.value)} placeholder="e.g. TID001" />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
               <div>
