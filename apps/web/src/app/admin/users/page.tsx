@@ -196,6 +196,8 @@ export default function UsersPage() {
 function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [linkedStudentId, setLinkedStudentId] = useState('')
+  const [students, setStudents] = useState<any[]>([])
   const [form, setForm] = useState({
     role: 'student',
     fullName: '',
@@ -207,6 +209,13 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   })
 
   function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
+
+  useEffect(() => {
+    // Load students for parent linking
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, {
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+    }).then(r => r.json()).then(d => setStudents(d.users ?? [])).catch(() => {})
+  }, [])
 
   async function handleSave() {
     if (!form.fullName.trim() || !form.email.trim()) {
@@ -235,6 +244,15 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Failed to create user')
+
+      // If parent, link to selected student
+      if (form.role === 'parent' && linkedStudentId && data.userId) {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/parents/link`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parentId: data.userId, studentId: linkedStudentId, relationship: 'parent' })
+        })
+      }
       onSaved()
     } catch (err: any) {
       setError(err.message ?? 'Failed to save')
@@ -261,6 +279,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               <option value="student">Student</option>
               <option value="teacher">Teacher</option>
               <option value="school_admin">School Admin</option>
+              <option value="parent">Parent</option>
             </select>
           </div>
           <div>
@@ -275,6 +294,20 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <label style={labelStyle}>Password</label>
             <input style={inputStyle} value={form.password} onChange={e => set('password', e.target.value)} />
           </div>
+          {form.role === 'parent' && (
+            <div>
+              <label style={labelStyle}>Link to student (ward)</label>
+              <select style={inputStyle} value={linkedStudentId} onChange={e => setLinkedStudentId(e.target.value)}>
+                <option value="">Select student…</option>
+                {students.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name} — {s.class_level} {s.class_arm ?? ''}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.375rem' }}>You can link additional students later.</p>
+            </div>
+          )}
           {form.role === 'student' && (
             <>
               <div>
