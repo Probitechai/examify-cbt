@@ -9,6 +9,7 @@ const NAV = [
   { href: '/admin',              icon: '▦',  label: 'Overview'        },
   { href: '/admin/settings', icon: '⚙️', label: 'School Settings' },
   { href: '/admin/sessions', icon: '📆', label: 'Academic Sessions' },
+  { href: '/admin/fees', icon: '💰', label: 'Fee Management' },
   { href: '/admin/attendance', icon: '📋', label: 'Attendance' },
   { href: '/admin/results2', icon: '📝', label: 'Result Entry' },
   { href: '/admin/broadsheet', icon: '📊', label: 'Broadsheet' },
