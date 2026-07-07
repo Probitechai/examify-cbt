@@ -7,6 +7,7 @@ import styles from './admin.layout.module.css'
 
 const NAV = [
   { href: '/admin',              icon: '▦',  label: 'Overview'        },
+  { href: '/admin/settings', icon: '⚙️', label: 'School Settings' },
   { href: '/admin/sessions', icon: '📆', label: 'Academic Sessions' },
   { href: '/admin/results2', icon: '📝', label: 'Result Entry' },
   { href: '/admin/broadsheet', icon: '📊', label: 'Broadsheet' },

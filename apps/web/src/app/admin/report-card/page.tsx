@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
-interface Student { id: string; full_name: string; admission_no: string; class_level: string; class_arm: string }
+interface Student { id: string; full_name: string; admission_no: string; class_level: string; class_arm: string; photo_url?: string }
 interface ReportCard {
   student: { full_name: string; admission_no: string; class_level: string; class_arm: string }
   school: { name: string }
@@ -15,6 +15,8 @@ interface ReportCard {
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 function getToken() {
   if (typeof document === 'undefined') return ''
@@ -40,7 +42,6 @@ function gradeColor(grade: string) {
   if (grade === 'D' || grade === 'E') return '#92400e'
   return '#dc2626'
 }
-
 function gradeBg(grade: string) {
   if (grade === 'A') return '#e8f5ee'
   if (grade === 'B') return '#eff6ff'
@@ -58,28 +59,44 @@ export default function ReportCardPage() {
   const [classLevel, setClassLevel] = useState('SS2')
   const [classArm, setClassArm] = useState('')
   const [selectedStudent, setSelectedStudent] = useState('')
+  const [selectedStudentData, setSelectedStudentData] = useState<Student | null>(null)
   const [reportCard, setReportCard] = useState<ReportCard | null>(null)
+  const [logoUrl, setLogoUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [studentsLoading, setStudentsLoading] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
   const [error, setError] = useState('')
   const [schoolName, setSchoolName] = useState('')
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { loadSessions() }, [])
+  useEffect(() => { loadInitial() }, [])
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-  useEffect(() => { if (classLevel) loadStudents() }, [classLevel, classArm])
+  useEffect(() => { loadStudents() }, [classLevel, classArm])
+  useEffect(() => {
+    if (selectedStudent) {
+      const s = students.find(s => s.id === selectedStudent)
+      setSelectedStudentData(s ?? null)
+    } else {
+      setSelectedStudentData(null)
+    }
+  }, [selectedStudent, students])
 
-  async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
-    const data = await res.json()
-    const list = data.sessions ?? []
+  async function loadInitial() {
+    const [sessRes, meRes, schoolRes] = await Promise.all([
+      fetch(`${API}/sessions`, { headers: hdrs() }),
+      fetch(`${API}/auth/me`, { headers: hdrs() }),
+      fetch(`${API}/schools/settings`, { headers: hdrs() }),
+    ])
+    const sessData = await sessRes.json()
+    const meData = await meRes.json()
+    const schoolData = schoolRes.ok ? await schoolRes.json() : {}
+
+    const list = sessData.sessions ?? []
     setSessions(list)
     const active = list.find((s: Session) => s.is_active)
     if (active) setSelectedSession(active.id)
-    try {
-      const meRes = await fetch(`${API}/auth/me`, { headers: hdrs() })
-      const meData = await meRes.json()
-      setSchoolName(meData.user?.school?.name ?? '')
-    } catch {}
+    setSchoolName(meData.user?.school?.name ?? '')
+    setLogoUrl(schoolData.logo_url ?? '')
   }
 
   async function loadTerms(sessionId: string) {
@@ -94,11 +111,11 @@ export default function ReportCardPage() {
   async function loadStudents() {
     setStudentsLoading(true)
     try {
-      const params = new URLSearchParams({ role: 'student' })
-      const res = await fetch(`${API}/users?${params}`, { headers: hdrs() })
+      const res = await fetch(`${API}/users`, { headers: hdrs() })
       const data = await res.json()
       const all = data.users ?? []
       const filtered = all.filter((u: any) => {
+        if (u.role !== 'student') return false
         if (u.class_level !== classLevel) return false
         if (classArm && u.class_arm !== classArm) return false
         return true
@@ -119,8 +136,40 @@ export default function ReportCardPage() {
     } catch { setError('Failed to load report card') } finally { setLoading(false) }
   }
 
-  const sel = { padding: '0.5rem 0.625rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '6px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', width: '100%', boxSizing: 'border-box' as const }
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !selectedStudent) return
+    if (file.size > 2 * 1024 * 1024) { setError('Photo must be smaller than 2MB'); return }
+    if (!file.type.startsWith('image/')) { setError('Please upload an image file'); return }
 
+    setPhotoUploading(true); setError('')
+    try {
+      const ext = file.name.split('.').pop()
+      const fileName = `${selectedStudent}-${Date.now()}.${ext}`
+      const uploadRes = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/student-photos/${fileName}`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
+          body: file,
+        }
+      )
+      if (!uploadRes.ok) throw new Error('Upload failed')
+      const photoUrl = `${SUPABASE_URL}/storage/v1/object/public/student-photos/${fileName}`
+
+      // Save to database
+      await fetch(`${API}/users/${selectedStudent}/photo`, {
+        method: 'PATCH', headers: hdrs(),
+        body: JSON.stringify({ photoUrl })
+      })
+
+      // Update local state
+      setStudents(prev => prev.map(s => s.id === selectedStudent ? { ...s, photo_url: photoUrl } : s))
+      setSelectedStudentData(prev => prev ? { ...prev, photo_url: photoUrl } : null)
+    } catch { setError('Failed to upload photo') } finally { setPhotoUploading(false) }
+  }
+
+  const sel = { padding: '0.5rem 0.625rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '6px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', width: '100%', boxSizing: 'border-box' as const }
   const passedSubjects = reportCard?.results.filter(r => r.grade !== 'F').length ?? 0
   const failedSubjects = reportCard?.results.filter(r => r.grade === 'F').length ?? 0
   const overallGrade = reportCard ? (
@@ -144,7 +193,7 @@ export default function ReportCardPage() {
 
       <div className="no-print" style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Student Report Card</h1>
-        <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Generate and print individual student report cards.</p>
+        <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Generate and print individual student report cards with photo.</p>
       </div>
 
       {/* Filter panel */}
@@ -181,7 +230,7 @@ export default function ReportCardPage() {
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Student</label>
             <select style={sel} value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}>
               <option value="">{studentsLoading ? 'Loading…' : 'Select student…'}</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.photo_url ? ' 📷' : ''}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
@@ -197,6 +246,28 @@ export default function ReportCardPage() {
             )}
           </div>
         </div>
+
+        {/* Student photo upload section */}
+        {selectedStudentData && (
+          <div style={{ borderTop: '1px solid #e5e5e0', paddingTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid #e5e5e0', flexShrink: 0, background: '#f7f7f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {selectedStudentData.photo_url ? (
+                <img src={selectedStudentData.photo_url} alt={selectedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '1.5rem' }}>👤</span>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18', marginBottom: '0.25rem' }}>{selectedStudentData.full_name}</p>
+              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{selectedStudentData.photo_url ? 'Photo uploaded ✓' : 'No photo yet'}</p>
+            </div>
+            <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+            <button onClick={() => photoInputRef.current?.click()} disabled={photoUploading}
+              style={{ padding: '0.5rem 1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#1a1a18', cursor: 'pointer', whiteSpace: 'nowrap' as const, opacity: photoUploading ? 0.6 : 1 }}>
+              {photoUploading ? '⏳ Uploading…' : selectedStudentData.photo_url ? '🔄 Change photo' : '📷 Upload photo'}
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -209,36 +280,61 @@ export default function ReportCardPage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
           <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Select a student and click Generate</p>
-          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>The report card shows all subject scores, grades and class position.</p>
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>You can also upload a student photo before generating.</p>
         </div>
       )}
 
       {reportCard && (
         <div id="report-card-print" style={{ background: 'white', border: '2px solid #1a6b4a', borderRadius: '16px', overflow: 'hidden' }}>
 
-          {/* Header */}
-          <div style={{ background: 'linear-gradient(135deg, #1a6b4a 0%, #0f4a32 100%)', padding: '2rem', textAlign: 'center', color: 'white' }}>
-            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.375rem' }}>
-              {reportCard.school.name || schoolName}
-            </h1>
-            <p style={{ fontSize: '1rem', opacity: 0.9, fontWeight: 500 }}>Student Academic Report Card</p>
-            <p style={{ fontSize: '0.875rem', opacity: 0.75, marginTop: '0.25rem' }}>
-              {reportCard.term.session_name} — {reportCard.term.term_name}
-            </p>
+          {/* Header with logo */}
+          <div style={{ background: 'linear-gradient(135deg, #1a6b4a 0%, #0f4a32 100%)', padding: '1.75rem 2rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            {logoUrl ? (
+              <div style={{ width: 72, height: 72, borderRadius: '12px', overflow: 'hidden', background: 'white', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+                <img src={logoUrl} alt="School logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              </div>
+            ) : (
+              <div style={{ width: 72, height: 72, borderRadius: '12px', background: 'rgba(255,255,255,0.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>
+                🏫
+              </div>
+            )}
+            <div style={{ flex: 1, color: 'white' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+                {reportCard.school.name || schoolName}
+              </h1>
+              <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>Student Academic Report Card</p>
+              <p style={{ fontSize: '0.8rem', opacity: 0.75, marginTop: '0.15rem' }}>
+                {reportCard.term.session_name} — {reportCard.term.term_name}
+              </p>
+            </div>
           </div>
 
-          {/* Student info */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0', borderBottom: '1px solid #e5e5e0' }}>
-            {[
-              { label: 'Student Name', value: reportCard.student.full_name },
-              { label: 'Admission No.', value: reportCard.student.admission_no ?? 'N/A' },
-              { label: 'Class', value: `${reportCard.student.class_level} ${reportCard.student.class_arm ?? ''}` },
-            ].map((item, i) => (
-              <div key={i} style={{ padding: '1rem 1.5rem', borderRight: i < 2 ? '1px solid #e5e5e0' : 'none', background: '#f9f9f8' }}>
-                <p style={{ fontSize: '0.72rem', color: '#6b6b65', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.375rem' }}>{item.label}</p>
-                <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>{item.value}</p>
-              </div>
-            ))}
+          {/* Student info with photo */}
+          <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #e5e5e0' }}>
+            {/* Photo */}
+            <div style={{ width: 100, flexShrink: 0, borderRight: '1px solid #e5e5e0', background: '#f7f7f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+              {selectedStudentData?.photo_url ? (
+                <img src={selectedStudentData.photo_url} alt={reportCard.student.full_name}
+                  style={{ width: 72, height: 90, objectFit: 'cover', borderRadius: '6px', border: '2px solid #e5e5e0' }} />
+              ) : (
+                <div style={{ width: 72, height: 90, background: '#e5e5e0', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>
+                  👤
+                </div>
+              )}
+            </div>
+            {/* Student details */}
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: '#f9f9f8' }}>
+              {[
+                { label: 'Student Name', value: reportCard.student.full_name },
+                { label: 'Admission No.', value: reportCard.student.admission_no ?? 'N/A' },
+                { label: 'Class', value: `${reportCard.student.class_level} ${reportCard.student.class_arm ?? ''}` },
+              ].map((item, i) => (
+                <div key={i} style={{ padding: '1rem 1.25rem', borderRight: i < 2 ? '1px solid #e5e5e0' : 'none' }}>
+                  <p style={{ fontSize: '0.7rem', color: '#6b6b65', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.375rem' }}>{item.label}</p>
+                  <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1a18' }}>{item.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Results table */}
@@ -274,7 +370,7 @@ export default function ReportCardPage() {
               </tbody>
             </table>
 
-            {/* Summary section */}
+            {/* Summary */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
               {[
                 { label: 'Total Score', value: reportCard.summary.total.toFixed(0), color: '#1a1a18' },
@@ -301,7 +397,7 @@ export default function ReportCardPage() {
               </div>
             </div>
 
-            {/* Signature section */}
+            {/* Signatures */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem', borderTop: '1px solid #e5e5e0', paddingTop: '1.5rem' }}>
               {['Class Teacher', 'Head Teacher / Principal', 'Parent / Guardian'].map(role => (
                 <div key={role} style={{ textAlign: 'center' }}>
