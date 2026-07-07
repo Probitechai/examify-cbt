@@ -104,6 +104,8 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error('Failed to save')
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      // Reload to confirm saved state
+      await loadSettings()
     } catch {
       setError('Failed to save logo URL')
     } finally {
