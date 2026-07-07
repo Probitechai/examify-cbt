@@ -506,7 +506,7 @@ export default function FeesPage() {
       {/* Payment modal */}
       {showPayment && paymentStudent && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: 480 }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' as const }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Record Payment</h2>
             <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.25rem' }}>{paymentStudent.studentName}</p>
 
