@@ -14,6 +14,7 @@ import { examRoutes } from './routes/exams'
 import { questionRoutes } from './routes/questions'
 import { userRoutes } from './routes/users'
 import { sessionRoutes } from './routes/sessions'
+import { resultRoutes } from './routes/results'
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-in-production'
@@ -48,6 +49,7 @@ async function start() {
   await app.register(questionRoutes, { prefix: '/api' })
   await app.register(userRoutes, { prefix: '/api' })
   await app.register(sessionRoutes, { prefix: '/api' })
+  await app.register(resultRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
