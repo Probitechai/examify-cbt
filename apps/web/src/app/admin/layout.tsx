@@ -10,6 +10,7 @@ const NAV = [
   { href: '/admin/sessions', icon: '📆', label: 'Academic Sessions' },
   { href: '/admin/results2', icon: '📝', label: 'Result Entry' },
   { href: '/admin/broadsheet', icon: '📊', label: 'Broadsheet' },
+  { href: '/admin/report-card', icon: '🎓', label: 'Report Card' },
   { href: '/admin/users',        icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import', icon: '📥', label: 'Import students'  },
   { href: '/admin/exams',        icon: '📋', label: 'Exams'           },
