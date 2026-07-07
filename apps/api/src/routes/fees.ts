@@ -176,9 +176,13 @@ export async function feeRoutes(app: FastifyInstance) {
         feeStructureId: z.string().uuid(),
         studentId: z.string().uuid(),
         amountPaid: z.number().positive(),
-        paymentMethod: z.enum(['cash', 'bank_transfer', 'paystack']),
+        paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'cheque']),
         paymentDate: z.string().optional(),
         notes: z.string().optional(),
+        payerName: z.string().optional(),
+        payerBank: z.string().optional(),
+        accountNumber: z.string().optional(),
+        transferReference: z.string().optional(),
       })
       const body = schema.safeParse(request.body)
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
@@ -190,13 +194,16 @@ export async function feeRoutes(app: FastifyInstance) {
       const rows = await tdb.query`
         INSERT INTO fee_payments (
           school_id, fee_structure_id, student_id, amount_paid,
-          payment_method, receipt_number, payment_date, recorded_by, notes
+          payment_method, receipt_number, payment_date, recorded_by, notes,
+          payer_name, payer_bank, account_number, transfer_reference
         )
         VALUES (
           ${request.schoolId}::uuid, ${d.feeStructureId}::uuid, ${d.studentId}::uuid,
           ${d.amountPaid}, ${d.paymentMethod}, ${receiptNo},
           ${d.paymentDate ?? new Date().toISOString().split('T')[0]}::date,
-          ${request.user.id}::uuid, ${d.notes ?? null}
+          ${request.user.id}::uuid, ${d.notes ?? null},
+          ${d.payerName ?? null}, ${d.payerBank ?? null},
+          ${d.accountNumber ?? null}, ${d.transferReference ?? null}
         )
         RETURNING id, receipt_number, amount_paid, payment_method, payment_date
       ` as any[]

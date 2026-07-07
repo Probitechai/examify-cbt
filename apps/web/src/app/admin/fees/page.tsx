@@ -80,6 +80,10 @@ export default function FeesPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer'>('cash')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [paymentNotes, setPaymentNotes] = useState('')
+  const [payerName, setPayerName] = useState('')
+  const [payerBank, setPayerBank] = useState('')
+  const [accountNumber, setAccountNumber] = useState('')
+  const [transferReference, setTransferReference] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
   const [lastReceipt, setLastReceipt] = useState('')
 
@@ -177,6 +181,10 @@ export default function FeesPage() {
           paymentMethod,
           paymentDate,
           notes: paymentNotes || undefined,
+          payerName: payerName || undefined,
+          payerBank: payerBank || undefined,
+          accountNumber: accountNumber || undefined,
+          transferReference: transferReference || undefined,
         })
       })
       if (!res.ok) throw new Error('Failed')
@@ -187,6 +195,7 @@ export default function FeesPage() {
       setTimeout(() => setSuccess(''), 15000)
       setShowPayment(false)
       setPaymentAmount(''); setPaymentNotes(''); setPaymentFeeId('')
+      setPayerName(''); setPayerBank(''); setAccountNumber(''); setTransferReference('')
       loadLedger()
     } catch { setError('Failed to record payment') } finally { setSavingPayment(false) }
   }
@@ -523,10 +532,40 @@ export default function FeesPage() {
               <div>
                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payment method</label>
                 <select style={sel} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)}>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">💵 Cash</option>
+                  <option value="bank_transfer">🏦 Bank Transfer</option>
+                  <option value="card">💳 Card / POS</option>
+                  <option value="cheque">📄 Cheque</option>
                 </select>
               </div>
+              {paymentMethod === 'bank_transfer' && (
+                <div style={{ background: '#f0f7ff', border: '1.5px solid #bfdbfe', borderRadius: '10px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e40af', marginBottom: '0.25rem' }}>🏦 Bank Transfer Details</p>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payer's full name</label>
+                    <input style={inp} value={payerName} onChange={e => setPayerName(e.target.value)} placeholder="e.g. John Adebayo" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payer's bank</label>
+                    <select style={sel} value={payerBank} onChange={e => setPayerBank(e.target.value)}>
+                      <option value="">Select bank…</option>
+                      {['Access Bank','Citibank','Ecobank','Fidelity Bank','First Bank','First City Monument Bank','Globus Bank','Guaranty Trust Bank','Heritage Bank','Keystone Bank','Lotus Bank','Polaris Bank','Providus Bank','Stanbic IBTC Bank','Standard Chartered','Sterling Bank','Titan Trust Bank','Union Bank','United Bank for Africa','Unity Bank','Wema Bank','Zenith Bank'].map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Account number (last 4 digits)</label>
+                      <input style={inp} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="e.g. 1234" maxLength={10} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Transfer reference</label>
+                      <input style={inp} value={transferReference} onChange={e => setTransferReference(e.target.value)} placeholder="e.g. TRF123456" />
+                    </div>
+                  </div>
+                </div>
+              )}
               <div>
                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payment date</label>
                 <input style={inp} type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} max={new Date().toISOString().split('T')[0]} />
