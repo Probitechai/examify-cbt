@@ -49,9 +49,76 @@ export async function resultRoutes(app: FastifyInstance) {
         JOIN users u ON u.id = sr.student_id
         WHERE sr.term_id = ${termId}::uuid
         AND sr.school_id = ${request.schoolId}::uuid
-        ${classLevel ? tdb.query`AND u.class_level = ${classLevel}` : tdb.query``}
-        ${classArm ? tdb.query`AND u.class_arm = ${classArm}` : tdb.query``}
-        ${subject ? tdb.query`AND sr.subject = ${subject}` : tdb.query``}
+        let results: any[]
+      if (classLevel && classArm && subject) {
+        results = await tdb.query`
+          SELECT sr.id, sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment,
+                 sr.approved_at, sr.approved_by,
+                 u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${classLevel}
+          AND u.class_arm = ${classArm}
+          AND sr.subject = ${subject}
+          ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
+        ` as any[]
+      } else if (classLevel && classArm) {
+        results = await tdb.query`
+          SELECT sr.id, sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment,
+                 sr.approved_at, sr.approved_by,
+                 u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${classLevel}
+          AND u.class_arm = ${classArm}
+          ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
+        ` as any[]
+      } else if (classLevel && subject) {
+        results = await tdb.query`
+          SELECT sr.id, sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment,
+                 sr.approved_at, sr.approved_by,
+                 u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${classLevel}
+          AND sr.subject = ${subject}
+          ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
+        ` as any[]
+      } else if (classLevel) {
+        results = await tdb.query`
+          SELECT sr.id, sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment,
+                 sr.approved_at, sr.approved_by,
+                 u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${classLevel}
+          ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
+        ` as any[]
+      } else {
+        results = await tdb.query`
+          SELECT sr.id, sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment,
+                 sr.approved_at, sr.approved_by,
+                 u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
+        ` as any[]
+      }
         ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
       ` as any[]
 
@@ -68,22 +135,41 @@ export async function resultRoutes(app: FastifyInstance) {
 
       const tdb = tenantDb(request.schoolId)
 
-      const students = await tdb.query`
-        SELECT u.id, u.full_name, u.admission_no, u.class_arm,
-               sr.id AS result_id, sr.ca_score, sr.exam_score,
-               sr.total_score, sr.grade, sr.remark, sr.teacher_comment, sr.approved_at
-        FROM users u
-        LEFT JOIN student_results sr ON sr.student_id = u.id
-          AND sr.term_id = ${termId}::uuid
-          AND sr.subject = ${subject}
-          AND sr.school_id = ${request.schoolId}::uuid
-        WHERE u.school_id = ${request.schoolId}::uuid
-        AND u.role = 'student'
-        AND u.is_active = true
-        AND u.class_level = ${classLevel}
-        ${classArm ? tdb.query`AND u.class_arm = ${classArm}` : tdb.query``}
-        ORDER BY u.full_name ASC
-      ` as any[]
+      let students: any[]
+      if (classArm) {
+        students = await tdb.query`
+          SELECT u.id, u.full_name, u.admission_no, u.class_arm,
+                 sr.id AS result_id, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment, sr.approved_at
+          FROM users u
+          LEFT JOIN student_results sr ON sr.student_id = u.id
+            AND sr.term_id = ${termId}::uuid
+            AND sr.subject = ${subject}
+            AND sr.school_id = ${request.schoolId}::uuid
+          WHERE u.school_id = ${request.schoolId}::uuid
+          AND u.role = 'student'
+          AND u.is_active = true
+          AND u.class_level = ${classLevel}
+          AND u.class_arm = ${classArm}
+          ORDER BY u.full_name ASC
+        ` as any[]
+      } else {
+        students = await tdb.query`
+          SELECT u.id, u.full_name, u.admission_no, u.class_arm,
+                 sr.id AS result_id, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.teacher_comment, sr.approved_at
+          FROM users u
+          LEFT JOIN student_results sr ON sr.student_id = u.id
+            AND sr.term_id = ${termId}::uuid
+            AND sr.subject = ${subject}
+            AND sr.school_id = ${request.schoolId}::uuid
+          WHERE u.school_id = ${request.schoolId}::uuid
+          AND u.role = 'student'
+          AND u.is_active = true
+          AND u.class_level = ${classLevel}
+          ORDER BY u.full_name ASC
+        ` as any[]
+      }
 
       return reply.send({ students })
     })
@@ -206,20 +292,38 @@ export async function resultRoutes(app: FastifyInstance) {
       const d = body.data
       const tdb = tenantDb(request.schoolId)
 
-      const result = await tdb.query`
-        UPDATE student_results sr
-        SET approved_at = now(), approved_by = ${request.user.id}::uuid
-        FROM users u
-        WHERE sr.student_id = u.id
-        AND sr.term_id = ${d.termId}::uuid
-        AND sr.school_id = ${request.schoolId}::uuid
-        AND u.class_level = ${d.classLevel}
-        ${d.classArm ? tdb.query`AND u.class_arm = ${d.classArm}` : tdb.query``}
-        ${d.subject ? tdb.query`AND sr.subject = ${d.subject}` : tdb.query``}
-        AND sr.approved_at IS NULL
-      ` as any
-
-      return reply.send({ approved: true })
+     if (d.classArm && d.subject) {
+        await tdb.query`
+          UPDATE student_results sr SET approved_at = now(), approved_by = ${request.user.id}::uuid
+          FROM users u WHERE sr.student_id = u.id
+          AND sr.term_id = ${d.termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${d.classLevel} AND u.class_arm = ${d.classArm}
+          AND sr.subject = ${d.subject} AND sr.approved_at IS NULL
+        `
+      } else if (d.classArm) {
+        await tdb.query`
+          UPDATE student_results sr SET approved_at = now(), approved_by = ${request.user.id}::uuid
+          FROM users u WHERE sr.student_id = u.id
+          AND sr.term_id = ${d.termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${d.classLevel} AND u.class_arm = ${d.classArm}
+          AND sr.approved_at IS NULL
+        `
+      } else if (d.subject) {
+        await tdb.query`
+          UPDATE student_results sr SET approved_at = now(), approved_by = ${request.user.id}::uuid
+          FROM users u WHERE sr.student_id = u.id
+          AND sr.term_id = ${d.termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${d.classLevel} AND sr.subject = ${d.subject}
+          AND sr.approved_at IS NULL
+        `
+      } else {
+        await tdb.query`
+          UPDATE student_results sr SET approved_at = now(), approved_by = ${request.user.id}::uuid
+          FROM users u WHERE sr.student_id = u.id
+          AND sr.term_id = ${d.termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${d.classLevel} AND sr.approved_at IS NULL
+        `
+      }
     })
 
   // ── Get broadsheet (full class result for a term) ─────────────────────────
@@ -232,18 +336,33 @@ export async function resultRoutes(app: FastifyInstance) {
       const config = await getConfig(tdb, request.schoolId)
 
       // Get all results for this class/term
-      const results = await tdb.query`
-        SELECT sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
-               sr.total_score, sr.grade, sr.remark, sr.approved_at,
-               u.full_name AS student_name, u.admission_no, u.class_arm
-        FROM student_results sr
-        JOIN users u ON u.id = sr.student_id
-        WHERE sr.term_id = ${termId}::uuid
-        AND sr.school_id = ${request.schoolId}::uuid
-        AND u.class_level = ${classLevel}
-        ${classArm ? tdb.query`AND u.class_arm = ${classArm}` : tdb.query``}
-        ORDER BY u.full_name, sr.subject
-      ` as any[]
+      let results: any[]
+      if (classArm) {
+        results = await tdb.query`
+          SELECT sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.approved_at,
+                 u.full_name AS student_name, u.admission_no, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${classLevel}
+          AND u.class_arm = ${classArm}
+          ORDER BY u.full_name, sr.subject
+        ` as any[]
+      } else {
+        results = await tdb.query`
+          SELECT sr.student_id, sr.subject, sr.ca_score, sr.exam_score,
+                 sr.total_score, sr.grade, sr.remark, sr.approved_at,
+                 u.full_name AS student_name, u.admission_no, u.class_arm
+          FROM student_results sr
+          JOIN users u ON u.id = sr.student_id
+          WHERE sr.term_id = ${termId}::uuid
+          AND sr.school_id = ${request.schoolId}::uuid
+          AND u.class_level = ${classLevel}
+          ORDER BY u.full_name, sr.subject
+        ` as any[]
+      }
 
       // Get all subjects in this result set
       const subjects = [...new Set(results.map((r: any) => r.subject))].sort()
