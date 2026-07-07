@@ -35,7 +35,7 @@ export default function UsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'student' | 'teacher'>('student')
+  const [tab, setTab] = useState<'student' | 'teacher' | 'parent'>('student')
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -85,6 +85,7 @@ export default function UsersPage() {
   const classes = [...new Set(users.filter(u => u.role === 'student').map(u => getClass(u)).filter(Boolean))].sort()
   const students = users.filter(u => u.role === 'student')
   const teachers = users.filter(u => u.role === 'teacher')
+  const parents = users.filter(u => u.role === 'parent')
 
   return (
     <div className={styles.page}>
@@ -110,12 +111,12 @@ export default function UsersPage() {
       </div>
 
       <div className={styles.tabs}>
-        {(['student', 'teacher'] as const).map(t => (
+        {(['student', 'teacher', 'parent'] as const).map(t => (
           <button
             key={t}
             className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
             onClick={() => setTab(t)}>
-            {t === 'student' ? `Students (${students.length})` : `Teachers (${teachers.length})`}
+            {t === 'student' ? `Students (${students.length})` : t === 'teacher' ? `Teachers (${teachers.length})` : `Parents (${parents.length})`}
           </button>
         ))}
       </div>
