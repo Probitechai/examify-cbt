@@ -8,6 +8,7 @@ import styles from './admin.layout.module.css'
 const NAV = [
   { href: '/admin',              icon: '▦',  label: 'Overview'        },
   { href: '/admin/sessions', icon: '📆', label: 'Academic Sessions' },
+  { href: '/admin/results2', icon: '📝', label: 'Result Entry' },
   { href: '/admin/users',        icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import', icon: '📥', label: 'Import students'  },
   { href: '/admin/exams',        icon: '📋', label: 'Exams'           },
