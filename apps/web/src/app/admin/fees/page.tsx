@@ -182,8 +182,9 @@ export default function FeesPage() {
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
       setLastReceipt(data.receiptNo)
-      setSuccess(`Payment recorded! Receipt: ${data.receiptNo}`)
-      setTimeout(() => setSuccess(''), 5000)
+      setLastReceipt(data.receiptNo)
+      setSuccess(`Payment recorded! Receipt No: ${data.receiptNo}`)
+      setTimeout(() => setSuccess(''), 15000)
       setShowPayment(false)
       setPaymentAmount(''); setPaymentNotes(''); setPaymentFeeId('')
       loadLedger()
@@ -259,7 +260,22 @@ export default function FeesPage() {
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
+      {success && (
+        <div style={{ padding: '1rem 1.25rem', background: '#e8f5ee', border: '2px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 600, marginBottom: '0.375rem' }}>✅ Payment recorded successfully!</p>
+          {lastReceipt && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'white', border: '1px solid #1a6b4a', borderRadius: '8px', padding: '0.625rem 1rem', marginTop: '0.5rem' }}>
+              <span style={{ fontSize: '0.78rem', color: '#6b6b65', fontWeight: 500 }}>Receipt Number:</span>
+              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f4a32', letterSpacing: '0.05em' }}>{lastReceipt}</span>
+              <button onClick={() => navigator.clipboard.writeText(lastReceipt)}
+                style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}>
+                Copy
+              </button>
+            </div>
+          )}
+          <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.5rem' }}>This message will disappear in 15 seconds.</p>
+        </div>
+      )}
 
       {/* ── FEE STRUCTURES TAB ── */}
       {activeTab === 'structures' && (
