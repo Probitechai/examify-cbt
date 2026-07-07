@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      router.replace(user.role === 'student' ? '/student' : '/admin')
+      router.replace(user.role === 'student' ? '/student' : user.role === 'parent' ? '/parent' : '/admin')
     }
   }, [user, isLoading, router])
 
