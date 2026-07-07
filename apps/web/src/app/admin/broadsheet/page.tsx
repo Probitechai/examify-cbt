@@ -62,6 +62,7 @@ export default function BroadsheetPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [schoolName, setSchoolName] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
 
   useEffect(() => { loadSessions() }, [])
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
@@ -76,9 +77,14 @@ export default function BroadsheetPage() {
 
     // Get school name from /auth/me
     try {
-      const meRes = await fetch(`${API}/auth/me`, { headers: hdrs() })
+      const [meRes, schoolRes] = await Promise.all([
+        fetch(`${API}/auth/me`, { headers: hdrs() }),
+        fetch(`${API}/schools/settings`, { headers: hdrs() }),
+      ])
       const meData = await meRes.json()
+      const schoolData = schoolRes.ok ? await schoolRes.json() : {}
       setSchoolName(meData.user?.school?.name ?? '')
+      setLogoUrl(schoolData.logo_url ?? '')
     } catch {}
   }
 
@@ -198,6 +204,11 @@ export default function BroadsheetPage() {
         <div id="broadsheet-print" ref={printRef}>
           {/* School header */}
           <div style={{ textAlign: 'center', marginBottom: '1.5rem', padding: '1.5rem', background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px' }}>
+            {logoUrl && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                <img src={logoUrl} alt="School logo" style={{ height: 64, maxWidth: 200, objectFit: 'contain' }} />
+              </div>
+            )}
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.375rem' }}>{schoolName || 'School Name'}</h2>
             <p style={{ fontSize: '1rem', color: '#3a3a36', fontWeight: 500 }}>
               {broadsheet.termInfo.session_name} — {broadsheet.termInfo.term_name}
