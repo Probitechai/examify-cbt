@@ -7,6 +7,7 @@ import styles from './admin.layout.module.css'
 
 const NAV = [
   { href: '/admin',              icon: '▦',  label: 'Overview'        },
+  { href: '/admin/sessions', icon: '📆', label: 'Academic Sessions' },
   { href: '/admin/users',        icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import', icon: '📥', label: 'Import students'  },
   { href: '/admin/exams',        icon: '📋', label: 'Exams'           },
@@ -15,6 +16,7 @@ const NAV = [
   { href: '/admin/results',      icon: '📊', label: 'Results'         },
   { href: '/admin/analytics',    icon: '📈', label: 'Analytics'       },
   { href: '/teacher',            icon: '📝', label: 'Teacher Portal'  },
+  
 ]
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
