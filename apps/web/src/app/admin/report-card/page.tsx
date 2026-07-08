@@ -10,6 +10,14 @@ interface ReportCard {
   term: { term_name: string; session_name: string; start_date: string; end_date: string }
   results: { subject: string; ca_score: number; exam_score: number; total_score: number; grade: string; remark: string; teacher_comment: string; approved_at: string }[]
   summary: { total: number; average: number; position: string | null }
+  conduct?: {
+    class_teacher_remark?: string
+    punctuality?: number
+    neatness?: number
+    cooperation?: number
+    leadership?: number
+    participation?: number
+  } | null
   config: { caWeight: number; examWeight: number }
 }
 
@@ -396,6 +404,48 @@ export default function ReportCardPage() {
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: failedSubjects > 0 ? '#dc2626' : '#6b6b65' }}>{failedSubjects}</p>
               </div>
             </div>
+
+            {/* Conduct Report */}
+            {reportCard.conduct && (reportCard.conduct.class_teacher_remark || reportCard.conduct.punctuality) && (
+              <div style={{ marginBottom: '1.5rem', padding: '1.25rem', background: '#f7f7f5', borderRadius: '12px', border: '1px solid #e5e5e0' }}>
+                <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1a1a18', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.875rem' }}>Conduct & Character</p>
+                {reportCard.conduct.class_teacher_remark && (
+                  <div style={{ marginBottom: '0.875rem' }}>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#6b6b65', marginBottom: '0.25rem' }}>Class Teacher's Remark</p>
+                    <p style={{ fontSize: '0.875rem', color: '#1a1a18', fontStyle: 'italic' as const }}>"{reportCard.conduct.class_teacher_remark}"</p>
+                  </div>
+                )}
+                {[
+                  { key: 'punctuality', label: 'Punctuality' },
+                  { key: 'neatness', label: 'Neatness' },
+                  { key: 'cooperation', label: 'Cooperation' },
+                  { key: 'leadership', label: 'Leadership' },
+                  { key: 'participation', label: 'Participation' },
+                ].some(t => reportCard.conduct![t.key as keyof typeof reportCard.conduct]) && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
+                    {[
+                      { key: 'punctuality', label: 'Punctuality' },
+                      { key: 'neatness', label: 'Neatness' },
+                      { key: 'cooperation', label: 'Cooperation' },
+                      { key: 'leadership', label: 'Leadership' },
+                      { key: 'participation', label: 'Participation' },
+                    ].map(trait => {
+                      const val = reportCard.conduct![trait.key as keyof typeof reportCard.conduct] as number
+                      const labels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent']
+                      const colors = ['', '#dc2626', '#d97706', '#0284c7', '#1a6b4a', '#0f4a32']
+                      if (!val) return null
+                      return (
+                        <div key={trait.key} style={{ textAlign: 'center' as const, padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #e5e5e0' }}>
+                          <p style={{ fontSize: '0.65rem', color: '#6b6b65', marginBottom: '0.25rem' }}>{trait.label}</p>
+                          <p style={{ fontSize: '1rem', fontWeight: 700, color: colors[val] }}>{val}/5</p>
+                          <p style={{ fontSize: '0.65rem', color: colors[val], fontWeight: 600 }}>{labels[val]}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Signatures */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem', borderTop: '1px solid #e5e5e0', paddingTop: '1.5rem' }}>

@@ -398,11 +398,22 @@ export async function resultRoutes(app: FastifyInstance) {
         position = pos >= 0 ? `${pos + 1} of ${classmates.length}` : null
       }
 
+      // Fetch conduct report
+      const conductRows = await tdb.query`
+        SELECT class_teacher_remark, punctuality, neatness,
+               cooperation, leadership, participation
+        FROM conduct_reports
+        WHERE term_id = ${termId}::uuid
+        AND student_id = ${studentId}::uuid
+        AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+
       return reply.send({
         reportCard: {
           student: studentRows[0] ?? {}, school: schoolRows[0] ?? {},
           term: termRows[0] ?? {}, results,
           summary: { total, average, position },
+          conduct: conductRows[0] ?? null,
           config: { caWeight: config.ca_weight, examWeight: config.exam_weight }
         }
       })
