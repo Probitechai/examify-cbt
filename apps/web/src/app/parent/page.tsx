@@ -50,6 +50,7 @@ export default function ParentDashboard() {
   const [attendance, setAttendance] = useState<any>(null)
   const [fees, setFees] = useState<any>(null)
   const [sectionLoading, setSectionLoading] = useState(false)
+  const [announcements, setAnnouncements] = useState<any[]>([])
 
   useEffect(() => {
     // Verify role
@@ -65,14 +66,17 @@ export default function ParentDashboard() {
   async function loadDashboard() {
     setLoading(true)
     try {
-      const [dashRes, meRes] = await Promise.all([
+      const [dashRes, meRes, annRes] = await Promise.all([
         fetch(`${API}/parents/dashboard`, { headers: hdrs() }),
         fetch(`${API}/auth/me`, { headers: hdrs() }),
+        fetch(`${API}/announcements`, { headers: hdrs() }),
       ])
       const dashData = await dashRes.json()
       const meData = await meRes.json()
+      const annData = annRes.ok ? await annRes.json() : {}
       setDashboard(dashData.dashboard ?? [])
       setSchoolName(meData.user?.school?.name ?? '')
+      setAnnouncements(annData.announcements ?? [])
 
       // Auto-select first student
       if (dashData.dashboard?.length > 0) {
@@ -386,6 +390,27 @@ export default function ParentDashboard() {
               </>
             )}
           </>
+        )}
+
+        {/* Announcements */}
+        {announcements.length > 0 && (
+          <div style={{ marginTop: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.875rem' }}>📢 Announcements</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              {announcements.map(a => (
+                <div key={a.id} style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.375rem' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{a.title}</p>
+                    <p style={{ fontSize: '0.72rem', color: '#a0a09a', flexShrink: 0, marginLeft: '1rem' }}>
+                      {new Date(a.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                  <p style={{ fontSize: '0.825rem', color: '#3a3a36', lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{a.body}</p>
+                  <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.5rem' }}>From: {a.posted_by_name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
