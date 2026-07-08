@@ -1,3 +1,4 @@
+import { sendSms, resultReleaseSms } from '../lib/sms'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
@@ -268,6 +269,44 @@ export async function resultRoutes(app: FastifyInstance) {
           AND u.class_level = ${d.classLevel} AND sr.approved_at IS NULL
         `
       }
+      // Notify parents via SMS (fire and forget)
+      ;(async () => {
+        try {
+          const tdb2 = tenantDb(request.schoolId)
+          const students = await tdb2.query`
+            SELECT DISTINCT u.full_name AS student_name, p.phone AS parent_phone
+            FROM student_results sr
+            JOIN users u ON u.id = sr.student_id
+            LEFT JOIN parent_student_links psl ON psl.student_id = u.id
+              AND psl.school_id = ${request.schoolId}::uuid
+            LEFT JOIN users p ON p.id = psl.parent_id
+            JOIN terms t ON t.id = sr.term_id
+            WHERE sr.term_id = ${d.termId}::uuid
+            AND sr.school_id = ${request.schoolId}::uuid
+            AND u.class_level = ${d.classLevel}
+            AND sr.approved_at IS NOT NULL
+          ` as any[]
+
+          const termInfo = await tdb2.query`
+            SELECT name FROM terms WHERE id = ${d.termId}::uuid
+          ` as any[]
+
+          for (const s of students) {
+            if (s.parent_phone) {
+              const message = resultReleaseSms({
+                schoolName: request.school.name,
+                studentName: s.student_name,
+                termName: termInfo[0]?.name ?? 'this term',
+                loginUrl: 'https://examify-cbt-web.vercel.app/login',
+              })
+              await sendSms({ to: s.parent_phone, message })
+            }
+          }
+        } catch (err: any) {
+          console.error('[SMS] Result release SMS error:', err.message)
+        }
+      })()
+
       return reply.send({ approved: true })
     })
 

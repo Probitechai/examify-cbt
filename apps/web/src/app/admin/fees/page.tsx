@@ -383,6 +383,22 @@ export default function FeesPage() {
             <>
               {/* Ledger stats */}
               {ledger.length > 0 && (
+                <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+                  <button onClick={async () => {
+                    if (!window.confirm('Send fee reminder SMS to all parents with outstanding balances?')) return
+                    const res = await fetch(`${API}/fees/remind-sms`, {
+                      method: 'POST', headers: hdrs(),
+                      body: JSON.stringify({ termId: selectedTerm, classLevel, classArm: classArm || undefined })
+                    })
+                    const data = await res.json()
+                    setSuccess(data.message ?? 'SMS reminders sent!')
+                    setTimeout(() => setSuccess(''), 5000)
+                  }}
+                    style={{ padding: '0.5rem 1.25rem', background: '#7e22ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+                    📱 Send fee reminder SMS
+                  </button>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                   {[
                     { label: 'Total Expected', value: formatAmount(ledger.reduce((s, r) => s + r.totalFees, 0)), color: '#1a1a18' },

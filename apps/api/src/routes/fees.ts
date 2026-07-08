@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { sendSms, feeReminderSms } from '../lib/sms'
 
 export async function feeRoutes(app: FastifyInstance) {
 
@@ -275,5 +276,91 @@ export async function feeRoutes(app: FastifyInstance) {
       ` as any[]
 
       return reply.send({ summary })
+    })
+
+  // ── Send fee reminder SMS to parents of students with outstanding balance ──
+  app.post('/fees/remind-sms', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        termId: z.string().uuid(),
+        classLevel: z.string(),
+        classArm: z.string().optional(),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+
+      const d = body.data
+      const tdb = tenantDb(request.schoolId)
+
+      const termRows = await tdb.query`
+        SELECT name FROM terms WHERE id = ${d.termId}::uuid
+      ` as any[]
+      const termName = termRows[0]?.name ?? 'this term'
+
+      let students: any[]
+      if (d.classArm) {
+        students = await tdb.query`
+          SELECT u.full_name AS student_name, p.phone AS parent_phone,
+                 SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) AS balance
+          FROM users u
+          JOIN fee_structures fs ON fs.class_level = u.class_level
+            AND fs.term_id = ${d.termId}::uuid
+            AND fs.school_id = ${request.schoolId}::uuid
+          LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
+            AND fp.student_id = u.id
+          LEFT JOIN parent_student_links psl ON psl.student_id = u.id
+            AND psl.school_id = ${request.schoolId}::uuid
+          LEFT JOIN users p ON p.id = psl.parent_id
+          WHERE u.school_id = ${request.schoolId}::uuid
+          AND u.role = 'student' AND u.is_active = true
+          AND u.class_level = ${d.classLevel}
+          AND u.class_arm = ${d.classArm}
+          GROUP BY u.id, u.full_name, p.phone
+          HAVING SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) > 0
+        ` as any[]
+      } else {
+        students = await tdb.query`
+          SELECT u.full_name AS student_name, p.phone AS parent_phone,
+                 SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) AS balance
+          FROM users u
+          JOIN fee_structures fs ON fs.class_level = u.class_level
+            AND fs.term_id = ${d.termId}::uuid
+            AND fs.school_id = ${request.schoolId}::uuid
+          LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
+            AND fp.student_id = u.id
+          LEFT JOIN parent_student_links psl ON psl.student_id = u.id
+            AND psl.school_id = ${request.schoolId}::uuid
+          LEFT JOIN users p ON p.id = psl.parent_id
+          WHERE u.school_id = ${request.schoolId}::uuid
+          AND u.role = 'student' AND u.is_active = true
+          AND u.class_level = ${d.classLevel}
+          GROUP BY u.id, u.full_name, p.phone
+          HAVING SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) > 0
+        ` as any[]
+      }
+
+      let sent = 0
+      let skipped = 0
+      for (const s of students) {
+        if (s.parent_phone) {
+          const message = feeReminderSms({
+            schoolName: request.school.name,
+            studentName: s.student_name,
+            balance: Number(s.balance),
+            termName,
+          })
+          const result = await sendSms({ to: s.parent_phone, message })
+          if (result.success) sent++
+        } else {
+          skipped++
+        }
+      }
+
+      return reply.send({
+        sent,
+        skipped,
+        total: students.length,
+        message: `SMS sent to ${sent} parent(s). ${skipped} skipped (no phone number).`
+      })
     })
 }

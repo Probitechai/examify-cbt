@@ -1,3 +1,4 @@
+import { sendSms, absenceAlertSms } from '../lib/sms'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
@@ -44,6 +45,42 @@ export async function attendanceRoutes(app: FastifyInstance) {
         `
         saved++
       }
+
+      // Send SMS alerts for absent students (fire and forget)
+      ;(async () => {
+        try {
+          const absentStudents = d.records.filter(r => r.status === 'absent')
+          if (absentStudents.length === 0) return
+
+          const tdb2 = tenantDb(request.schoolId)
+          for (const r of absentStudents) {
+            // Get student and parent phone
+            const rows = await tdb2.query`
+              SELECT u.full_name AS student_name,
+                     p.phone AS parent_phone
+              FROM users u
+              LEFT JOIN parent_student_links psl ON psl.student_id = u.id
+                AND psl.school_id = ${request.schoolId}::uuid
+              LEFT JOIN users p ON p.id = psl.parent_id
+              WHERE u.id = ${r.studentId}::uuid
+              LIMIT 1
+            ` as any[]
+
+            const row = rows[0]
+            if (row?.parent_phone) {
+              const message = absenceAlertSms({
+                schoolName: request.school.name,
+                studentName: row.student_name,
+                date: new Date(d.date).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' }),
+              })
+              await sendSms({ to: row.parent_phone, message })
+            }
+          }
+        } catch (err: any) {
+          console.error('[SMS] Absence alert error:', err.message)
+        }
+      })()
+
       return reply.send({ saved })
     })
 
