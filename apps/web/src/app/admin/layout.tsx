@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/fees', icon: '💰', label: 'Fee Management' },
   { href: '/admin/attendance', icon: '📋', label: 'Attendance' },
   { href: '/admin/results2', icon: '📝', label: 'Result Entry' },
+  { href: '/admin/approvals', icon: '✅', label: 'Result Approval' },
   { href: '/admin/broadsheet', icon: '📊', label: 'Broadsheet' },
   { href: '/admin/report-card', icon: '🎓', label: 'Report Card' },
   { href: '/admin/users',        icon: '👥', label: 'Students & Staff' },
