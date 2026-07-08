@@ -17,6 +17,7 @@ const NAV = [
   { href: '/admin/report-card', icon: '🎓', label: 'Report Card' },
   { href: '/admin/conduct', icon: '📝', label: 'Conduct Reports' },
   { href: '/admin/users',        icon: '👥', label: 'Students & Staff' },
+  { href: '/admin/announcements', icon: '📢', label: 'Announcements' },
   { href: '/admin/users/import', icon: '📥', label: 'Import students'  },
   { href: '/admin/exams',        icon: '📋', label: 'Exams'           },
   { href: '/admin/timetable',    icon: '🗓', label: 'Timetable'       },
