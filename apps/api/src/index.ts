@@ -19,6 +19,7 @@ import { schoolRoutes } from './routes/schools'
 import { attendanceRoutes } from './routes/attendance'
 import { feeRoutes } from './routes/fees'
 import { parentRoutes } from './routes/parents'
+import { conductRoutes } from './routes/conduct'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -59,6 +60,7 @@ async function start() {
   await app.register(attendanceRoutes, { prefix: '/api' })
   await app.register(feeRoutes, { prefix: '/api' })
   await app.register(parentRoutes, { prefix: '/api' })
+  await app.register(conductRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
