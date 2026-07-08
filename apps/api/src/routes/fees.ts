@@ -328,9 +328,11 @@ export async function feeRoutes(app: FastifyInstance) {
             AND fs.school_id = ${request.schoolId}::uuid
           LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
             AND fp.student_id = u.id
-          LEFT JOIN parent_student_links psl ON psl.student_id = u.id
+            AND fp.school_id = ${request.schoolId}::uuid
+          JOIN parent_student_links psl ON psl.student_id = u.id
             AND psl.school_id = ${request.schoolId}::uuid
-          LEFT JOIN users p ON p.id = psl.parent_id
+          JOIN users p ON p.id = psl.parent_id
+            AND p.phone IS NOT NULL
           WHERE u.school_id = ${request.schoolId}::uuid
           AND u.role = 'student' AND u.is_active = true
           AND u.class_level = ${d.classLevel}
