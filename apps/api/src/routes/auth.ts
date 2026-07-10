@@ -19,7 +19,15 @@ export async function authRoutes(app: FastifyInstance) {
     const { email, password } = body.data
     const tdb = tenantDb(request.schoolId)
 
-    const rows = await tdb.query`
+    // Super admins can log in from any school subdomain
+    const superAdminRows = await db()`
+      SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm
+      FROM users
+      WHERE email = ${email.toLowerCase()}
+      AND role = 'super_admin'
+    ` as any[]
+
+    const rows = superAdminRows.length > 0 ? superAdminRows : await tdb.query`
       SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm
       FROM users
       WHERE email = ${email.toLowerCase()}
