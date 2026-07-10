@@ -411,7 +411,7 @@ export default function FeesPage() {
                     </div>
                   ))}
                 </div>
-              )}
+              </>)}
 
               <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 80px auto', gap: '0.75rem', padding: '0.625rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
