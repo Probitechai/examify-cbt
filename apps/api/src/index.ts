@@ -22,6 +22,7 @@ import { parentRoutes } from './routes/parents'
 import { conductRoutes } from './routes/conduct'
 import { announcementRoutes } from './routes/announcements'
 import { timetableRoutes } from './routes/timetable'
+import { superAdminRoutes } from './routes/superadmin'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -65,6 +66,7 @@ async function start() {
   await app.register(conductRoutes, { prefix: '/api' })
   await app.register(announcementRoutes, { prefix: '/api' })
   await app.register(timetableRoutes, { prefix: '/api' })
+  await app.register(superAdminRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
