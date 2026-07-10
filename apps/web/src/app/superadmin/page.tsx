@@ -162,12 +162,13 @@ export default function SuperAdminDashboard() {
         {activeTab === 'overview' && overview && (
           <>
             {/* Key metrics */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
               {[
                 { label: 'Total Schools', value: overview.schools.total_schools, sub: `${overview.schools.active_schools} active`, color: '#0f4a32', bg: '#e8f5ee' },
-                { label: 'Total Students', value: Number(overview.users.total_students).toLocaleString(), sub: `${overview.users.total_teachers} teachers`, color: '#1e40af', bg: '#eff6ff' },
-                { label: 'Exams Created', value: Number(overview.exams.total_exams).toLocaleString(), sub: `${overview.exams.exams_last_30_days} in last 30 days`, color: '#7e22ce', bg: '#f5f3ff' },
-                { label: 'Exam Submissions', value: Number(overview.sessions.completed_sessions).toLocaleString(), sub: `${overview.sessions.sessions_last_30_days} in last 30 days`, color: '#d97706', bg: '#fffbeb' },
+                { label: 'Total Students', value: Number(overview.users.total_students).toLocaleString(), sub: `across all schools`, color: '#1e40af', bg: '#eff6ff' },
+                { label: 'Total Teachers', value: Number(overview.users.total_teachers).toLocaleString(), sub: `across all schools`, color: '#7e22ce', bg: '#f5f3ff' },
+                { label: 'Exams Created', value: Number(overview.exams.total_exams).toLocaleString(), sub: `${overview.exams.exams_last_30_days} in last 30 days`, color: '#d97706', bg: '#fffbeb' },
+                { label: 'Exam Submissions', value: Number(overview.sessions.completed_sessions).toLocaleString(), sub: `${overview.sessions.sessions_last_30_days} in last 30 days`, color: '#dc2626', bg: '#fef2f2' },
               ].map((item, i) => (
                 <div key={i} style={{ background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #e5e5e0' }}>
                   <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{item.label}</p>
