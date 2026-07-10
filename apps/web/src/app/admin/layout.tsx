@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
 import styles from './admin.layout.module.css'
 
+// nav v2
 const NAV = [
   { href: '/admin',              icon: '▦',  label: 'Overview'        },
   { href: '/admin/settings', icon: '⚙️', label: 'School Settings' },
