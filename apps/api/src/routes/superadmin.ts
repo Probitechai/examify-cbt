@@ -1,13 +1,65 @@
 import type { FastifyInstance } from 'fastify'
+import * as bcrypt from 'bcryptjs'
 import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
 export async function superAdminRoutes(app: FastifyInstance) {
 
-  // ── Platform overview ─────────────────────────────────────────────────────
-  app.get('/superadmin/overview', { preHandler: [authenticate, requireRole('super_admin')] },
-    async (request: any, reply: any) => {
+  // ── Super admin login (bypasses tenant middleware) ────────────────────────
+  app.post('/superadmin/login', async (request: any, reply: any) => {
+    const { email, password } = request.body as any
+    if (!email || !password) return reply.status(400).send({ error: 'Email and password required' })
 
+    const rows = await db()`
+      SELECT id, school_id, role, email, full_name, password_hash, is_active
+      FROM users
+      WHERE email = ${email.toLowerCase()}
+      AND role = 'super_admin'
+      LIMIT 1
+    ` as any[]
+
+    const user = rows[0]
+    if (!user || !user.is_active) {
+      return reply.status(401).send({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' })
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash)
+    if (!valid) {
+      return reply.status(401).send({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' })
+    }
+
+    await db()`UPDATE users SET last_login_at = now() WHERE id = ${user.id}`
+
+    const token = (app as any).jwt.sign(
+      {
+        id: user.id,
+        schoolId: user.school_id,
+        schoolSubdomain: 'platform',
+        role: user.role,
+        email: user.email,
+        fullName: user.full_name,
+      },
+      { expiresIn: '12h' }
+    )
+
+    return reply.send({ token, user: { id: user.id, role: user.role, email: user.email, fullName: user.full_name } })
+  })
+
+  // ── Auth middleware for super admin routes ────────────────────────────────
+  async function superAuth(request: any, reply: any) {
+    try {
+      await request.jwtVerify()
+      if (request.user.role !== 'super_admin') {
+        return reply.status(403).send({ error: 'FORBIDDEN' })
+      }
+    } catch {
+      return reply.status(401).send({ error: 'UNAUTHORIZED' })
+    }
+  }
+
+  // ── Platform overview ─────────────────────────────────────────────────────
+  app.get('/superadmin/overview', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
       const schoolStats = await db()`
         SELECT
           COUNT(*) AS total_schools,
@@ -64,7 +116,7 @@ export async function superAdminRoutes(app: FastifyInstance) {
     })
 
   // ── Per-school breakdown ──────────────────────────────────────────────────
-  app.get('/superadmin/schools', { preHandler: [authenticate, requireRole('super_admin')] },
+  app.get('/superadmin/schools', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const schools = await db()`
         SELECT
@@ -87,48 +139,8 @@ export async function superAdminRoutes(app: FastifyInstance) {
       return reply.send({ schools })
     })
 
-  // ── Activity over time (last 30 days) ────────────────────────────────────
-  app.get('/superadmin/activity', { preHandler: [authenticate, requireRole('super_admin')] },
-    async (request: any, reply: any) => {
-
-      const dailyActivity = await db()`
-        SELECT
-          DATE(created_at) AS date,
-          COUNT(*) AS submissions
-        FROM exam_sessions
-        WHERE status = 'submitted'
-        AND created_at >= now() - interval '30 days'
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-      ` as any[]
-
-      const newSchools = await db()`
-        SELECT
-          DATE(created_at) AS date,
-          COUNT(*) AS count
-        FROM schools
-        WHERE created_at >= now() - interval '30 days'
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-      ` as any[]
-
-      const newUsers = await db()`
-        SELECT
-          DATE(created_at) AS date,
-          COUNT(*) AS count,
-          role
-        FROM users
-        WHERE created_at >= now() - interval '30 days'
-        AND role = 'student'
-        GROUP BY DATE(created_at), role
-        ORDER BY date ASC
-      ` as any[]
-
-      return reply.send({ dailyActivity, newSchools, newUsers })
-    })
-
   // ── Toggle school active status ───────────────────────────────────────────
-  app.patch('/superadmin/schools/:id/toggle', { preHandler: [authenticate, requireRole('super_admin')] },
+  app.patch('/superadmin/schools/:id/toggle', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const rows = await db()`
@@ -140,7 +152,7 @@ export async function superAdminRoutes(app: FastifyInstance) {
     })
 
   // ── Update school subscription tier ──────────────────────────────────────
-  app.patch('/superadmin/schools/:id/tier', { preHandler: [authenticate, requireRole('super_admin')] },
+  app.patch('/superadmin/schools/:id/tier', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const { tier } = request.body as any
