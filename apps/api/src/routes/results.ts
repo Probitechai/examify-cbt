@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { requireTier } from '../middleware/tier'
 
 export async function resultRoutes(app: FastifyInstance) {
 
@@ -223,7 +224,7 @@ export async function resultRoutes(app: FastifyInstance) {
     })
 
   // ── Approve results ───────────────────────────────────────────────────────
-  app.post('/results/approve', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.post('/results/approve', { preHandler: [authenticate, requireRole('school_admin'), requireTier('growth')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),

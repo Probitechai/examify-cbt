@@ -3,6 +3,7 @@ import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { getStudentLimit } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
 export async function userRoutes(app: FastifyInstance) {
@@ -38,6 +39,22 @@ export async function userRoutes(app: FastifyInstance) {
       const d = body.data
       const passwordHash = await bcrypt.hash(d.password, 12)
       const tdb = tenantDb(request.schoolId)
+
+      // Check student limit for the school's tier
+      if (d.role === 'student') {
+        const tierLimit = getStudentLimit(request.school?.subscriptionTier ?? 'starter')
+        const countRows = await tdb.query`
+          SELECT COUNT(*) AS student_count FROM users
+          WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
+        ` as any[]
+        const currentCount = Number(countRows[0]?.student_count ?? 0)
+        if (currentCount >= tierLimit) {
+          return reply.status(403).send({
+            error: 'STUDENT_LIMIT_REACHED',
+            message: `Your ${request.school?.subscriptionTier ?? 'starter'} plan allows up to ${tierLimit} students. Please upgrade to add more.`,
+          })
+        }
+      }
 
       const rows = await tdb.query`
         INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm)

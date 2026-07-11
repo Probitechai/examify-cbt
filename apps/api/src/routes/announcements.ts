@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { requireTier } from '../middleware/tier'
 
 export async function announcementRoutes(app: FastifyInstance) {
 
@@ -64,7 +65,7 @@ export async function announcementRoutes(app: FastifyInstance) {
     })
 
   // ── Create announcement ───────────────────────────────────────────────────
-  app.post('/announcements', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.post('/announcements', { preHandler: [authenticate, requireRole('school_admin'), requireTier('growth')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         title: z.string().min(1).max(200),
@@ -87,7 +88,7 @@ export async function announcementRoutes(app: FastifyInstance) {
     })
 
   // ── Delete announcement ───────────────────────────────────────────────────
-  app.delete('/announcements/:id', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.delete('/announcements/:id', { preHandler: [authenticate, requireRole('school_admin'), requireTier('growth')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const tdb = tenantDb(request.schoolId)
