@@ -17,6 +17,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/admin',               icon: '◦',  label: 'Overview' },
   { href: '/admin/settings',      icon: '⚙️', label: 'School Settings' },
+  { href: '/admin/subscription', icon: '💳', label: 'Subscription' },
   { href: '/admin/sessions',      icon: '📆', label: 'Academic Sessions' },
   { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
   { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
