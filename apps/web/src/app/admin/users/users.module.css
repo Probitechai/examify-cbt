@@ -20,8 +20,8 @@
 .select { padding: 0.625rem 1rem; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.875rem; color: var(--text-primary); cursor: pointer; outline: none; }
 
 .tableWrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-.tableHead { display: grid; grid-template-columns: 2fr 1fr 0.8fr 2fr 1fr 0.8fr 1.2fr; gap: 1rem; padding: 0.625rem 1.25rem; font-size: 0.72rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .05em; background: var(--bg); border-bottom: 1px solid var(--border); }
-.tableRow { display: grid; grid-template-columns: 2fr 1fr 0.8fr 2fr 1fr 0.8fr 1.2fr; gap: 1rem; padding: 0.875rem 1.25rem; align-items: center; border-top: 1px solid var(--border); font-size: 0.875rem; transition: background .1s; }
+.tableHead { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 0.8fr; gap: 1rem; padding: 0.625rem 1.25rem; font-size: 0.72rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .05em; background: var(--bg); border-bottom: 1px solid var(--border); }
+.tableRow { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 0.8fr; gap: 1rem; padding: 0.875rem 1.25rem; align-items: center; border-top: 1px solid var(--border); font-size: 0.875rem; transition: background .1s; }
 .tableRow:hover { background: var(--bg); }
 .empty { padding: 3rem; text-align: center; color: var(--text-secondary); font-size: 0.9rem; }
 

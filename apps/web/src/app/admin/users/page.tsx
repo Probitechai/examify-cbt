@@ -135,7 +135,7 @@ export default function UsersPage() {
       </div>
 
       <div className={styles.tableWrap}>
-        <div className={styles.tableHead}>
+        <div className={styles.tableHead} style={{ gridTemplateColumns: tab === 'student' ? '2fr 2fr 1fr 1fr 1fr 0.8fr' : '2fr 2fr 2fr 1fr 0.8fr' }}>
           <span>Name</span>
           <span>Email</span>
           {tab === 'student' && <span>Adm. No.</span>}
@@ -157,7 +157,7 @@ export default function UsersPage() {
             <p>{search ? 'No results found' : `No ${tab}s yet.`}</p>
           </div>
         ) : filtered.map(u => (
-          <div key={u.id} className={styles.tableRow}>
+          <div key={u.id} className={styles.tableRow} style={{ gridTemplateColumns: tab === 'student' ? '2fr 2fr 1fr 1fr 1fr 0.8fr' : '2fr 2fr 2fr 1fr 0.8fr' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
               <span style={{ width: 30, height: 30, borderRadius: '50%', background: tab === 'student' ? '#e8f5ee' : tab === 'parent' ? '#fff7ed' : '#eff6ff', color: tab === 'student' ? '#0f4a32' : tab === 'parent' ? '#c2410c' : '#1e40af', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {getName(u).charAt(0)}
