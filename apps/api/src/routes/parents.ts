@@ -327,47 +327,7 @@ export async function parentRoutes(app: FastifyInstance) {
         ORDER BY s.created_at DESC, t.term_number ASC
       ` as any[]
       return reply.send({ terms })
-    })
-// ── Link parent to student ─────────────────────────────────────────────────
-  app.post('/parents/link', { preHandler: [authenticate, requireRole('school_admin')] },
-    async (request: any, reply: any) => {
-      const { parentId, studentId, relationship } = request.body as any
-      if (!parentId || !studentId) return reply.status(400).send({ error: 'parentId and studentId required' })
-
-      const tdb = tenantDb(request.schoolId)
-
-      const check = await tdb.query`
-        SELECT id, role FROM users
-        WHERE id IN (${parentId}::uuid, ${studentId}::uuid)
-        AND school_id = ${request.schoolId}::uuid
-      ` as any[]
-
-      if (check.length < 2) return reply.status(404).send({ error: 'User not found in this school' })
-
-      await tdb.query`
-        INSERT INTO parent_student_links (parent_id, student_id, school_id)
-        VALUES (${parentId}::uuid, ${studentId}::uuid, ${request.schoolId}::uuid)
-        ON CONFLICT DO NOTHING
-      `
-      return reply.send({ linked: true })
-    })
-
-  // ── Unlink parent from student ─────────────────────────────────────────────
-  app.delete('/parents/link', { preHandler: [authenticate, requireRole('school_admin')] },
-    async (request: any, reply: any) => {
-      const { parentId, studentId } = request.body as any
-      if (!parentId || !studentId) return reply.status(400).send({ error: 'parentId and studentId required' })
-
-      const tdb = tenantDb(request.schoolId)
-      await tdb.query`
-        DELETE FROM parent_student_links
-        WHERE parent_id = ${parentId}::uuid
-        AND student_id = ${studentId}::uuid
-        AND school_id = ${request.schoolId}::uuid
-      `
-      return reply.send({ unlinked: true })
-    })
-
+   
   // ── Get all parent-student links for admin ─────────────────────────────────
   app.get('/parents/links', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
