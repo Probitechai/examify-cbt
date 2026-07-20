@@ -1,4 +1,5 @@
 'use client'
+// v2 - with student profiles
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './users.module.css'
