@@ -188,14 +188,6 @@ export default function UsersPage() {
                 </button>
               </span>
             )}
-            {tab === 'student' && (
-              <span>
-                <button onClick={() => router.push(`/admin/students/${u.id}`)}
-                  style={{ padding: '0.25rem 0.625rem', background: '#e8f5ee', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>
-                  View Profile
-                </button>
-              </span>
-            )}
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{getLastLogin(u)}</span>
             <span>
               <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, background: getActive(u) ? '#e8f5ee' : '#fef2f2', color: getActive(u) ? '#0f4a32' : '#dc2626' }}>
