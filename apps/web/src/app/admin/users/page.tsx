@@ -168,6 +168,14 @@ export default function UsersPage() {
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{u.email}</span>
             {tab === 'student' && <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{getAdmNo(u)}</span>}
             {tab === 'student' && <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{getClass(u)} {getArm(u)}</span>}
+            {tab === 'student' && (
+              <span>
+                <button onClick={() => router.push(`/admin/students/${u.id}`)}
+                  style={{ padding: '0.25rem 0.625rem', background: '#e8f5ee', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>
+                  View Profile
+                </button>
+              </span>
+            )}
             {tab === 'parent' && (
               <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                 {u.linkedStudents && u.linkedStudents.length > 0
