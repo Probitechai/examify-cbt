@@ -359,13 +359,32 @@ export default function ParentDashboard() {
                           <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{f.name}</p>
                           <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.1rem' }}>{f.is_mandatory ? 'Mandatory' : 'Optional'}</p>
                         </div>
-                        <div style={{ textAlign: 'right' as const }}>
-                          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: f.balance > 0 ? '#dc2626' : '#1a6b4a' }}>
-                            {f.balance > 0 ? `Owing: ${formatAmount(f.balance)}` : '✓ Paid'}
-                          </p>
-                          <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Paid: {formatAmount(f.totalPaid)} of {formatAmount(f.amount)}</p>
-                        </div>
-                      </div>
+<div style={{ textAlign: 'right' as const, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div>
+                            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: f.balance > 0 ? '#dc2626' : '#1a6b4a' }}>
+                              {f.balance > 0 ? `Owing: ${formatAmount(f.balance)}` : '✓ Paid'}
+                            </p>
+                            <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Paid: {formatAmount(f.totalPaid)} of {formatAmount(f.amount)}</p>
+                          </div>
+                          {f.balance > 0 && (
+                            <button
+                              onClick={async () => {
+                                const token = document.cookie.split(';').find((c: string) => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
+                                const subdomain = (() => { try { return JSON.parse(atob(token.split('.')[1])).schoolSubdomain ?? '' } catch { return '' } })()
+                                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/paystack/fees/initialize`, {
+                                  method: 'POST',
+                                  headers: { 'Authorization': `Bearer ${token}`, 'X-School-Subdomain': subdomain, 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ feeStructureId: f.id, studentId: currentItem.student.id, amount: f.balance })
+                                })
+                                const data = await res.json()
+                                if (data.authorizationUrl) window.location.href = data.authorizationUrl
+                                else alert('Could not initialize payment. Please try again.')
+                              }}
+                              style={{ padding: '0.4rem 0.875rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                              💳 Pay Online
+                            </button>
+                          )}
+                        </div>                      </div>
                     ))}
                     {/* Payment history */}
                     {fees.payments?.length > 0 && (
