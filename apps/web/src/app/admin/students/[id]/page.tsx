@@ -1,14 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const API = process.env.NEXT_PUBLIC_API_URL
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 function getToken() {
   if (typeof document === 'undefined') return ''
@@ -24,6 +20,18 @@ function getSubdomain() {
 }
 function hdrs() {
   return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+}
+
+async function uploadToSupabase(file: File, studentId: string): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${studentId}/${Date.now()}.${ext}`
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/student-documents/${path}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
+    body: file,
+  })
+  if (!res.ok) throw new Error('Upload failed')
+  return `${SUPABASE_URL}/storage/v1/object/public/student-documents/${path}`
 }
 
 const TABS = [
@@ -81,19 +89,11 @@ export default function StudentProfilePage() {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
-
-  // Profile form state
   const [profileForm, setProfileForm] = useState<any>({})
-
-  // Achievement form
   const [showAchForm, setShowAchForm] = useState(false)
   const [achForm, setAchForm] = useState({ title: '', category: 'academic', description: '', dateAwarded: '', awardedBy: '' })
-
-  // Discipline form
   const [showDiscForm, setShowDiscForm] = useState(false)
   const [discForm, setDiscForm] = useState({ incidentDate: '', incidentType: 'misconduct', description: '', actionTaken: 'verbal_warning', actionDetails: '', parentNotified: false })
-
-  // Document upload
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [docType, setDocType] = useState('birth_certificate')
@@ -114,7 +114,6 @@ export default function StudentProfilePage() {
       const docsData = await docsRes.json()
       const achData = await achRes.json()
       const discData = await discRes.json()
-
       setStudent(profileData.student)
       setProfile(profileData.profile)
       setParents(profileData.parents ?? [])
@@ -131,28 +130,28 @@ export default function StudentProfilePage() {
       const res = await fetch(`${API}/students/${studentId}/profile`, {
         method: 'POST', headers: hdrs(),
         body: JSON.stringify({
-          dateOfBirth: profileForm.date_of_birth || profileForm.dateOfBirth || undefined,
+          dateOfBirth: profileForm.date_of_birth?.slice(0,10) || undefined,
           gender: profileForm.gender || undefined,
           religion: profileForm.religion || undefined,
           nationality: profileForm.nationality || undefined,
-          stateOfOrigin: profileForm.state_of_origin || profileForm.stateOfOrigin || undefined,
+          stateOfOrigin: profileForm.state_of_origin || undefined,
           lga: profileForm.lga || undefined,
-          homeAddress: profileForm.home_address || profileForm.homeAddress || undefined,
-          bloodGroup: profileForm.blood_group || profileForm.bloodGroup || undefined,
+          homeAddress: profileForm.home_address || undefined,
+          bloodGroup: profileForm.blood_group || undefined,
           genotype: profileForm.genotype || undefined,
           allergies: profileForm.allergies || undefined,
-          medicalConditions: profileForm.medical_conditions || profileForm.medicalConditions || undefined,
-          entryClass: profileForm.entry_class || profileForm.entryClass || undefined,
-          entryDate: profileForm.entry_date || profileForm.entryDate || undefined,
-          previousSchool: profileForm.previous_school || profileForm.previousSchool || undefined,
-          previousSchoolAddress: profileForm.previous_school_address || profileForm.previousSchoolAddress || undefined,
-          emergencyContactName: profileForm.emergency_contact_name || profileForm.emergencyContactName || undefined,
-          emergencyContactPhone: profileForm.emergency_contact_phone || profileForm.emergencyContactPhone || undefined,
-          emergencyContactRelationship: profileForm.emergency_contact_relationship || profileForm.emergencyContactRelationship || undefined,
+          medicalConditions: profileForm.medical_conditions || undefined,
+          entryClass: profileForm.entry_class || undefined,
+          entryDate: profileForm.entry_date?.slice(0,10) || undefined,
+          previousSchool: profileForm.previous_school || undefined,
+          previousSchoolAddress: profileForm.previous_school_address || undefined,
+          emergencyContactName: profileForm.emergency_contact_name || undefined,
+          emergencyContactPhone: profileForm.emergency_contact_phone || undefined,
+          emergencyContactRelationship: profileForm.emergency_contact_relationship || undefined,
         })
       })
       if (!res.ok) throw new Error('Failed to save')
-      setSuccess('Profile saved successfully!')
+      setSuccess('Profile saved!')
       setTimeout(() => setSuccess(''), 3000)
       loadAll()
     } catch { setError('Failed to save profile') } finally { setSaving(false) }
@@ -164,20 +163,15 @@ export default function StudentProfilePage() {
     if (!docName.trim()) { setError('Please enter a document name first'); return }
     setUploading(true); setError('')
     try {
-      const ext = file.name.split('.').pop()
-      const path = `${studentId}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('student-documents').upload(path, file)
-      if (uploadError) throw uploadError
-      const { data: { publicUrl } } = supabase.storage.from('student-documents').getPublicUrl(path)
+      const fileUrl = await uploadToSupabase(file, studentId)
       await fetch(`${API}/students/${studentId}/documents`, {
         method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ documentType: docType, documentName: docName, fileUrl: publicUrl })
+        body: JSON.stringify({ documentType: docType, documentName: docName, fileUrl })
       })
       setDocName(''); setDocType('birth_certificate')
       if (fileInputRef.current) fileInputRef.current.value = ''
+      setSuccess('Document uploaded!'); setTimeout(() => setSuccess(''), 3000)
       loadAll()
-      setSuccess('Document uploaded!')
-      setTimeout(() => setSuccess(''), 3000)
     } catch { setError('Failed to upload document') } finally { setUploading(false) }
   }
 
@@ -192,16 +186,12 @@ export default function StudentProfilePage() {
     setSaving(true)
     try {
       await fetch(`${API}/students/${studentId}/achievements`, {
-        method: 'POST', headers: hdrs(), body: JSON.stringify({
-          title: achForm.title, category: achForm.category,
-          description: achForm.description || undefined,
-          dateAwarded: achForm.dateAwarded || undefined,
-          awardedBy: achForm.awardedBy || undefined,
-        })
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ title: achForm.title, category: achForm.category, description: achForm.description || undefined, dateAwarded: achForm.dateAwarded || undefined, awardedBy: achForm.awardedBy || undefined })
       })
       setAchForm({ title: '', category: 'academic', description: '', dateAwarded: '', awardedBy: '' })
       setShowAchForm(false); loadAll()
-    } catch { setError('Failed to save achievement') } finally { setSaving(false) }
+    } catch { setError('Failed to save') } finally { setSaving(false) }
   }
 
   async function deleteAchievement(achId: string) {
@@ -215,16 +205,12 @@ export default function StudentProfilePage() {
     setSaving(true)
     try {
       await fetch(`${API}/students/${studentId}/discipline`, {
-        method: 'POST', headers: hdrs(), body: JSON.stringify({
-          incidentDate: discForm.incidentDate, incidentType: discForm.incidentType,
-          description: discForm.description, actionTaken: discForm.actionTaken,
-          actionDetails: discForm.actionDetails || undefined,
-          parentNotified: discForm.parentNotified,
-        })
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ incidentDate: discForm.incidentDate, incidentType: discForm.incidentType, description: discForm.description, actionTaken: discForm.actionTaken, actionDetails: discForm.actionDetails || undefined, parentNotified: discForm.parentNotified })
       })
       setDiscForm({ incidentDate: '', incidentType: 'misconduct', description: '', actionTaken: 'verbal_warning', actionDetails: '', parentNotified: false })
       setShowDiscForm(false); loadAll()
-    } catch { setError('Failed to save record') } finally { setSaving(false) }
+    } catch { setError('Failed to save') } finally { setSaving(false) }
   }
 
   async function resolveRecord(recId: string) {
@@ -236,24 +222,22 @@ export default function StudentProfilePage() {
     loadAll()
   }
 
-  function setField(field: string, value: any) {
-    setProfileForm((prev: any) => ({ ...prev, [field]: value }))
-  }
+  function setField(field: string, value: any) { setProfileForm((prev: any) => ({ ...prev, [field]: value })) }
 
   const inp = { padding: '0.625rem 0.875rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const }
   const sel = { ...inp, cursor: 'pointer' }
   const lbl = { fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }
 
   if (loading) return (
-    <div style={{ padding: '3rem', textAlign: 'center', fontFamily: 'system-ui' }}>
+    <div style={{ padding: '3rem', textAlign: 'center' as const, fontFamily: 'system-ui' }}>
       <p style={{ color: '#6b6b65' }}>Loading student profile...</p>
     </div>
   )
 
   if (!student) return (
-    <div style={{ padding: '3rem', textAlign: 'center', fontFamily: 'system-ui' }}>
+    <div style={{ padding: '3rem', textAlign: 'center' as const, fontFamily: 'system-ui' }}>
       <p style={{ color: '#dc2626' }}>Student not found.</p>
-      <button onClick={() => router.back()} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>← Back</button>
+      <button onClick={() => router.back()} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Back</button>
     </div>
   )
 
@@ -261,7 +245,7 @@ export default function StudentProfilePage() {
     <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 900 }}>
       {/* Student header */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        <div style={{ position: 'relative' as const }}>
+        <div>
           {student.photo_url ? (
             <img src={student.photo_url} alt={student.full_name} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' as const, border: '3px solid #e5e5e0' }} />
           ) : (
@@ -279,18 +263,17 @@ export default function StudentProfilePage() {
             {student.is_active ? 'Active' : 'Inactive'}
           </span>
         </div>
-        <button onClick={() => router.back()} style={{ padding: '0.5rem 1rem', background: '#f7f7f5', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>← Back</button>
+        <button onClick={() => router.back()} style={{ padding: '0.5rem 1rem', background: '#f7f7f5', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Back</button>
       </div>
 
-      {/* Alerts */}
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
       {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', flexWrap: 'wrap' as const }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: tab === t.key ? '#1a6b4a' : 'transparent', color: tab === t.key ? 'white' : '#6b6b65', transition: 'all 0.1s' }}>
+            style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: tab === t.key ? '#1a6b4a' : 'transparent', color: tab === t.key ? 'white' : '#6b6b65' }}>
             {t.label}
           </button>
         ))}
@@ -301,84 +284,52 @@ export default function StudentProfilePage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Bio-data</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={lbl}>Date of Birth</label>
-              <input style={inp} type="date" value={profileForm.date_of_birth?.slice(0,10) ?? profileForm.dateOfBirth ?? ''} onChange={e => setField('date_of_birth', e.target.value)} />
-            </div>
-            <div>
-              <label style={lbl}>Gender</label>
+            <div><label style={lbl}>Date of Birth</label>
+              <input style={inp} type="date" value={profileForm.date_of_birth?.slice(0,10) ?? ''} onChange={e => setField('date_of_birth', e.target.value)} /></div>
+            <div><label style={lbl}>Gender</label>
               <select style={sel} value={profileForm.gender ?? ''} onChange={e => setField('gender', e.target.value)}>
-                <option value="">Select...</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Religion</label>
+                <option value="">Select...</option><option value="male">Male</option><option value="female">Female</option>
+              </select></div>
+            <div><label style={lbl}>Religion</label>
               <select style={sel} value={profileForm.religion ?? ''} onChange={e => setField('religion', e.target.value)}>
-                <option value="">Select...</option>
-                <option>Christianity</option>
-                <option>Islam</option>
-                <option>Traditional</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Nationality</label>
-              <input style={inp} value={profileForm.nationality ?? 'Nigerian'} onChange={e => setField('nationality', e.target.value)} />
-            </div>
-            <div>
-              <label style={lbl}>State of Origin</label>
+                <option value="">Select...</option><option>Christianity</option><option>Islam</option><option>Traditional</option><option>Other</option>
+              </select></div>
+            <div><label style={lbl}>Nationality</label>
+              <input style={inp} value={profileForm.nationality ?? 'Nigerian'} onChange={e => setField('nationality', e.target.value)} /></div>
+            <div><label style={lbl}>State of Origin</label>
               <select style={sel} value={profileForm.state_of_origin ?? ''} onChange={e => setField('state_of_origin', e.target.value)}>
                 <option value="">Select...</option>
                 {NIGERIAN_STATES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>LGA</label>
-              <input style={inp} value={profileForm.lga ?? ''} onChange={e => setField('lga', e.target.value)} placeholder="Local Government Area" />
-            </div>
+              </select></div>
+            <div><label style={lbl}>LGA</label>
+              <input style={inp} value={profileForm.lga ?? ''} onChange={e => setField('lga', e.target.value)} placeholder="Local Government Area" /></div>
           </div>
           <div style={{ marginBottom: '1rem' }}>
             <label style={lbl}>Home Address</label>
             <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={profileForm.home_address ?? ''} onChange={e => setField('home_address', e.target.value)} placeholder="Full home address" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={lbl}>Entry Class</label>
-              <input style={inp} value={profileForm.entry_class ?? ''} onChange={e => setField('entry_class', e.target.value)} placeholder="e.g. JSS1" />
-            </div>
-            <div>
-              <label style={lbl}>Entry Date</label>
-              <input style={inp} type="date" value={profileForm.entry_date?.slice(0,10) ?? ''} onChange={e => setField('entry_date', e.target.value)} />
-            </div>
-            <div>
-              <label style={lbl}>Previous School</label>
-              <input style={inp} value={profileForm.previous_school ?? ''} onChange={e => setField('previous_school', e.target.value)} placeholder="Name of previous school" />
-            </div>
-            <div>
-              <label style={lbl}>Previous School Address</label>
-              <input style={inp} value={profileForm.previous_school_address ?? ''} onChange={e => setField('previous_school_address', e.target.value)} placeholder="Address" />
-            </div>
+            <div><label style={lbl}>Entry Class</label>
+              <input style={inp} value={profileForm.entry_class ?? ''} onChange={e => setField('entry_class', e.target.value)} placeholder="e.g. JSS1" /></div>
+            <div><label style={lbl}>Entry Date</label>
+              <input style={inp} type="date" value={profileForm.entry_date?.slice(0,10) ?? ''} onChange={e => setField('entry_date', e.target.value)} /></div>
+            <div><label style={lbl}>Previous School</label>
+              <input style={inp} value={profileForm.previous_school ?? ''} onChange={e => setField('previous_school', e.target.value)} placeholder="Name of previous school" /></div>
+            <div><label style={lbl}>Previous School Address</label>
+              <input style={inp} value={profileForm.previous_school_address ?? ''} onChange={e => setField('previous_school_address', e.target.value)} placeholder="Address" /></div>
           </div>
           <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.875rem', marginTop: '1.5rem' }}>Emergency Contact</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={lbl}>Contact Name</label>
-              <input style={inp} value={profileForm.emergency_contact_name ?? ''} onChange={e => setField('emergency_contact_name', e.target.value)} placeholder="Full name" />
-            </div>
-            <div>
-              <label style={lbl}>Phone Number</label>
-              <input style={inp} value={profileForm.emergency_contact_phone ?? ''} onChange={e => setField('emergency_contact_phone', e.target.value)} placeholder="08012345678" />
-            </div>
-            <div>
-              <label style={lbl}>Relationship</label>
+            <div><label style={lbl}>Contact Name</label>
+              <input style={inp} value={profileForm.emergency_contact_name ?? ''} onChange={e => setField('emergency_contact_name', e.target.value)} placeholder="Full name" /></div>
+            <div><label style={lbl}>Phone Number</label>
+              <input style={inp} value={profileForm.emergency_contact_phone ?? ''} onChange={e => setField('emergency_contact_phone', e.target.value)} placeholder="08012345678" /></div>
+            <div><label style={lbl}>Relationship</label>
               <select style={sel} value={profileForm.emergency_contact_relationship ?? ''} onChange={e => setField('emergency_contact_relationship', e.target.value)}>
                 <option value="">Select...</option>
                 <option>Father</option><option>Mother</option><option>Guardian</option>
                 <option>Uncle</option><option>Aunt</option><option>Grandparent</option><option>Other</option>
-              </select>
-            </div>
+              </select></div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
             <button onClick={saveProfile} disabled={saving}
@@ -394,9 +345,9 @@ export default function StudentProfilePage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Parent / Guardian Information</h2>
           {parents.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', background: '#f7f7f5', borderRadius: '12px' }}>
+            <div style={{ padding: '2rem', textAlign: 'center' as const, background: '#f7f7f5', borderRadius: '12px' }}>
               <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>👨‍👩‍👧</p>
-              <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1rem' }}>No parent accounts linked yet.</p>
+              <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '0.5rem' }}>No parent accounts linked yet.</p>
               <p style={{ fontSize: '0.78rem', color: '#a0a09a' }}>Go to Students & Staff → Parents tab to add and link a parent.</p>
             </div>
           ) : parents.map((p: any) => (
@@ -421,24 +372,20 @@ export default function StudentProfilePage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Medical Information</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={lbl}>Blood Group</label>
+            <div><label style={lbl}>Blood Group</label>
               <select style={sel} value={profileForm.blood_group ?? ''} onChange={e => setField('blood_group', e.target.value)}>
                 <option value="">Select...</option>
                 {['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(b => <option key={b}>{b}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Genotype</label>
+              </select></div>
+            <div><label style={lbl}>Genotype</label>
               <select style={sel} value={profileForm.genotype ?? ''} onChange={e => setField('genotype', e.target.value)}>
                 <option value="">Select...</option>
                 {['AA','AS','SS','AC','SC','Unknown'].map(g => <option key={g}>{g}</option>)}
-              </select>
-            </div>
+              </select></div>
           </div>
           <div style={{ marginBottom: '1rem' }}>
             <label style={lbl}>Known Allergies</label>
-            <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={profileForm.allergies ?? ''} onChange={e => setField('allergies', e.target.value)} placeholder="e.g. Penicillin, groundnuts, dust — or None" />
+            <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={profileForm.allergies ?? ''} onChange={e => setField('allergies', e.target.value)} placeholder="e.g. Penicillin, groundnuts — or None" />
           </div>
           <div style={{ marginBottom: '1rem' }}>
             <label style={lbl}>Medical Conditions / Notes</label>
@@ -457,28 +404,21 @@ export default function StudentProfilePage() {
       {tab === 'documents' && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Documents</h2>
-          {/* Upload form */}
           <div style={{ background: '#f7f7f5', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
             <p style={{ fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>Upload New Document</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
-              <div>
-                <label style={lbl}>Document Type</label>
+              <div><label style={lbl}>Document Type</label>
                 <select style={sel} value={docType} onChange={e => setDocType(e.target.value)}>
                   {Object.entries(DOCUMENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Document Name</label>
-                <input style={inp} value={docName} onChange={e => setDocName(e.target.value)} placeholder="e.g. Birth Certificate 2010" />
-              </div>
+                </select></div>
+              <div><label style={lbl}>Document Name</label>
+                <input style={inp} value={docName} onChange={e => setDocName(e.target.value)} placeholder="e.g. Birth Certificate 2010" /></div>
             </div>
-            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocumentUpload} disabled={uploading}
-              style={{ fontSize: '0.825rem', color: '#1a1a18' }} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocumentUpload} disabled={uploading} style={{ fontSize: '0.825rem' }} />
             {uploading && <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.5rem' }}>Uploading...</p>}
           </div>
-          {/* Documents list */}
           {documents.length === 0 ? (
-            <p style={{ fontSize: '0.875rem', color: '#a0a09a', textAlign: 'center', padding: '2rem' }}>No documents uploaded yet.</p>
+            <p style={{ fontSize: '0.875rem', color: '#a0a09a', textAlign: 'center' as const, padding: '2rem' }}>No documents uploaded yet.</p>
           ) : documents.map((doc: any) => (
             <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.875rem', background: '#f7f7f5', borderRadius: '10px', marginBottom: '0.5rem' }}>
               <div>
@@ -487,13 +427,9 @@ export default function StudentProfilePage() {
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <a href={doc.file_url} target="_blank" rel="noreferrer"
-                  style={{ padding: '0.3rem 0.75rem', background: '#eff6ff', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#1e40af', cursor: 'pointer', fontWeight: 600, textDecoration: 'none' }}>
-                  View
-                </a>
+                  style={{ padding: '0.3rem 0.75rem', background: '#eff6ff', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#1e40af', cursor: 'pointer', fontWeight: 600, textDecoration: 'none' }}>View</a>
                 <button onClick={() => deleteDocument(doc.id)}
-                  style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}>
-                  Delete
-                </button>
+                  style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
               </div>
             </div>
           ))}
@@ -513,28 +449,20 @@ export default function StudentProfilePage() {
           {showAchForm && (
             <div style={{ background: '#f7f7f5', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
-                <div>
-                  <label style={lbl}>Title</label>
-                  <input style={inp} value={achForm.title} onChange={e => setAchForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Best Student in Mathematics" />
-                </div>
-                <div>
-                  <label style={lbl}>Category</label>
+                <div><label style={lbl}>Title</label>
+                  <input style={inp} value={achForm.title} onChange={e => setAchForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Best Student in Mathematics" /></div>
+                <div><label style={lbl}>Category</label>
                   <select style={sel} value={achForm.category} onChange={e => setAchForm(f => ({ ...f, category: e.target.value }))}>
                     {Object.entries(ACHIEVEMENT_CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={lbl}>Date Awarded</label>
-                  <input style={inp} type="date" value={achForm.dateAwarded} onChange={e => setAchForm(f => ({ ...f, dateAwarded: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={lbl}>Awarded By</label>
-                  <input style={inp} value={achForm.awardedBy} onChange={e => setAchForm(f => ({ ...f, awardedBy: e.target.value }))} placeholder="e.g. Mathematics Department" />
-                </div>
+                  </select></div>
+                <div><label style={lbl}>Date Awarded</label>
+                  <input style={inp} type="date" value={achForm.dateAwarded} onChange={e => setAchForm(f => ({ ...f, dateAwarded: e.target.value }))} /></div>
+                <div><label style={lbl}>Awarded By</label>
+                  <input style={inp} value={achForm.awardedBy} onChange={e => setAchForm(f => ({ ...f, awardedBy: e.target.value }))} placeholder="e.g. Mathematics Department" /></div>
               </div>
               <div style={{ marginBottom: '0.875rem' }}>
                 <label style={lbl}>Description (optional)</label>
-                <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={achForm.description} onChange={e => setAchForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief description of the achievement" />
+                <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={achForm.description} onChange={e => setAchForm(f => ({ ...f, description: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={addAchievement} disabled={saving}
@@ -542,14 +470,12 @@ export default function StudentProfilePage() {
                   {saving ? 'Saving...' : 'Save'}
                 </button>
                 <button onClick={() => setShowAchForm(false)}
-                  style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
-                  Cancel
-                </button>
+                  style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
               </div>
             </div>
           )}
           {achievements.length === 0 ? (
-            <p style={{ fontSize: '0.875rem', color: '#a0a09a', textAlign: 'center', padding: '2rem' }}>No achievements recorded yet.</p>
+            <p style={{ fontSize: '0.875rem', color: '#a0a09a', textAlign: 'center' as const, padding: '2rem' }}>No achievements recorded yet.</p>
           ) : achievements.map((a: any) => (
             <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0.875rem 1.25rem', background: '#f7f7f5', borderRadius: '10px', marginBottom: '0.5rem' }}>
               <div>
@@ -566,9 +492,7 @@ export default function StudentProfilePage() {
                 </p>
               </div>
               <button onClick={() => deleteAchievement(a.id)}
-                style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}>
-                Delete
-              </button>
+                style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}>Delete</button>
             </div>
           ))}
         </div>
@@ -587,26 +511,18 @@ export default function StudentProfilePage() {
           {showDiscForm && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
-                <div>
-                  <label style={lbl}>Incident Date</label>
-                  <input style={inp} type="date" value={discForm.incidentDate} onChange={e => setDiscForm(f => ({ ...f, incidentDate: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={lbl}>Incident Type</label>
+                <div><label style={lbl}>Incident Date</label>
+                  <input style={inp} type="date" value={discForm.incidentDate} onChange={e => setDiscForm(f => ({ ...f, incidentDate: e.target.value }))} /></div>
+                <div><label style={lbl}>Incident Type</label>
                   <select style={sel} value={discForm.incidentType} onChange={e => setDiscForm(f => ({ ...f, incidentType: e.target.value }))}>
                     {Object.entries(INCIDENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={lbl}>Action Taken</label>
+                  </select></div>
+                <div><label style={lbl}>Action Taken</label>
                   <select style={sel} value={discForm.actionTaken} onChange={e => setDiscForm(f => ({ ...f, actionTaken: e.target.value }))}>
                     {Object.entries(ACTION_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={lbl}>Action Details (optional)</label>
-                  <input style={inp} value={discForm.actionDetails} onChange={e => setDiscForm(f => ({ ...f, actionDetails: e.target.value }))} placeholder="e.g. 3-day suspension" />
-                </div>
+                  </select></div>
+                <div><label style={lbl}>Action Details (optional)</label>
+                  <input style={inp} value={discForm.actionDetails} onChange={e => setDiscForm(f => ({ ...f, actionDetails: e.target.value }))} placeholder="e.g. 3-day suspension" /></div>
               </div>
               <div style={{ marginBottom: '0.875rem' }}>
                 <label style={lbl}>Description of Incident</label>
@@ -622,14 +538,12 @@ export default function StudentProfilePage() {
                   {saving ? 'Saving...' : 'Save record'}
                 </button>
                 <button onClick={() => setShowDiscForm(false)}
-                  style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
-                  Cancel
-                </button>
+                  style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
               </div>
             </div>
           )}
           {discipline.length === 0 ? (
-            <p style={{ fontSize: '0.875rem', color: '#a0a09a', textAlign: 'center', padding: '2rem' }}>No discipline records. Keep it that way! 🌟</p>
+            <p style={{ fontSize: '0.875rem', color: '#a0a09a', textAlign: 'center' as const, padding: '2rem' }}>No discipline records. Keep it that way! 🌟</p>
           ) : discipline.map((r: any) => (
             <div key={r.id} style={{ border: `1.5px solid ${r.resolved ? '#e5e5e0' : '#fecaca'}`, borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '0.75rem', background: r.resolved ? '#f9f9f8' : 'white' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
@@ -647,7 +561,7 @@ export default function StudentProfilePage() {
                 {r.action_details && ` — ${r.action_details}`}
                 {r.parent_notified && ' · Parent notified'}
               </p>
-              <p style={{ fontSize: '0.68rem', color: '#a0a09a', marginBottom: r.resolved ? 0 : '0.5rem' }}>Recorded by {r.recorded_by_name}</p>
+              <p style={{ fontSize: '0.68rem', color: '#a0a09a' }}>Recorded by {r.recorded_by_name}</p>
               {r.resolved && r.resolution_notes && (
                 <p style={{ fontSize: '0.72rem', color: '#0f4a32', background: '#e8f5ee', padding: '0.375rem 0.625rem', borderRadius: '6px', marginTop: '0.375rem' }}>
                   Resolution: {r.resolution_notes}
@@ -655,7 +569,7 @@ export default function StudentProfilePage() {
               )}
               {!r.resolved && (
                 <button onClick={() => resolveRecord(r.id)}
-                  style={{ padding: '0.3rem 0.75rem', background: '#e8f5ee', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>
+                  style={{ marginTop: '0.5rem', padding: '0.3rem 0.75rem', background: '#e8f5ee', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>
                   Mark as resolved
                 </button>
               )}
