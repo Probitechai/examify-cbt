@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { createHmac } from 'crypto'
 import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
@@ -304,8 +305,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   // Paystack calls this URL when payment events happen
   app.post('/webhooks/paystack', async (request: any, reply: any) => {
     // Verify webhook signature
-    const hash = require('crypto')
-      .createHmac('sha512', PAYSTACK_SECRET ?? '')
+    const hash = createHmac('sha512', PAYSTACK_SECRET ?? '')
       .update(JSON.stringify(request.body))
       .digest('hex')
 
