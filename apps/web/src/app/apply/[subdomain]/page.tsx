@@ -124,9 +124,9 @@ export default function PublicApplyPage() {
           </p>
         </div>
         <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Thank you for applying to {schoolInfo?.name}.</p>
-        <button onClick={() => window.close()}
+        <button onClick={() => window.location.href = '/'}
           style={{ padding: '0.625rem 1.5rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer', marginRight: '0.75rem' }}>
-          Close page
+          Go to homepage
         </button>
         <button onClick={() => { setSubmitted(false); setForm({ firstName: '', lastName: '', middleName: '', dateOfBirth: '', gender: '', religion: '', stateOfOrigin: '', lga: '', homeAddress: '', bloodGroup: '', genotype: '', appliedClass: '', previousSchool: '', previousClass: '', parentName: '', parentEmail: '', parentPhone: '', parentRelationship: 'parent', parentAddress: '', guardian2Name: '', guardian2Phone: '', guardian2Relationship: '' }); setStep(1) }}
           style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
