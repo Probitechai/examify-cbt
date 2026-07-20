@@ -326,9 +326,8 @@ export async function parentRoutes(app: FastifyInstance) {
         WHERE t.school_id = ${request.schoolId}::uuid
         ORDER BY s.created_at DESC, t.term_number ASC
       ` as any[]
-      return reply.send({ terms })
-   
-  // ── Get all parent-student links for admin ─────────────────────────────────
+      return reply.send({ terms })    })  
+// ── Get all parent-student links for admin ─────────────────────────────────
   app.get('/parents/links', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
@@ -346,4 +345,4 @@ export async function parentRoutes(app: FastifyInstance) {
       ` as any[]
       return reply.send({ links })
     })
-  }
+}
