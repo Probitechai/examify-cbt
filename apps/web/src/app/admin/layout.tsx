@@ -28,6 +28,7 @@ const NAV: NavItem[] = [
   { href: '/admin/fees',          icon: '💰', label: 'Fee Management',   tier: 'growth' },
   { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',  tier: 'growth' },
   { href: '/admin/announcements', icon: '📢', label: 'Announcements',    tier: 'growth' },
+  { href: '/admin/admissions', icon: '🎓', label: 'Admissions', tier: 'premium' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams' },
