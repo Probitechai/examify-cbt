@@ -345,4 +345,5 @@ export async function parentRoutes(app: FastifyInstance) {
         ORDER BY p.full_name, s.full_name
       ` as any[]
       return reply.send({ links })
-    })}
+    })
+  }
