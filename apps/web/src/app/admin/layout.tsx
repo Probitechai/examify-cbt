@@ -155,8 +155,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
           <button className={styles.logoutBtn} onClick={() => {
-            document.cookie = 'examify_token=; Max-Age=0; path=/'
-            router.push('/login')
+            useAuthStore.getState().logout()
+            window.location.href = '/login'
           }}>
             Log out
           </button>
