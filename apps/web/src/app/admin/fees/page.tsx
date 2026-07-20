@@ -414,7 +414,7 @@ export default function FeesPage() {
               </>)}
 
               <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 80px auto', gap: '0.75rem', padding: '0.625rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 80px 140px', gap: '0.75rem', padding: '0.625rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
                   <span>#</span><span>Student</span><span>Adm. No.</span>
                   <span style={{ textAlign: 'right' as const }}>Total Fees</span>
                   <span style={{ textAlign: 'right' as const }}>Paid</span>
@@ -424,7 +424,7 @@ export default function FeesPage() {
                 </div>
                 {ledger.map((row, i) => (
                   <div key={row.studentId}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 80px auto', gap: '0.75rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center', cursor: 'pointer', background: expandedStudent === row.studentId ? '#f9f9f8' : 'white' }}
+                    <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 80px 140px', gap: '0.75rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center', cursor: 'pointer', background: expandedStudent === row.studentId ? '#f9f9f8' : 'white' }}
                       onClick={() => setExpandedStudent(expandedStudent === row.studentId ? null : row.studentId)}>
                       <span style={{ fontSize: '0.78rem', color: '#a0a09a', fontWeight: 600 }}>{i + 1}</span>
                       <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{row.studentName}</span>
