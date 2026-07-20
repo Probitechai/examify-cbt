@@ -39,10 +39,32 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [manageLinksParent, setManageLinksParent] = useState<User | null>(null)
+  const [allLinks, setAllLinks] = useState<any[]>([])
 
   useEffect(() => {
     loadUsers()
   }, [])
+
+  useEffect(() => {
+    if (tab === 'parent') loadLinks()
+  }, [tab])
+
+  async function loadLinks() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/parents/links`, {
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      const links = data.links ?? []
+      setAllLinks(links)
+      // Attach linked students to parent users
+      setUsers(prev => prev.map(u => u.role === 'parent' ? {
+        ...u,
+        linkedStudents: links.filter((l: any) => l.parent_id === u.id)
+      } : u))
+    } catch {}
+  }
 
   async function loadUsers() {
     setLoading(true)
@@ -142,6 +164,7 @@ export default function UsersPage() {
           <span>Email</span>
           {tab === 'student' && <span>Adm. No.</span>}
           {tab === 'student' && <span>Class</span>}
+          {tab === 'parent' && <span>Linked Students</span>}
           <span>Last login</span>
           <span>Status</span>
         </div>
@@ -174,6 +197,17 @@ export default function UsersPage() {
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{u.email}</span>
             {tab === 'student' && <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{getAdmNo(u)}</span>}
             {tab === 'student' && <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{getClass(u)} {getArm(u)}</span>}
+            {tab === 'parent' && (
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                {(u as any).linkedStudents?.length > 0
+                  ? (u as any).linkedStudents.map((s: any) => s.student_name).join(', ')
+                  : <span style={{ color: '#a0a09a' }}>No student linked</span>}
+                <button onClick={() => setManageLinksParent(u)}
+                  style={{ marginLeft: '0.5rem', padding: '0.15rem 0.5rem', background: '#eff6ff', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#1e40af', cursor: 'pointer', fontWeight: 600 }}>
+                  Manage
+                </button>
+              </span>
+            )}
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{getLastLogin(u)}</span>
             <span>
               <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, background: getActive(u) ? '#e8f5ee' : '#fef2f2', color: getActive(u) ? '#0f4a32' : '#dc2626' }}>
@@ -188,6 +222,15 @@ export default function UsersPage() {
         <AddUserModal
           onClose={() => setShowAddModal(false)}
           onSaved={() => { setShowAddModal(false); loadUsers() }}
+        />
+      )}
+      {manageLinksParent && (
+        <ManageLinksModal
+          parent={manageLinksParent}
+          allLinks={allLinks.filter((l: any) => l.parent_id === manageLinksParent.id)}
+          students={users.filter(u => u.role === 'student')}
+          onClose={() => setManageLinksParent(null)}
+          onSaved={() => { setManageLinksParent(null); loadLinks() }}
         />
       )}
     </div>
@@ -340,5 +383,99 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
       </div>
     </div>
   )
-}
+function ManageLinksModal({ parent, allLinks, students, onClose, onSaved }: {
+  parent: any
+  allLinks: any[]
+  students: any[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const inputStyle = { padding: '0.625rem 0.875rem', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', color: 'var(--text-primary)', outline: 'none', width: '100%', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+
+  async function handleLink() {
+    if (!selectedStudentId) { setError('Please select a student'); return }
+    setSaving(true); setError('')
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/parents/link`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: parent.id, studentId: selectedStudentId })
+      })
+      if (!res.ok) throw new Error('Failed to link')
+      setSelectedStudentId('')
+      onSaved()
+    } catch { setError('Failed to link student') } finally { setSaving(false) }
+  }
+
+  async function handleUnlink(studentId: string) {
+    if (!window.confirm('Remove this student link?')) return
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/parents/link`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentId: parent.id, studentId })
+    })
+    onSaved()
+  }
+
+  const linkedStudentIds = allLinks.map((l: any) => l.student_id)
+  const unlinkableStudents = students.filter(s => !linkedStudentIds.includes(s.id))
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'white', borderRadius: '20px', padding: '1.75rem', width: '100%', maxWidth: '480px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Manage Student Links</h2>
+            <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.2rem' }}>{parent.full_name}</p>
+          </div>
+          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: '1rem' }}>✕</button>
+        </div>
+
+        {/* Current links */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.625rem' }}>Linked Students</p>
+          {allLinks.length === 0 ? (
+            <p style={{ fontSize: '0.825rem', color: '#a0a09a', padding: '0.875rem', background: '#f7f7f5', borderRadius: '8px' }}>No students linked yet</p>
+          ) : allLinks.map((l: any) => (
+            <div key={l.student_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.625rem 0.875rem', background: '#e8f5ee', borderRadius: '8px', marginBottom: '0.5rem' }}>
+              <div>
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#0f4a32' }}>{l.student_name}</p>
+                <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{l.class_level} {l.class_arm}</p>
+              </div>
+              <button onClick={() => handleUnlink(l.student_id)}
+                style={{ padding: '0.25rem 0.625rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Add new link */}
+        {unlinkableStudents.length > 0 && (
+          <div>
+            <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.625rem' }}>Link Another Student</p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <select style={{ ...inputStyle, flex: 1 }} value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)}>
+                <option value="">Select student…</option>
+                {unlinkableStudents.map(s => (
+                  <option key={s.id} value={s.id}>{s.full_name} — {s.class_level} {s.class_arm ?? ''}</option>
+                ))}
+              </select>
+              <button onClick={handleLink} disabled={saving}
+                style={{ padding: '0 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: saving ? 0.6 : 1 }}>
+                {saving ? '…' : 'Link'}
+              </button>
+            </div>
+            {error && <p style={{ fontSize: '0.78rem', color: '#dc2626', marginTop: '0.375rem' }}>{error}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}}
 
