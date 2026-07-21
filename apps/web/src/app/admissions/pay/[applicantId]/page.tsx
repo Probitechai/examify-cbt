@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 
-const API = process.env.NEXT_PUBLIC_API_URL
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://examifyapi-production.up.railway.app'
 
 export default function AdmissionPayPage() {
   const params = useParams()
