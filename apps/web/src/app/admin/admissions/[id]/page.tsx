@@ -73,6 +73,9 @@ export default function ApplicationDetailPage() {
 
   // Enroll modal
   const [showEnrollModal, setShowEnrollModal] = useState(false)
+  const [showOfferModal, setShowOfferModal] = useState(false)
+  const [offerForm, setOfferForm] = useState({ acceptanceFeeAmount: 0, offerExpiresAt: '', customMessage: '' })
+  const [sendingOffer, setSendingOffer] = useState(false)
   const [enrollForm, setEnrollForm] = useState({ admissionNo: '', classLevel: '', classArm: '', password: 'Student@1234' })
   const [enrolling, setEnrolling] = useState(false)
 
@@ -159,6 +162,12 @@ export default function ApplicationDetailPage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.5rem' }}>
           <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Next Actions</p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' as const }}>
+            {['reviewing', 'exam_done', 'interview_done', 'exam_taken'].includes(application.status) && (
+              <button onClick={() => setShowOfferModal(true)}
+                style={{ padding: '0.5rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+                📧 Send Offer Letter
+              </button>
+            )}
             {nextActions.map(action => (
               <button key={action.nextStatus}
                 onClick={() => {
@@ -286,6 +295,60 @@ export default function ApplicationDetailPage() {
                   {updating ? 'Saving...' : 'Confirm'}
                 </button>
                 <button onClick={() => setShowActionModal(false)}
+                  style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Offer Modal */}
+      {showOfferModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}
+          onClick={e => e.target === e.currentTarget && setShowOfferModal(false)}>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '1.75rem', width: '100%', maxWidth: 480 }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Send Offer Letter</h2>
+            <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.25rem' }}>An offer letter will be sent to {application.parent_email}.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div>
+                <label style={lbl}>Acceptance Fee (₦) — enter 0 if no fee required</label>
+                <input style={inp} type="number" min={0} value={offerForm.acceptanceFeeAmount} onChange={e => setOfferForm(f => ({ ...f, acceptanceFeeAmount: Number(e.target.value) }))} />
+              </div>
+              <div>
+                <label style={lbl}>Offer Expires On *</label>
+                <input style={inp} type="date" value={offerForm.offerExpiresAt} onChange={e => setOfferForm(f => ({ ...f, offerExpiresAt: e.target.value }))} />
+              </div>
+              <div>
+                <label style={lbl}>Custom Message (optional)</label>
+                <textarea style={{ ...inp, resize: 'vertical' as const }} rows={3} value={offerForm.customMessage} onChange={e => setOfferForm(f => ({ ...f, customMessage: e.target.value }))} placeholder="Additional message to include in the offer letter..." />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button disabled={sendingOffer || !offerForm.offerExpiresAt}
+                  onClick={async () => {
+                    setSendingOffer(true); setError('')
+                    try {
+                      const res = await fetch(`${API}/admissions/applications/${applicantId}/offer`, {
+                        method: 'POST', headers: hdrs(),
+                        body: JSON.stringify({
+                          acceptanceFeeAmount: offerForm.acceptanceFeeAmount,
+                          offerExpiresAt: new Date(offerForm.offerExpiresAt).toISOString(),
+                          customMessage: offerForm.customMessage || undefined,
+                        })
+                      })
+                      const d = await res.json()
+                      if (!res.ok) throw new Error(d.error ?? 'Failed to send offer')
+                      setShowOfferModal(false)
+                      setSuccess(d.message)
+                      setTimeout(() => setSuccess(''), 5000)
+                      loadApplication()
+                    } catch (e: any) { setError(e.message) } finally { setSendingOffer(false) }
+                  }}
+                  style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: sendingOffer || !offerForm.offerExpiresAt ? 0.6 : 1 }}>
+                  {sendingOffer ? 'Sending...' : '📧 Send Offer Letter'}
+                </button>
+                <button onClick={() => setShowOfferModal(false)}
                   style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
                   Cancel
                 </button>

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
+import { sendEmail } from '../lib/email'
 
 export async function admissionRoutes(app: FastifyInstance) {
 
@@ -520,4 +521,291 @@ export async function admissionRoutes(app: FastifyInstance) {
       ` as any[]
       return reply.send({ stats: rows[0] })
     })
+  // ── SEND OFFER LETTER ─────────────────────────────────────────────────────
+  app.post('/admissions/applications/:id/offer', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const schema = z.object({
+        acceptanceFeeAmount: z.number().min(0),
+        offerExpiresAt: z.string(),
+        customMessage: z.string().optional(),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const d = body.data
+      const tdb = tenantDb(request.schoolId)
+
+      // Get applicant and school details
+      const appRows = await tdb.query`
+        SELECT a.*, aa.id AS application_id, aa.status,
+               s.name AS school_name, s.logo_url AS school_logo
+        FROM applicants a
+        JOIN admission_applications aa ON aa.applicant_id = a.id
+        JOIN schools s ON s.id = ${request.schoolId}::uuid
+        WHERE a.id = ${id}::uuid AND a.school_id = ${request.schoolId}::uuid
+      ` as any[]
+
+      if (!appRows[0]) return reply.status(404).send({ error: 'Application not found' })
+      const app = appRows[0]
+
+      // Update application with offer details
+      await tdb.query`
+        UPDATE admission_applications SET
+          status = 'offered',
+          offer_sent_at = now(),
+          offer_expires_at = ${d.offerExpiresAt}::timestamptz,
+          acceptance_fee_amount = ${d.acceptanceFeeAmount},
+          updated_at = now()
+        WHERE applicant_id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+      `
+
+      // Generate payment link
+      const paymentLink = `${process.env.FRONTEND_URL ?? 'https://examify-cbt-web.vercel.app'}/admissions/pay/${id}?school=${request.school.subdomain}`
+
+      // Build offer letter email
+      const expiryDate = new Date(d.offerExpiresAt).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      const feeRequired = d.acceptanceFeeAmount > 0
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: #0f4a32; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">${app.school_name}</h1>
+            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0;">Admissions Office</p>
+          </div>
+          <div style="background: white; border: 1px solid #e5e5e0; border-top: none; padding: 32px; border-radius: 0 0 12px 12px;">
+            <p style="color: #1a6b4a; font-weight: 700; font-size: 18px; margin-bottom: 8px;">🎉 Congratulations! Admission Offered</p>
+            <p style="color: #1a1a18; margin-bottom: 24px;">Dear <strong>${app.parent_name}</strong>,</p>
+            <p style="color: #3a3a36; line-height: 1.7; margin-bottom: 16px;">
+              We are pleased to inform you that <strong>${app.first_name} ${app.last_name}</strong> has been offered admission into
+              <strong>${app.school_name}</strong> for <strong>${app.applied_class}</strong>.
+            </p>
+            ${d.customMessage ? `<p style="color: #3a3a36; line-height: 1.7; margin-bottom: 16px;">${d.customMessage}</p>` : ''}
+            <div style="background: #f7f7f5; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+              <p style="font-weight: 700; color: #1a1a18; margin-bottom: 12px;">Offer Details</p>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 6px 0; color: #6b6b65; font-size: 14px;">Applicant</td><td style="padding: 6px 0; color: #1a1a18; font-weight: 600; font-size: 14px;">${app.first_name} ${app.last_name}</td></tr>
+                <tr><td style="padding: 6px 0; color: #6b6b65; font-size: 14px;">Class Offered</td><td style="padding: 6px 0; color: #1a1a18; font-weight: 600; font-size: 14px;">${app.applied_class}</td></tr>
+                <tr><td style="padding: 6px 0; color: #6b6b65; font-size: 14px;">Application No.</td><td style="padding: 6px 0; color: #1a1a18; font-weight: 600; font-size: 14px;">${app.application_number}</td></tr>
+                ${feeRequired ? `<tr><td style="padding: 6px 0; color: #6b6b65; font-size: 14px;">Acceptance Fee</td><td style="padding: 6px 0; color: #dc2626; font-weight: 700; font-size: 14px;">₦${d.acceptanceFeeAmount.toLocaleString()}</td></tr>` : ''}
+                <tr><td style="padding: 6px 0; color: #6b6b65; font-size: 14px;">Offer Expires</td><td style="padding: 6px 0; color: #dc2626; font-weight: 600; font-size: 14px;">${expiryDate}</td></tr>
+              </table>
+            </div>
+            ${feeRequired ? `
+            <div style="text-align: center; margin-bottom: 24px;">
+              <p style="color: #3a3a36; margin-bottom: 16px;">To accept this offer, please pay the acceptance fee before <strong>${expiryDate}</strong>.</p>
+              <a href="${paymentLink}" style="display: inline-block; background: #1a6b4a; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 16px;">
+                Pay Acceptance Fee — ₦${d.acceptanceFeeAmount.toLocaleString()}
+              </a>
+            </div>
+            ` : `
+            <div style="text-align: center; margin-bottom: 24px;">
+              <p style="color: #3a3a36; margin-bottom: 16px;">Please confirm your acceptance before <strong>${expiryDate}</strong> by clicking the button below.</p>
+              <a href="${paymentLink}" style="display: inline-block; background: #1a6b4a; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 16px;">
+                Accept Offer
+              </a>
+            </div>
+            `}
+            <p style="color: #6b6b65; font-size: 13px; line-height: 1.6;">
+              If you have any questions, please contact the admissions office.<br/>
+              This offer is valid until <strong>${expiryDate}</strong>.
+            </p>
+            <hr style="border: none; border-top: 1px solid #e5e5e0; margin: 24px 0;" />
+            <p style="color: #a0a09a; font-size: 12px; text-align: center;">
+              ${app.school_name} · Powered by Examify
+            </p>
+          </div>
+        </div>
+      `
+
+      // Send email
+      await sendEmail({
+        to: app.parent_email,
+        subject: `Admission Offer — ${app.first_name} ${app.last_name} | ${app.school_name}`,
+        html,
+      })
+
+      // Log activity
+      await tdb.query`
+        INSERT INTO admission_activity_log (school_id, application_id, action, notes, performed_by)
+        VALUES (${request.schoolId}::uuid, ${app.application_id}::uuid,
+          'offered', ${'Offer letter sent to ' + app.parent_email + '. Fee: ₦' + d.acceptanceFeeAmount.toLocaleString() + '. Expires: ' + expiryDate},
+          ${request.user.id}::uuid)
+      `
+
+      return reply.send({ sent: true, message: `Offer letter sent to ${app.parent_email}` })
+    })
+
+  // ── PUBLIC — ACCEPTANCE FEE PAYMENT PAGE DATA ─────────────────────────────
+  app.get('/admissions/pay/:applicantId', async (request: any, reply: any) => {
+    const { applicantId } = request.params as any
+    const { school } = request.query as any
+    if (!school) return reply.status(400).send({ error: 'school subdomain required' })
+
+    const schoolRows = await db()`
+      SELECT id, name, logo_url FROM schools WHERE subdomain = ${school} AND is_active = true
+    ` as any[]
+    if (!schoolRows[0]) return reply.status(404).send({ error: 'School not found' })
+
+    const schoolId = schoolRows[0].id
+    const tdb = tenantDb(schoolId)
+
+    const appRows = await tdb.query`
+      SELECT a.first_name, a.last_name, a.application_number, a.applied_class,
+             a.parent_name, a.parent_email,
+             aa.status, aa.acceptance_fee_amount, aa.acceptance_fee_paid,
+             aa.offer_expires_at
+      FROM applicants a
+      JOIN admission_applications aa ON aa.applicant_id = a.id
+      WHERE a.id = ${applicantId}::uuid AND a.school_id = ${schoolId}::uuid
+    ` as any[]
+
+    if (!appRows[0]) return reply.status(404).send({ error: 'Application not found' })
+    const app = appRows[0]
+
+    return reply.send({
+      school: { name: schoolRows[0].name, logo_url: schoolRows[0].logo_url },
+      applicant: {
+        name: `${app.first_name} ${app.last_name}`,
+        applicationNumber: app.application_number,
+        appliedClass: app.applied_class,
+        parentName: app.parent_name,
+        parentEmail: app.parent_email,
+      },
+      offer: {
+        status: app.status,
+        acceptanceFeeAmount: Number(app.acceptance_fee_amount ?? 0),
+        acceptanceFeePaid: app.acceptance_fee_paid,
+        offerExpiresAt: app.offer_expires_at,
+      }
+    })
+  })
+
+  // ── PUBLIC — INITIALIZE ACCEPTANCE FEE PAYMENT ────────────────────────────
+  app.post('/admissions/pay/:applicantId/initialize', async (request: any, reply: any) => {
+    const { applicantId } = request.params as any
+    const { school } = request.query as any
+    if (!school) return reply.status(400).send({ error: 'school subdomain required' })
+
+    const schoolRows = await db()`
+      SELECT id, name FROM schools WHERE subdomain = ${school} AND is_active = true
+    ` as any[]
+    if (!schoolRows[0]) return reply.status(404).send({ error: 'School not found' })
+
+    const schoolId = schoolRows[0].id
+    const tdb = tenantDb(schoolId)
+
+    const appRows = await tdb.query`
+      SELECT a.first_name, a.last_name, a.parent_email, a.application_number,
+             aa.acceptance_fee_amount, aa.acceptance_fee_paid, aa.status
+      FROM applicants a
+      JOIN admission_applications aa ON aa.applicant_id = a.id
+      WHERE a.id = ${applicantId}::uuid AND a.school_id = ${schoolId}::uuid
+    ` as any[]
+
+    if (!appRows[0]) return reply.status(404).send({ error: 'Application not found' })
+    const app = appRows[0]
+
+    if (app.acceptance_fee_paid) return reply.status(400).send({ error: 'Acceptance fee already paid' })
+    if (!['offered', 'pending'].includes(app.status) && app.status !== 'offered') {
+      return reply.status(400).send({ error: 'Application is not in offered status' })
+    }
+
+    const amount = Number(app.acceptance_fee_amount ?? 0)
+    if (amount <= 0) {
+      // No fee required — just mark as accepted
+      await tdb.query`
+        UPDATE admission_applications
+        SET status = 'accepted', acceptance_fee_paid = true, acceptance_fee_paid_at = now(), updated_at = now()
+        WHERE applicant_id = ${applicantId}::uuid AND school_id = ${schoolId}::uuid
+      `
+      await tdb.query`
+        INSERT INTO admission_activity_log (school_id, application_id, action, notes)
+        SELECT ${schoolId}::uuid, aa.id, 'accepted', 'Offer accepted (no fee required)'
+        FROM admission_applications aa WHERE aa.applicant_id = ${applicantId}::uuid
+      `
+      return reply.send({ success: true, noFee: true, message: 'Offer accepted successfully!' })
+    }
+
+    const reference = `ADMSN-${applicantId.slice(0,8)}-${Date.now()}`
+    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY
+    const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: app.parent_email,
+        amount: Math.round(amount * 100),
+        reference,
+        currency: 'NGN',
+        metadata: {
+          type: 'admission_fee',
+          school_id: schoolId,
+          school_subdomain: school,
+          applicant_id: applicantId,
+          applicant_name: `${app.first_name} ${app.last_name}`,
+          application_number: app.application_number,
+        },
+        callback_url: `${process.env.FRONTEND_URL ?? 'https://examify-cbt-web.vercel.app'}/admissions/pay/${applicantId}/callback?school=${school}`,
+      })
+    }).then(r => r.json())
+
+    if (!paystackRes.status) return reply.status(500).send({ error: 'Payment initialization failed' })
+
+    // Save reference to application
+    await tdb.query`
+      UPDATE admission_applications
+      SET paystack_reference = ${reference}, updated_at = now()
+      WHERE applicant_id = ${applicantId}::uuid AND school_id = ${schoolId}::uuid
+    `
+
+    return reply.send({
+      authorizationUrl: paystackRes.data.authorization_url,
+      reference,
+    })
+  })
+
+  // ── PUBLIC — VERIFY ACCEPTANCE FEE PAYMENT ────────────────────────────────
+  app.get('/admissions/pay/:applicantId/verify', async (request: any, reply: any) => {
+    const { applicantId } = request.params as any
+    const { reference, school } = request.query as any
+    if (!reference || !school) return reply.status(400).send({ error: 'reference and school required' })
+
+    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY
+    const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
+    }).then(r => r.json())
+
+    if (!paystackRes.status || paystackRes.data.status !== 'success') {
+      return reply.send({ success: false, message: 'Payment not confirmed yet' })
+    }
+
+    const meta = paystackRes.data.metadata
+    const schoolRows = await db()`
+      SELECT id FROM schools WHERE subdomain = ${school}
+    ` as any[]
+    if (!schoolRows[0]) return reply.status(404).send({ error: 'School not found' })
+
+    const schoolId = schoolRows[0].id
+    const tdb = tenantDb(schoolId)
+
+    await tdb.query`
+      UPDATE admission_applications
+      SET status = 'accepted', acceptance_fee_paid = true,
+          acceptance_fee_paid_at = now(), updated_at = now()
+      WHERE applicant_id = ${applicantId}::uuid AND school_id = ${schoolId}::uuid
+    `
+
+    await tdb.query`
+      INSERT INTO admission_activity_log (school_id, application_id, action, notes)
+      SELECT ${schoolId}::uuid, aa.id, 'accepted',
+        ${'Acceptance fee paid via Paystack. Reference: ' + reference}
+      FROM admission_applications aa WHERE aa.applicant_id = ${applicantId}::uuid
+    `
+
+    return reply.send({
+      success: true,
+      applicantName: meta.applicant_name,
+      applicationNumber: meta.application_number,
+      message: 'Payment confirmed! Your offer has been accepted.',
+    })
+  })
 }

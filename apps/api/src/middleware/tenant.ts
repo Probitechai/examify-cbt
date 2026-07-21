@@ -8,6 +8,7 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
   if (request.url.startsWith('/api/webhooks/')) return
   if (request.url.startsWith('/api/admissions/public/')) return
   if (request.url.startsWith('/api/admissions/apply/')) return
+  if (request.url.startsWith('/api/admissions/pay/')) return
   
 
   const host = request.hostname
