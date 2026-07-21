@@ -56,13 +56,17 @@ export default function AdmissionPayCallbackPage() {
             <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1a6b4a', marginBottom: '0.5rem' }}>Offer Accepted!</h1>
             {applicantName && <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>{applicantName}</p>}
             <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem', lineHeight: 1.6 }}>{message}</p>
-            <div style={{ background: '#e8f5ee', borderRadius: '12px', padding: '1.25rem', textAlign: 'left' as const }}>
+            <div style={{ background: '#e8f5ee', borderRadius: '12px', padding: '1.25rem', textAlign: 'left' as const, marginBottom: '1.5rem' }}>
               <p style={{ fontSize: '0.825rem', color: '#0f4a32', lineHeight: 1.7 }}>
                 ✅ Your acceptance has been recorded.<br />
                 📧 The school will contact you with further instructions.<br />
                 📋 Please keep your application number for reference.
               </p>
             </div>
+            <button onClick={() => window.location.href = '/'}
+              style={{ width: '100%', padding: '0.875rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+              Done
+            </button>
           </>
         )}
         {status === 'failed' && (
