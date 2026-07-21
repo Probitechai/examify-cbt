@@ -4,7 +4,8 @@ import { useParams } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const NIGERIAN_STATES = ['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara']
+import { NIGERIAN_LGAS } from '../../admin/students/lga-data'
+const NIGERIAN_STATES = Object.keys(NIGERIAN_LGAS).sort()
 
 export default function PublicApplyPage() {
   const params = useParams()
@@ -188,7 +189,15 @@ export default function PublicApplyPage() {
                     <option value="">Select...</option>
                     {NIGERIAN_STATES.map(s => <option key={s}>{s}</option>)}
                   </select></div>
-                <div><label style={lbl}>LGA</label><input style={inp} value={form.lga} onChange={e => set('lga', e.target.value)} placeholder="Local Government Area" /></div>
+              <div><label style={lbl}>LGA</label>
+                  <select style={sel} value={form.lga} onChange={e => set('lga', e.target.value)}>
+                    <option value="">Select LGA...</option>
+                    {form.stateOfOrigin && NIGERIAN_LGAS[form.stateOfOrigin]
+                      ? NIGERIAN_LGAS[form.stateOfOrigin].map((l: string) => <option key={l}>{l}</option>)
+                      : <option disabled>Select a state first</option>
+                    }
+                  </select>
+                </div>
                 <div><label style={lbl}>Blood Group</label>
                   <select style={sel} value={form.bloodGroup} onChange={e => set('bloodGroup', e.target.value)}>
                     <option value="">Select...</option>

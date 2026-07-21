@@ -43,7 +43,8 @@ const TABS = [
   { key: 'discipline', label: 'Discipline' },
 ]
 
-const NIGERIAN_STATES = ['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara']
+import { NIGERIAN_LGAS } from '../lga-data'
+const NIGERIAN_STATES = Object.keys(NIGERIAN_LGAS).sort()
 
 const DOCUMENT_TYPES: Record<string, string> = {
   birth_certificate: 'Birth Certificate',
@@ -301,18 +302,14 @@ export default function StudentProfilePage() {
                 <option value="">Select...</option>
                 {NIGERIAN_STATES.map(s => <option key={s}>{s}</option>)}
               </select></div>
-            <div><label style={lbl}>LGA <span style={{ fontWeight: 400, color: '#a0a09a' }}>(type your LGA)</span></label>
-              <input style={inp} value={profileForm.lga ?? ''} onChange={e => setField('lga', e.target.value)} placeholder="e.g. Ikeja, Surulere, Apapa..." list="lga-suggestions" />
-              <datalist id="lga-suggestions">
-                {profileForm.state_of_origin === 'Lagos' && ['Agege','Ajeromi-Ifelodun','Alimosho','Amuwo-Odofin','Apapa','Badagry','Epe','Eti-Osa','Ibeju-Lekki','Ifako-Ijaiye','Ikeja','Ikorodu','Kosofe','Lagos Island','Lagos Mainland','Mushin','Ojo','Oshodi-Isolo','Shomolu','Surulere'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'Ogun' && ['Abeokuta North','Abeokuta South','Ado-Odo/Ota','Egbado North','Egbado South','Ewekoro','Ifo','Ijebu East','Ijebu North','Ijebu North East','Ijebu Ode','Ikenne','Imeko Afon','Ipokia','Obafemi Owode','Odeda','Odogbolu','Ogun Waterside','Remo North','Shagamu'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'Rivers' && ['Abua/Odual','Ahoada East','Ahoada West','Akuku-Toru','Andoni','Asari-Toru','Bonny','Degema','Eleme','Emohua','Etche','Gokana','Ikwerre','Khana','Obio/Akpor','Ogba/Egbema/Ndoni','Ogu/Bolo','Okrika','Omuma','Opobo/Nkoro','Oyigbo','Port Harcourt','Tai'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'Kano' && ['Ajingi','Albasu','Bagwai','Bebeji','Bichi','Bunkure','Dala','Dambatta','Dawakin Kudu','Dawakin Tofa','Doguwa','Fagge','Gabasawa','Garko','Garum Mallam','Gaya','Gezawa','Gwale','Gwarzo','Kabo','Kano Municipal','Karaye','Kibiya','Kiru','Kumbotso','Kunchi','Kura','Madobi','Makoda','Minjibir','Nasarawa','Rano','Rimin Gado','Rogo','Shanono','Sumaila','Takai','Tarauni','Tofa','Tsanyawa','Tudun Wada','Ungogo','Warawa','Wudil'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'FCT' && ['Abaji','Abuja Municipal','Bwari','Gwagwalada','Kuje','Kwali'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'Enugu' && ['Aninri','Awgu','Enugu East','Enugu North','Enugu South','Ezeagu','Igbo Etiti','Igbo Eze North','Igbo Eze South','Isi Uzo','Nkanu East','Nkanu West','Nsukka','Oji River','Udenu','Udi','Uzo Uwani'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'Imo' && ['Aboh Mbaise','Ahiazu Mbaise','Ehime Mbano','Ezinihitte','Ideato North','Ideato South','Ihitte/Uboma','Ikeduru','Isiala Mbano','Isu','Mbaitoli','Ngor Okpala','Njaba','Nkwerre','Nwangele','Obowo','Oguta','Ohaji/Egbema','Okigwe','Orlu','Orsu','Oru East','Oru West','Owerri Municipal','Owerri North','Owerri West','Unuimo'].map(l => <option key={l} value={l} />)}
-                {profileForm.state_of_origin === 'Kaduna' && ['Birnin Gwari','Chikun','Giwa','Igabi','Ikara','Jaba','Jema\'a','Kachia','Kaduna North','Kaduna South','Kagarko','Kajuru','Kaura','Kauru','Kubau','Kudan','Lere','Makarfi','Sabon Gari','Sanga','Soba','Zangon Kataf','Zaria'].map(l => <option key={l} value={l} />)}
-              </datalist>
+            <div><label style={lbl}>LGA</label>
+              <select style={sel} value={profileForm.lga ?? ''} onChange={e => setField('lga', e.target.value)}>
+                <option value="">Select LGA...</option>
+                {profileForm.state_of_origin && NIGERIAN_LGAS[profileForm.state_of_origin]
+                  ? NIGERIAN_LGAS[profileForm.state_of_origin].map((l: string) => <option key={l}>{l}</option>)
+                  : <option disabled>Select a state first</option>
+                }
+              </select>
             </div>
           </div>
           <div style={{ marginBottom: '1rem' }}>

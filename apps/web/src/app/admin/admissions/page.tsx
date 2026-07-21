@@ -34,6 +34,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   enrolled:             { label: 'Enrolled',           color: '#1a6b4a', bg: '#bbf7d0' },
 }
 
+import { NIGERIAN_LGAS } from '../students/lga-data'
+const NIGERIAN_STATES = Object.keys(NIGERIAN_LGAS).sort()
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function AdmissionsPage() {
