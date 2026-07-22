@@ -5,12 +5,12 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
 
 const NIGERIAN_JSS = [
-  { name: 'English Language', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
-  { name: 'Mathematics', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
+  { name: 'English Language', category: 'core', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
+  { name: 'Mathematics', category: 'core', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
   { name: 'Basic Science', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
   { name: 'Basic Technology', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
   { name: 'Social Studies', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
-  { name: 'Civic Education', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
+  { name: 'Civic Education', category: 'core', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
   { name: 'Christian Religious Studies', category: 'elective', levels: ['JSS1','JSS2','JSS3'] },
   { name: 'Islamic Religious Studies', category: 'elective', levels: ['JSS1','JSS2','JSS3'] },
   { name: 'French', category: 'elective', levels: ['JSS1','JSS2','JSS3'] },
@@ -24,9 +24,6 @@ const NIGERIAN_JSS = [
 ]
 
 const NIGERIAN_SS = [
-  { name: 'English Language', category: 'core', levels: ['SS1','SS2','SS3'] },
-  { name: 'Mathematics', category: 'core', levels: ['SS1','SS2','SS3'] },
-  { name: 'Civic Education', category: 'core', levels: ['SS1','SS2','SS3'] },
   { name: 'Physics', category: 'elective', levels: ['SS1','SS2','SS3'] },
   { name: 'Chemistry', category: 'elective', levels: ['SS1','SS2','SS3'] },
   { name: 'Biology', category: 'elective', levels: ['SS1','SS2','SS3'] },
