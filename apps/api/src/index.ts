@@ -74,6 +74,8 @@ async function start() {
   await app.register(paystackRoutes, { prefix: '/api' })
   await app.register(studentInfoRoutes, { prefix: '/api' })
   await app.register(admissionRoutes, { prefix: '/api' })
+  await app.register(curriculumRoutes, { prefix: '/api' })
+  await app.register(curriculumRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
