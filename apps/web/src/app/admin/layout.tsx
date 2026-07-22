@@ -17,25 +17,26 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/admin',               icon: '◦',  label: 'Overview' },
   { href: '/admin/settings',      icon: '⚙️', label: 'School Settings' },
-  { href: '/admin/subscription', icon: '💳', label: 'Subscription' },
+  { href: '/admin/subscription',  icon: '💳', label: 'Subscription' },
   { href: '/admin/sessions',      icon: '📆', label: 'Academic Sessions' },
   { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
   { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
-  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',  tier: 'growth' },
+  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'growth' },
   { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet' },
   { href: '/admin/report-card',   icon: '🎓', label: 'Report Card' },
-  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',  tier: 'growth' },
-  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',   tier: 'growth' },
-  { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',  tier: 'growth' },
-  { href: '/admin/announcements', icon: '📢', label: 'Announcements',    tier: 'growth' },
-  { href: '/admin/admissions', icon: '🎓', label: 'Admissions', tier: 'premium' },
+  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',   tier: 'growth' },
+  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'growth' },
+  { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',   tier: 'growth' },
+  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'growth' },
+  { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium' },
+  { href: '/admin/curriculum',    icon: '📚', label: 'Curriculum',        tier: 'growth' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams' },
   { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable' },
   { href: '/admin/qbank',         icon: '❓', label: 'Question Bank' },
   { href: '/admin/results',       icon: '📈', label: 'CBT Results' },
-  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',        tier: 'premium' },
+  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium' },
 ]
 
 function getToken() {
@@ -47,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
-  const [schoolTier, setSchoolTier] = useState<string>('growth')
+  const [schoolTier, setSchoolTier] = useState<string>('starter')
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -105,20 +106,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className={styles.schoolName}>{(user as any)?.school?.name ?? ''}</div>
             </div>
           </div>
-
           {/* Tier badge */}
           <div style={{ marginTop: '-1rem' }}>
             <span style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: 20, fontSize: '0.68rem', fontWeight: 700, background: tierBg, color: tierColor, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
               {schoolTier} plan
             </span>
           </div>
-
           {/* Nav */}
           <nav className={styles.nav}>
             {NAV.map(item => {
               const locked = isLocked(item)
               const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-
               if (locked) {
                 return (
                   <div key={item.href}
@@ -128,13 +126,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <span className={styles.navIcon}>{item.icon}</span>
                       <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
                     </div>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.1rem 0.375rem', borderRadius: 10, background: '#f0f0ee', color: '#a0a09a', whiteSpace: 'nowrap' as const }}>
-                      🔒 {tierLabel(item.tier!)}
+                    <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
+                      {tierLabel(item.tier!)}
                     </span>
                   </div>
                 )
               }
-
               return (
                 <Link key={item.href} href={item.href}
                   className={`${styles.navItem} ${active ? styles.navActive : ''}`}>
@@ -145,7 +142,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
         </div>
-
         {/* Bottom user info + logout */}
         <div className={styles.sideBottom}>
           <div className={styles.userRow}>
