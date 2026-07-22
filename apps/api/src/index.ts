@@ -26,6 +26,7 @@ import { superAdminRoutes } from './routes/superadmin'
 import { paystackRoutes } from './routes/paystack'
 import { studentInfoRoutes } from './routes/student-info'
 import { admissionRoutes } from './routes/admissions'
+// curriculum module
 import { curriculumRoutes } from './routes/curriculum'
 
 
