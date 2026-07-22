@@ -142,9 +142,12 @@ export async function curriculumRoutes(app: FastifyInstance) {
 
       let loaded = 0
       for (const s of subjects) {
+        const name = s.name
+        const category = s.category
+        const levels = s.levels
         await tdb.query`
           INSERT INTO curriculum_subjects (school_id, name, category, class_levels, curriculum_type)
-          VALUES (${request.schoolId}::uuid, ${s.name}, ${s.category}, ${s.levels}, ${curriculumType})
+          VALUES (${request.schoolId}::uuid, ${name}, ${category}, ${levels}, ${curriculumType})
           ON CONFLICT (school_id, name, curriculum_type) DO NOTHING
         `
         loaded++
