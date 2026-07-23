@@ -203,6 +203,11 @@ setStats({
     📖 My Lessons
 </button>
 <button
+    onClick={() => router.push('/student/live-classes')}
+    style={{ padding: '0.5rem 1rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
+    🎥 Live Classes
+</button>
+<button
     onClick={() => router.push('/student/progress')}
     style={{ padding: '0.5rem 1.25rem', background: 'white', border: '1.5px solid #1a6b4a', color: '#1a6b4a', fontSize: '0.825rem', fontWeight: 600, borderRadius: 10, cursor: 'pointer' }}>
     📈 View my progress
