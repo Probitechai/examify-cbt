@@ -93,7 +93,7 @@ export async function lessonRoutes(app: FastifyInstance) {
 
       const lessonRows = await tdb.query`
         SELECT lp.*, u.full_name AS teacher_name, cs.name AS subject_name,
-               s.name AS scheme_topic, t.name AS term_name
+               s.topic AS scheme_topic, t.name AS term_name
         FROM lesson_plans lp
         LEFT JOIN users u ON u.id = lp.teacher_id
         LEFT JOIN curriculum_subjects cs ON cs.id = lp.subject_id
