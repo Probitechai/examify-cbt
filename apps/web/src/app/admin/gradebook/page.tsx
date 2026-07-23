@@ -317,7 +317,7 @@ export default function GradebookPage() {
                   </div>
                   {cbtScores.filter(c => students.some(s => s.id === c.student_id)).map((c, i) => {
                     const student = students.find(s => s.id === c.student_id)
-                    const pct = Number(c.score) / Number(c.total_marks) * 100
+                    const pct = Number(c.percentage ?? 0)
                     const gradeInfo = getGrade(pct)
                     return (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 80px 80px', gap: '1rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>

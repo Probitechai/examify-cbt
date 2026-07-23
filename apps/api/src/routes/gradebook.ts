@@ -70,7 +70,7 @@ export async function gradebookRoutes(app: FastifyInstance) {
       ` as any[]
 
       const cbtScores = await tdb.query`
-        SELECT es.student_id, es.score, es.total_marks, e.title, e.subject
+        SELECT es.student_id, es.score, es.percentage, e.title, e.subject, e.total_marks
         FROM exam_sessions es
         JOIN exams e ON e.id = es.exam_id
         WHERE es.school_id = ${request.schoolId}::uuid AND es.status = 'submitted'
@@ -111,11 +111,11 @@ export async function gradebookRoutes(app: FastifyInstance) {
       ` as any[]
 
       const cbtScores = await tdb.query`
-        SELECT es.score, es.total_marks, es.submitted_at, e.title, e.subject
+        SELECT es.score, es.percentage, es.submitted_at, e.title, e.subject, e.total_marks
         FROM exam_sessions es
         JOIN exams e ON e.id = es.exam_id
         WHERE es.school_id = ${request.schoolId}::uuid
-        AND es.user_id = ${sid}::uuid AND es.status = 'submitted'
+        AND es.student_id = ${sid}::uuid AND es.status = 'submitted'
         ORDER BY es.submitted_at DESC
       ` as any[]
 
