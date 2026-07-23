@@ -70,7 +70,7 @@ export default function StudentLessonDetailPage() {
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-  useEffect(() => { if (user && lessonId) loadLesson() }, [user, lessonId])
+  useEffect(() => { if (lessonId) loadLesson() }, [lessonId])
 
   async function loadLesson() {
     setLoading(true)
@@ -91,10 +91,12 @@ export default function StudentLessonDetailPage() {
       setSubmissionForms(forms)
 
       // Track that student started this lesson
-      await fetch(`${API}/lessons/${lessonId}/progress`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
-      })
+      try {
+        await fetch(`${API}/lessons/${lessonId}/progress`, {
+          method: 'POST', headers: hdrs(),
+          body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
+        })
+      } catch {}
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }
 
