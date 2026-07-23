@@ -70,32 +70,32 @@ export default function StudentLessonDetailPage() {
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-  useEffect(() => { if (lessonId) loadLesson() }, [lessonId])
+  useEffect(() => { if (user && lessonId) loadLesson() }, [user, lessonId])
 
   async function loadLesson() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/lessons/${lessonId}`, { headers: hdrs() })
       const data = await res.json()
-      setLesson(data.lesson ?? null)
+      if (!res.ok) throw new Error(data.error ?? 'Lesson not found')
+      setLesson(data.lesson)
       setResources(data.resources ?? [])
       setQuizzes(data.quizzes ?? [])
       setAssignments(data.assignments ?? [])
+
+      // Initialize submission forms
       const forms: Record<string, any> = {}
       for (const a of data.assignments ?? []) {
         forms[a.id] = { text: '', fileUrl: '', fileName: '', submitted: false }
       }
       setSubmissionForms(forms)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-    // Track progress separately — don't block page load
-    fetch(`${API}/lessons/${lessonId}/progress`, {
-      method: 'POST', headers: hdrs(),
-      body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
-    }).catch(() => {})
+
+      // Track that student started this lesson
+      await fetch(`${API}/lessons/${lessonId}/progress`, {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
+      })
+    } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }
 
   async function markResourceViewed(resourceId: string) {
