@@ -77,27 +77,25 @@ export default function StudentLessonDetailPage() {
     try {
       const res = await fetch(`${API}/lessons/${lessonId}`, { headers: hdrs() })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Lesson not found')
-      setLesson(data.lesson)
+      setLesson(data.lesson ?? null)
       setResources(data.resources ?? [])
       setQuizzes(data.quizzes ?? [])
       setAssignments(data.assignments ?? [])
-
-      // Initialize submission forms
       const forms: Record<string, any> = {}
       for (const a of data.assignments ?? []) {
         forms[a.id] = { text: '', fileUrl: '', fileName: '', submitted: false }
       }
       setSubmissionForms(forms)
-
-      // Track that student started this lesson
-      try {
-        await fetch(`${API}/lessons/${lessonId}/progress`, {
-          method: 'POST', headers: hdrs(),
-          body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
-        })
-      } catch {}
-    } catch (e: any) { setError(e.message) } finally { setLoading(false) }
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+    // Track progress separately — don't block page load
+    fetch(`${API}/lessons/${lessonId}/progress`, {
+      method: 'POST', headers: hdrs(),
+      body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
+    }).catch(() => {})
   }
 
   async function markResourceViewed(resourceId: string) {
