@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'growth' },
   { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium' },
   { href: '/admin/curriculum',    icon: '📚', label: 'Curriculum',        tier: 'growth' },
+  { href: '/admin/lessons',       icon: '📖', label: 'Lesson Plans',      tier: 'growth' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams' },
