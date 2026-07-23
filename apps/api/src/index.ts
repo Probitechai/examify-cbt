@@ -29,6 +29,7 @@ import { admissionRoutes } from './routes/admissions'
 // curriculum module
 import { curriculumRoutes } from './routes/curriculum'
 import { lessonRoutes } from './routes/lessons'
+import { gradebookRoutes } from './routes/gradebook'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -78,6 +79,7 @@ async function start() {
   await app.register(admissionRoutes, { prefix: '/api' })
   await app.register(curriculumRoutes, { prefix: '/api' })
   await app.register(lessonRoutes, { prefix: '/api' })
+  await app.register(gradebookRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
