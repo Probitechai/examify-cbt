@@ -180,21 +180,32 @@ export async function lessonRoutes(app: FastifyInstance) {
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
 
-      const rows = await tdb.query`
-        INSERT INTO lesson_plans (
-          school_id, teacher_id, title, class_level, class_arm,
-          subject_id, scheme_id, term_id, week_number,
-          objectives, introduction, main_content, conclusion,
-          estimated_duration_mins, status
-        )
-        VALUES (
-          ${request.schoolId}::uuid, ${uid}::uuid, ${title}, ${cl}, ${ca},
-          ${sid ? sid + '::uuid' : null}, ${scid ? scid + '::uuid' : null},
-          ${tid ? tid + '::uuid' : null}, ${wn},
-          ${obj}, ${intro}, ${mc}, ${conc}, ${dur}, 'draft'
-        )
-        RETURNING id, title, status, created_at
-      ` as any[]
+      let rows: any[]
+      if (sid && tid) {
+        rows = await tdb.query`
+          INSERT INTO lesson_plans (school_id, teacher_id, title, class_level, class_arm, subject_id, term_id, week_number, objectives, introduction, main_content, conclusion, estimated_duration_mins, status)
+          VALUES (${request.schoolId}::uuid, ${uid}::uuid, ${title}, ${cl}, ${ca}, ${sid}::uuid, ${tid}::uuid, ${wn}, ${obj}, ${intro}, ${mc}, ${conc}, ${dur}, 'draft')
+          RETURNING id, title, status, created_at
+        ` as any[]
+      } else if (sid) {
+        rows = await tdb.query`
+          INSERT INTO lesson_plans (school_id, teacher_id, title, class_level, class_arm, subject_id, week_number, objectives, introduction, main_content, conclusion, estimated_duration_mins, status)
+          VALUES (${request.schoolId}::uuid, ${uid}::uuid, ${title}, ${cl}, ${ca}, ${sid}::uuid, ${wn}, ${obj}, ${intro}, ${mc}, ${conc}, ${dur}, 'draft')
+          RETURNING id, title, status, created_at
+        ` as any[]
+      } else if (tid) {
+        rows = await tdb.query`
+          INSERT INTO lesson_plans (school_id, teacher_id, title, class_level, class_arm, term_id, week_number, objectives, introduction, main_content, conclusion, estimated_duration_mins, status)
+          VALUES (${request.schoolId}::uuid, ${uid}::uuid, ${title}, ${cl}, ${ca}, ${tid}::uuid, ${wn}, ${obj}, ${intro}, ${mc}, ${conc}, ${dur}, 'draft')
+          RETURNING id, title, status, created_at
+        ` as any[]
+      } else {
+        rows = await tdb.query`
+          INSERT INTO lesson_plans (school_id, teacher_id, title, class_level, class_arm, week_number, objectives, introduction, main_content, conclusion, estimated_duration_mins, status)
+          VALUES (${request.schoolId}::uuid, ${uid}::uuid, ${title}, ${cl}, ${ca}, ${wn}, ${obj}, ${intro}, ${mc}, ${conc}, ${dur}, 'draft')
+          RETURNING id, title, status, created_at
+        ` as any[]
+      }
       return reply.status(201).send({ lesson: rows[0] })
     })
 
@@ -326,11 +337,20 @@ export async function lessonRoutes(app: FastifyInstance) {
       const ir = d.isRequired ?? false
       const so = d.sortOrder ?? 0
       const tdb = tenantDb(request.schoolId)
-      const rows = await tdb.query`
-        INSERT INTO lesson_quizzes (school_id, lesson_id, exam_id, title, instructions, is_required, sort_order)
-        VALUES (${request.schoolId}::uuid, ${lid}::uuid, ${eid ? eid + '::uuid' : null}, ${ti}, ${ins}, ${ir}, ${so})
-        RETURNING id, title, is_required
-      ` as any[]
+      let rows: any[]
+      if (eid) {
+        rows = await tdb.query`
+          INSERT INTO lesson_quizzes (school_id, lesson_id, exam_id, title, instructions, is_required, sort_order)
+          VALUES (${request.schoolId}::uuid, ${lid}::uuid, ${eid}::uuid, ${ti}, ${ins}, ${ir}, ${so})
+          RETURNING id, title, is_required
+        ` as any[]
+      } else {
+        rows = await tdb.query`
+          INSERT INTO lesson_quizzes (school_id, lesson_id, title, instructions, is_required, sort_order)
+          VALUES (${request.schoolId}::uuid, ${lid}::uuid, ${ti}, ${ins}, ${ir}, ${so})
+          RETURNING id, title, is_required
+        ` as any[]
+      }
       return reply.status(201).send({ quiz: rows[0] })
     })
 
@@ -371,7 +391,7 @@ export async function lessonRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
         INSERT INTO lesson_assignments (school_id, lesson_id, title, instructions, due_date, max_score, submission_type, is_required, sort_order)
-        VALUES (${request.schoolId}::uuid, ${lid}::uuid, ${ti}, ${ins}, ${dd ? dd + '::timestamptz' : null}, ${ms}, ${st}, ${ir}, ${so})
+        VALUES (${request.schoolId}::uuid, ${lid}::uuid, ${ti}, ${ins}, ${dd}::timestamptz, ${ms}, ${st}, ${ir}, ${so})
         RETURNING id, title, due_date, max_score, submission_type
       ` as any[]
       return reply.status(201).send({ assignment: rows[0] })
