@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../../hooks/useAuth'
+import LessonDiscussion from '../../../admin/lessons/LessonDiscussion'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -227,6 +228,7 @@ export default function StudentLessonDetailPage() {
             { key: 'resources', label: `📎 Resources (${resources.length})` },
             { key: 'quizzes', label: `❓ Quizzes (${quizzes.length})` },
             { key: 'assignments', label: `📝 Tasks (${assignments.length})` },
+          { key: 'discussion', label: '💬 Q&A' },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', whiteSpace: 'nowrap' as const }}>
@@ -419,6 +421,15 @@ export default function StudentLessonDetailPage() {
               )
             })}
           </div>
+        )}
+      {/* DISCUSSION TAB */}
+        {activeTab === 'discussion' && user && (
+          <LessonDiscussion
+            lessonId={lessonId}
+            currentUserId={(user as any).id}
+            currentUserRole={(user as any).role}
+            currentUserName={user.fullName}
+          />
         )}
       </main>
     </div>

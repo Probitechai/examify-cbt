@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import LessonDiscussion from '../LessonDiscussion'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -298,8 +299,9 @@ export default function LessonDetailPage() {
           { key: 'quizzes', label: `❓ Quizzes (${quizzes.length})` },
           { key: 'assignments', label: `📝 Assignments (${assignments.length})` },
           { key: 'completions', label: '📊 Completions' },
+          { key: 'discussion', label: '💬 Discussion' },
         ] as const).map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); if (tab.key === 'completions') loadCompletionList() }}
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key as any); if (tab.key === 'completions') loadCompletionList() }}
             style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', whiteSpace: 'nowrap' as const }}>
             {tab.label}
           </button>
@@ -591,6 +593,16 @@ export default function LessonDetailPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* DISCUSSION TAB */}
+      {activeTab === 'discussion' && (
+        <LessonDiscussion
+          lessonId={lessonId}
+          currentUserId={lesson.teacher_id}
+          currentUserRole="teacher"
+          currentUserName={lesson.teacher_name}
+        />
       )}
 
       {/* Submissions Modal */}
