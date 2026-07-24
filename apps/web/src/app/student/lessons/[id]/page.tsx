@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../../hooks/useAuth'
 import LessonDiscussion from '../../../admin/lessons/LessonDiscussion'
+import FlashcardDeck from '../../../admin/lessons/FlashcardDeck'
+import InlineQuiz from '../../../admin/lessons/InlineQuiz'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -61,6 +63,8 @@ export default function StudentLessonDetailPage() {
   const [success, setSuccess] = useState('')
   const [resourcesViewed, setResourcesViewed] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const [flashcards, setFlashcards] = useState<any[]>([])
+  const [inlineQuizzes, setInlineQuizzes] = useState<any[]>([])
   const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -90,6 +94,15 @@ export default function StudentLessonDetailPage() {
         forms[a.id] = { text: '', fileUrl: '', fileName: '', submitted: false }
       }
       setSubmissionForms(forms)
+      // Load interactive elements
+      const [flashRes, inlineRes] = await Promise.all([
+        fetch(`${API}/lessons/${lessonId}/flashcards`, { headers: hdrs() }),
+        fetch(`${API}/lessons/${lessonId}/inline-quizzes`, { headers: hdrs() }),
+      ])
+      const flashData = await flashRes.json()
+      const inlineData = await inlineRes.json()
+      setFlashcards(flashData.flashcards ?? [])
+      setInlineQuizzes(inlineData.quizzes ?? [])
 
       // Track that student started this lesson
       await fetch(`${API}/lessons/${lessonId}/progress`, {
@@ -228,6 +241,7 @@ export default function StudentLessonDetailPage() {
             { key: 'resources', label: `📎 Resources (${resources.length})` },
             { key: 'quizzes', label: `❓ Quizzes (${quizzes.length})` },
             { key: 'assignments', label: `📝 Tasks (${assignments.length})` },
+          { key: 'interactive', label: `🎮 Interactive` },
           { key: 'discussion', label: '💬 Q&A' },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -422,7 +436,31 @@ export default function StudentLessonDetailPage() {
             })}
           </div>
         )}
-      {/* DISCUSSION TAB */}
+      {/* INTERACTIVE TAB */}
+        {activeTab === 'interactive' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {flashcards.length > 0 && (
+              <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>🃏 Flashcards</h3>
+                <FlashcardDeck cards={flashcards} />
+              </div>
+            )}
+            {inlineQuizzes.length > 0 && (
+              <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>⚡ Quick Quiz</h3>
+                <InlineQuiz questions={inlineQuizzes} />
+              </div>
+            )}
+            {flashcards.length === 0 && inlineQuizzes.length === 0 && (
+              <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' as const }}>
+                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🎮</p>
+                <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No interactive elements for this lesson yet.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* DISCUSSION TAB */}
         {activeTab === 'discussion' && user && (
           <LessonDiscussion
             lessonId={lessonId}

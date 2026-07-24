@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import LessonDiscussion from '../LessonDiscussion'
+import FlashcardDeck from '../FlashcardDeck'
+import InlineQuiz from '../InlineQuiz'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -72,6 +74,15 @@ export default function LessonDetailPage() {
   const [assignmentForm, setAssignmentForm] = useState({ title: '', instructions: '', dueDate: '', maxScore: '100', submissionType: 'both', isRequired: true })
   const [addingAssignment, setAddingAssignment] = useState(false)
 
+  // Interactive elements
+  const [flashcards, setFlashcards] = useState<any[]>([])
+  const [inlineQuizzes, setInlineQuizzes] = useState<any[]>([])
+  const [showFlashcardForm, setShowFlashcardForm] = useState(false)
+  const [flashcardPairs, setFlashcardPairs] = useState([{ front: '', back: '', hint: '' }])
+  const [savingFlashcards, setSavingFlashcards] = useState(false)
+  const [showInlineQuizForm, setShowInlineQuizForm] = useState(false)
+  const [inlineQuizForm, setInlineQuizForm] = useState({ question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'a', explanation: '' })
+  const [savingInlineQuiz, setSavingInlineQuiz] = useState(false)
   // Submissions modal
   const [viewingSubmissions, setViewingSubmissions] = useState<any>(null)
   const [submissions, setSubmissions] = useState<any[]>([])
@@ -90,6 +101,15 @@ export default function LessonDetailPage() {
       setQuizzes(data.quizzes ?? [])
       setAssignments(data.assignments ?? [])
       setCompletions(data.completions)
+      // Load interactive elements
+      const [flashRes, inlineRes] = await Promise.all([
+        fetch(`${API}/lessons/${lessonId}/flashcards`, { headers: hdrs() }),
+        fetch(`${API}/lessons/${lessonId}/inline-quizzes`, { headers: hdrs() }),
+      ])
+      const flashData = await flashRes.json()
+      const inlineData = await inlineRes.json()
+      setFlashcards(flashData.flashcards ?? [])
+      setInlineQuizzes(inlineData.quizzes ?? [])
     } catch { setError('Failed to load lesson') } finally { setLoading(false) }
   }
 
@@ -227,6 +247,52 @@ export default function LessonDetailPage() {
     loadSubmissions(viewingSubmissions)
   }
 
+  async function saveFlashcards() {
+    const validCards = flashcardPairs.filter(c => c.front.trim() && c.back.trim())
+    if (validCards.length === 0) { setError('Add at least one complete card'); return }
+    setSavingFlashcards(true)
+    try {
+      await fetch(`${API}/lessons/${lessonId}/flashcards`, {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ cards: validCards.map(c => ({ front: c.front, back: c.back, hint: c.hint || undefined })) })
+      })
+      setShowFlashcardForm(false)
+      setFlashcardPairs([{ front: '', back: '', hint: '' }])
+      loadLesson()
+    } catch { setError('Failed to save flashcards') } finally { setSavingFlashcards(false) }
+  }
+
+  async function deleteFlashcard(id: string) {
+    await fetch(`${API}/lessons/flashcards/${id}`, { method: 'DELETE', headers: hdrs() })
+    setFlashcards(prev => prev.filter((f: any) => f.id !== id))
+  }
+
+  async function saveInlineQuiz() {
+    if (!inlineQuizForm.question || !inlineQuizForm.optionA || !inlineQuizForm.optionB) { setError('Question and options A, B required'); return }
+    setSavingInlineQuiz(true)
+    try {
+      await fetch(`${API}/lessons/${lessonId}/inline-quizzes`, {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({
+          question: inlineQuizForm.question, optionA: inlineQuizForm.optionA,
+          optionB: inlineQuizForm.optionB, optionC: inlineQuizForm.optionC || undefined,
+          optionD: inlineQuizForm.optionD || undefined,
+          correctOption: inlineQuizForm.correctOption,
+          explanation: inlineQuizForm.explanation || undefined,
+          sortOrder: inlineQuizzes.length,
+        })
+      })
+      setShowInlineQuizForm(false)
+      setInlineQuizForm({ question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'a', explanation: '' })
+      loadLesson()
+    } catch { setError('Failed to save quiz question') } finally { setSavingInlineQuiz(false) }
+  }
+
+  async function deleteInlineQuiz(id: string) {
+    await fetch(`${API}/lessons/inline-quizzes/${id}`, { method: 'DELETE', headers: hdrs() })
+    setInlineQuizzes(prev => prev.filter((q: any) => q.id !== id))
+  }
+
   const inp = { padding: '0.625rem 0.875rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const }
   const sel = { ...inp, cursor: 'pointer' }
   const lbl = { fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }
@@ -300,6 +366,7 @@ export default function LessonDetailPage() {
           { key: 'assignments', label: `📝 Assignments (${assignments.length})` },
           { key: 'completions', label: '📊 Completions' },
           { key: 'discussion', label: '💬 Discussion' },
+          { key: 'interactive', label: `🎮 Interactive (${flashcards.length + inlineQuizzes.length})` },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => { setActiveTab(tab.key as any); if (tab.key === 'completions') loadCompletionList() }}
             style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', whiteSpace: 'nowrap' as const }}>
@@ -592,6 +659,91 @@ export default function LessonDetailPage() {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* INTERACTIVE TAB */}
+      {activeTab === 'interactive' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Flashcards section */}
+          <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18' }}>🃏 Flashcards ({flashcards.length})</h3>
+              <button onClick={() => setShowFlashcardForm(true)}
+                style={{ padding: '0.375rem 0.875rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                + Add Cards
+              </button>
+            </div>
+            {showFlashcardForm && (
+              <div style={{ background: '#f7f7f5', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                <p style={{ fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.875rem' }}>Add Flashcards</p>
+                {flashcardPairs.map((pair, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <input style={inp} value={pair.front} onChange={e => setFlashcardPairs(prev => prev.map((p, j) => j === i ? { ...p, front: e.target.value } : p))} placeholder="Front (question/term)" />
+                    <input style={inp} value={pair.back} onChange={e => setFlashcardPairs(prev => prev.map((p, j) => j === i ? { ...p, back: e.target.value } : p))} placeholder="Back (answer/definition)" />
+                    <input style={inp} value={pair.hint} onChange={e => setFlashcardPairs(prev => prev.map((p, j) => j === i ? { ...p, hint: e.target.value } : p))} placeholder="Hint (optional)" />
+                    <button onClick={() => setFlashcardPairs(prev => prev.filter((_, j) => j !== i))} disabled={flashcardPairs.length === 1}
+                      style={{ padding: '0 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', color: '#dc2626', cursor: 'pointer', fontSize: '0.875rem' }}>✕</button>
+                  </div>
+                ))}
+                <button onClick={() => setFlashcardPairs(prev => [...prev, { front: '', back: '', hint: '' }])}
+                  style={{ fontSize: '0.78rem', color: '#1e40af', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, marginBottom: '0.875rem' }}>
+                  + Add another card
+                </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button onClick={saveFlashcards} disabled={savingFlashcards}
+                    style={{ padding: '0.5rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: savingFlashcards ? 0.6 : 1 }}>
+                    {savingFlashcards ? 'Saving...' : 'Save Cards'}
+                  </button>
+                  <button onClick={() => setShowFlashcardForm(false)}
+                    style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </div>
+            )}
+            <FlashcardDeck cards={flashcards} isTeacher={true} onDelete={deleteFlashcard} />
+          </div>
+
+          {/* Inline Quiz section */}
+          <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18' }}>⚡ Quick Quiz ({inlineQuizzes.length} questions)</h3>
+              <button onClick={() => setShowInlineQuizForm(true)}
+                style={{ padding: '0.375rem 0.875rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                + Add Question
+              </button>
+            </div>
+            {showInlineQuizForm && (
+              <div style={{ background: '#f7f7f5', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div><label style={lbl}>Question *</label>
+                    <input style={inp} value={inlineQuizForm.question} onChange={e => setInlineQuizForm(f => ({ ...f, question: e.target.value }))} placeholder="e.g. What is the value of x in 2x = 10?" autoFocus /></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div><label style={lbl}>Option A *</label><input style={inp} value={inlineQuizForm.optionA} onChange={e => setInlineQuizForm(f => ({ ...f, optionA: e.target.value }))} /></div>
+                    <div><label style={lbl}>Option B *</label><input style={inp} value={inlineQuizForm.optionB} onChange={e => setInlineQuizForm(f => ({ ...f, optionB: e.target.value }))} /></div>
+                    <div><label style={lbl}>Option C (optional)</label><input style={inp} value={inlineQuizForm.optionC} onChange={e => setInlineQuizForm(f => ({ ...f, optionC: e.target.value }))} /></div>
+                    <div><label style={lbl}>Option D (optional)</label><input style={inp} value={inlineQuizForm.optionD} onChange={e => setInlineQuizForm(f => ({ ...f, optionD: e.target.value }))} /></div>
+                  </div>
+                  <div><label style={lbl}>Correct Answer</label>
+                    <select style={sel} value={inlineQuizForm.correctOption} onChange={e => setInlineQuizForm(f => ({ ...f, correctOption: e.target.value }))}>
+                      <option value="a">A</option><option value="b">B</option>
+                      {inlineQuizForm.optionC && <option value="c">C</option>}
+                      {inlineQuizForm.optionD && <option value="d">D</option>}
+                    </select></div>
+                  <div><label style={lbl}>Explanation (shown after answering)</label>
+                    <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={inlineQuizForm.explanation} onChange={e => setInlineQuizForm(f => ({ ...f, explanation: e.target.value }))} placeholder="Explain why this is the correct answer..." /></div>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button onClick={saveInlineQuiz} disabled={savingInlineQuiz}
+                      style={{ padding: '0.5rem 1.25rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: savingInlineQuiz ? 0.6 : 1 }}>
+                      {savingInlineQuiz ? 'Saving...' : 'Save Question'}
+                    </button>
+                    <button onClick={() => setShowInlineQuizForm(false)}
+                      style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <InlineQuiz questions={inlineQuizzes} isTeacher={true} onDelete={deleteInlineQuiz} />
+          </div>
         </div>
       )}
 
