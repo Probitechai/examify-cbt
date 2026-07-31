@@ -34,6 +34,7 @@ import { liveClassRoutes } from './routes/live-classes'
 import { discussionRoutes } from './routes/discussions'
 import { interactiveRoutes } from './routes/interactive'
 import { certificateRoutes } from './routes/certificates'
+import { learningPathRoutes } from './routes/learning-paths'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -88,6 +89,7 @@ async function start() {
   await app.register(discussionRoutes, { prefix: '/api' })
   await app.register(interactiveRoutes, { prefix: '/api' })
   await app.register(certificateRoutes, { prefix: '/api' })
+  await app.register(learningPathRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
