@@ -45,10 +45,11 @@ export default function ParentDashboard() {
   const [parentName, setParentName] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees'>('results')
+  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning'>('results')
   const [results, setResults] = useState<any>(null)
   const [attendance, setAttendance] = useState<any>(null)
   const [fees, setFees] = useState<any>(null)
+  const [learning, setLearning] = useState<any>(null)
   const [sectionLoading, setSectionLoading] = useState(false)
   const [announcements, setAnnouncements] = useState<any[]>([])
 
@@ -85,16 +86,29 @@ export default function ParentDashboard() {
     } catch {} finally { setLoading(false) }
   }
 
-  async function loadSection(section: 'results' | 'attendance' | 'fees', studentId: string, termId: string) {
+  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning', studentId: string, termId: string) {
     setSectionLoading(true)
     setActiveSection(section)
     try {
-      const params = new URLSearchParams({ studentId, termId })
-      const res = await fetch(`${API}/parents/${section}?${params}`, { headers: hdrs() })
-      const data = await res.json()
-      if (section === 'results') setResults(data)
-      if (section === 'attendance') setAttendance(data)
-      if (section === 'fees') setFees(data)
+      if (section === 'learning') {
+        const [lessonsRes, gradebookRes] = await Promise.all([
+          fetch(`${API}/lessons?classLevel=${currentItem?.student?.class_level ?? ''}`, { headers: hdrs() }),
+          fetch(`${API}/gradebook/student/${studentId}?termId=${termId}`, { headers: hdrs() }),
+        ])
+        const lessonsData = await lessonsRes.json()
+        const gradebookData = await gradebookRes.json()
+        setLearning({
+          lessons: (lessonsData.lessons ?? []).filter((l: any) => l.status === 'published'),
+          gradebook: gradebookData,
+        })
+      } else {
+        const params = new URLSearchParams({ studentId, termId })
+        const res = await fetch(`${API}/parents/${section}?${params}`, { headers: hdrs() })
+        const data = await res.json()
+        if (section === 'results') setResults(data)
+        if (section === 'attendance') setAttendance(data)
+        if (section === 'fees') setFees(data)
+      }
     } catch {} finally { setSectionLoading(false) }
   }
 
@@ -225,6 +239,12 @@ export default function ParentDashboard() {
                   )}
                 </div>
 
+{/* Learning card */}
+                <div style={{ background: '#f5f3ff', borderRadius: '10px', padding: '0.875rem', cursor: 'pointer', marginTop: '0.75rem' }}
+                  onClick={() => { setActiveSection('learning'); if (termId) loadSection('learning', currentItem.student.id, termId) }}>
+                  <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#7e22ce', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.375rem' }}>Learning</p>
+                  <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>View lessons, assignments and grades</p>
+                </div>
                 {/* Section tabs */}
                 <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1rem', width: 'fit-content' }}>
                   {([
@@ -325,6 +345,69 @@ export default function ParentDashboard() {
                                 {r.status.toUpperCase()}
                               </span>
                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Learning section */}
+                {activeSection === 'learning' && learning && !sectionLoading && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Lessons */}
+                    <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e5e5e0', padding: '1.25rem' }}>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>📖 Published Lessons</p>
+                      {learning.lessons?.length === 0 ? (
+                        <p style={{ fontSize: '0.875rem', color: '#6b6b65', textAlign: 'center' as const, padding: '1rem' }}>No published lessons yet.</p>
+                      ) : learning.lessons?.map((l: any) => (
+                        <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #f0f0ee' }}>
+                          <div>
+                            <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{l.title}</p>
+                            <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>
+                              {l.subject_name && `${l.subject_name} · `}By {l.teacher_name}
+                              {l.week_number && ` · Week ${l.week_number}`}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.72rem', color: '#6b6b65' }}>
+                            {Number(l.resource_count) > 0 && <span>📎 {l.resource_count}</span>}
+                            {Number(l.assignment_count) > 0 && <span>📝 {l.assignment_count}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Assignment scores */}
+                    {learning.gradebook?.assignmentScores?.length > 0 && (
+                      <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e5e5e0', padding: '1.25rem' }}>
+                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>📝 Assignment Scores</p>
+                        {learning.gradebook.assignmentScores.map((a: any, i: number) => {
+                          const pct = Math.round(Number(a.score) / Number(a.max_score) * 100)
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.625rem 0', borderBottom: '1px solid #f0f0ee' }}>
+                              <div>
+                                <p style={{ fontSize: '0.825rem', fontWeight: 500, color: '#1a1a18' }}>{a.title}</p>
+                                <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{a.subject_name ?? '—'}</p>
+                              </div>
+                              <div style={{ textAlign: 'right' as const }}>
+                                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: pct >= 50 ? '#1a6b4a' : '#dc2626' }}>{a.score}/{a.max_score}</p>
+                                <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{pct}%</p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {/* CBT scores */}
+                    {learning.gradebook?.cbtScores?.length > 0 && (
+                      <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e5e5e0', padding: '1.25rem' }}>
+                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>💻 CBT Exam Scores</p>
+                        {learning.gradebook.cbtScores.map((c: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.625rem 0', borderBottom: '1px solid #f0f0ee' }}>
+                            <div>
+                              <p style={{ fontSize: '0.825rem', fontWeight: 500, color: '#1a1a18' }}>{c.title}</p>
+                              <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{c.subject ?? '—'}</p>
+                            </div>
+                            <p style={{ fontSize: '0.875rem', fontWeight: 700, color: Number(c.percentage) >= 50 ? '#1a6b4a' : '#dc2626' }}>{Math.round(Number(c.percentage))}%</p>
                           </div>
                         ))}
                       </div>
