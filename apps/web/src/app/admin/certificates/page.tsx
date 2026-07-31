@@ -77,9 +77,9 @@ export default function CertificatesPage() {
   }
 
   async function loadStudents() {
-    const res = await fetch(`${API}/users?role=student&classLevel=${selectedClass}`, { headers: hdrs() })
+    const res = await fetch(`${API}/gradebook/class?termId=${selectedTerm}&classLevel=${selectedClass}`, { headers: hdrs() })
     const data = await res.json()
-    setStudents(data.users ?? [])
+    setStudents(data.students ?? [])
   }
 
   async function loadCertificates() {
