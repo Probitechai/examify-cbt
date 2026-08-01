@@ -148,7 +148,20 @@ export default function JambPrepPage() {
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-  useEffect(() => { if (user) { loadSubjects(); loadProfile() } }, [user])
+  useEffect(() => {
+    if (user) {
+      loadSubjects()
+      loadProfile()
+    }
+  }, [user])
+
+  useEffect(() => {
+    // Auto-select English Language when subjects load
+    if (subjects.length > 0 && selectedSubjects.length === 0) {
+      const english = subjects.find(s => s.is_compulsory)
+      if (english) setSelectedSubjects([english.id])
+    }
+  }, [subjects])
 
   async function loadSubjects() {
     const res = await fetch(`${API}/jamb/subjects`, { headers: hdrs() })
@@ -175,7 +188,7 @@ export default function JambPrepPage() {
   }
 
   async function saveProfile() {
-    if (selectedSubjects.length !== 4) { setError('Select exactly 4 subjects'); return }
+    if (selectedSubjects.length !== 4) { setError('Please select 3 more subjects in addition to English Language'); return }
     await fetch(`${API}/jamb/profile`, {
       method: 'POST', headers: hdrs(),
       body: JSON.stringify({ selectedSubjects, targetScore: 280, dailyGoalQuestions: 20 })
@@ -323,6 +336,7 @@ export default function JambPrepPage() {
                   if (isCompulsory) return
                   if (selected) setSelectedSubjects(prev => prev.filter(id => id !== s.id))
                   else if (selectedSubjects.length < 4) setSelectedSubjects(prev => [...prev, s.id])
+                  // Max 4 total (1 compulsory + 3 chosen)
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1rem', background: selected ? s.color ?? '#1a6b4a' : 'white', border: `2px solid ${selected ? s.color ?? '#1a6b4a' : '#e5e5e0'}`, borderRadius: '12px', cursor: isCompulsory ? 'default' : 'pointer', transition: 'all 0.2s', textAlign: 'left' as const }}>
                 <span style={{ fontSize: '1.25rem' }}>{s.icon}</span>
@@ -336,7 +350,7 @@ export default function JambPrepPage() {
           })}
         </div>
         <div style={{ background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '0.875rem', color: '#1a1a18' }}>Selected: {selectedSubjects.length}/4</span>
+          <span style={{ fontSize: '0.875rem', color: '#1a1a18' }}>Selected: {selectedSubjects.length}/4 ({selectedSubjects.length === 4 ? '✓ Ready!' : `pick ${4 - selectedSubjects.length} more`})</span>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {selectedSubjects.map(sid => {
               const s = subjects.find(s => s.id === sid)
