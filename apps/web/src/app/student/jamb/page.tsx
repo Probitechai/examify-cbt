@@ -216,22 +216,13 @@ export default function JambPrepPage() {
   async function startAiQuiz(subject: any, topic: any) {
     setAiLoading(true); setError('')
     try {
-      const prompt = `Generate exactly 10 multiple choice questions for JAMB exam preparation on the topic "${topic.name}" in ${subject.name}. Return ONLY a JSON array with no markdown, no explanation. Each object must have: question (string), option_a, option_b, option_c, option_d (strings), correct_option ("a"|"b"|"c"|"d"), explanation (string, 1-2 sentences). Questions should vary in difficulty from easy to hard. Make them realistic JAMB-style questions.`
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+      const res = await fetch(`${API}/jamb/ai/quiz`, {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
       })
-      const data = await response.json()
-      const text = data.content?.[0]?.text ?? '[]'
-      const clean = text.replace(/```json|```/g, '').trim()
-      const qs = JSON.parse(clean)
-      if (!Array.isArray(qs) || qs.length === 0) throw new Error('No questions generated')
-      setQuestions(qs.slice(0, 10).map((q: any, i: number) => ({ ...q, id: `ai-${i}` })))
+      const data = await res.json()
+      if (!res.ok || !data.questions?.length) throw new Error('No questions generated')
+      setQuestions(data.questions.slice(0, 10).map((q: any, i: number) => ({ ...q, id: `ai-${i}` })))
       setCurrentQ(0); setSelectedAnswer(null); setConfirmed(false)
       setLives(3); setScore(0); setSessionXp(0)
       setSessionType('ai_generated')
@@ -242,18 +233,12 @@ export default function JambPrepPage() {
   async function loadAiSummary(subject: any, topic: any) {
     setAiLoading(true); setSummaryContent(''); setScreen('summary')
     try {
-      const prompt = `Write a concise, student-friendly study summary for JAMB exam preparation on "${topic.name}" in ${subject.name}. Structure it with: 1) Key Concepts (bullet points), 2) Important Formulas or Rules (if applicable), 3) Common JAMB Question Patterns, 4) Quick Tips to Remember. Keep it under 400 words. Use simple language suitable for a Nigerian SS3 student.`
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+      const res = await fetch(`${API}/jamb/ai/summary`, {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
       })
-      const data = await response.json()
-      setSummaryContent(data.content?.[0]?.text ?? 'Could not generate summary.')
+      const data = await res.json()
+      setSummaryContent(data.summary ?? 'Could not generate summary.')
     } catch { setSummaryContent('Failed to generate summary. Please try again.') } finally { setAiLoading(false) }
   }
 

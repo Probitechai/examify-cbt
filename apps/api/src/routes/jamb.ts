@@ -209,6 +209,80 @@ export async function jambRoutes(app: FastifyInstance) {
       return reply.send({ saved: true, xpEarned: xp, pct })
     })
 
+  // AI TOPIC SUMMARY
+  app.post('/jamb/ai/summary', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        subjectName: z.string(),
+        topicName: z.string(),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const { subjectName, topicName } = body.data
+      const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+      if (!ANTHROPIC_API_KEY) return reply.status(500).send({ error: 'AI not configured' })
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `Write a concise, student-friendly study summary for JAMB exam preparation on "${topicName}" in ${subjectName}. Structure it with: 1) Key Concepts (bullet points), 2) Important Formulas or Rules (if applicable), 3) Common JAMB Question Patterns, 4) Quick Tips to Remember. Keep it under 400 words. Use simple language suitable for a Nigerian SS3 student.`
+          }]
+        })
+      })
+      const data = await res.json()
+      const text = data.content?.[0]?.text ?? 'Could not generate summary.'
+      return reply.send({ summary: text })
+    })
+
+  // AI QUIZ GENERATION
+  app.post('/jamb/ai/quiz', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        subjectName: z.string(),
+        topicName: z.string(),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const { subjectName, topicName } = body.data
+      const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+      if (!ANTHROPIC_API_KEY) return reply.status(500).send({ error: 'AI not configured' })
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `Generate exactly 10 multiple choice questions for JAMB exam preparation on the topic "${topicName}" in ${subjectName}. Return ONLY a JSON array with no markdown, no explanation, no backticks. Each object must have: question (string), option_a, option_b, option_c, option_d (strings), correct_option ("a"|"b"|"c"|"d"), explanation (string, 1-2 sentences). Questions should vary in difficulty. Make them realistic JAMB-style questions.`
+          }]
+        })
+      })
+      const data = await res.json()
+      const text = data.content?.[0]?.text ?? '[]'
+      const clean = text.replace(/```json|```/g, '').trim()
+      try {
+        const questions = JSON.parse(clean)
+        return reply.send({ questions })
+      } catch {
+        return reply.status(500).send({ error: 'Failed to parse AI response' })
+      }
+    })
+
   // ADD PAST QUESTION (admin)
   app.post('/jamb/questions', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
@@ -252,5 +326,62 @@ export async function jambRoutes(app: FastifyInstance) {
         `
       }
       return reply.status(201).send({ saved: true })
+    })
+    // AI TOPIC SUMMARY
+  app.post('/jamb/ai/summary', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        subjectName: z.string(),
+        topicName: z.string(),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const { subjectName, topicName } = body.data
+      const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+      if (!ANTHROPIC_API_KEY) return reply.status(500).send({ error: 'AI not configured' })
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: `Write a concise, student-friendly study summary for JAMB exam preparation on "${topicName}" in ${subjectName}. Structure it with: 1) Key Concepts (bullet points), 2) Important Formulas or Rules (if applicable), 3) Common JAMB Question Patterns, 4) Quick Tips to Remember. Keep it under 400 words. Use simple language suitable for a Nigerian SS3 student.` }]
+        })
+      })
+      const data = await res.json()
+      const text = data.content?.[0]?.text ?? 'Could not generate summary.'
+      return reply.send({ summary: text })
+    })
+
+  // AI QUIZ GENERATION
+  app.post('/jamb/ai/quiz', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        subjectName: z.string(),
+        topicName: z.string(),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const { subjectName, topicName } = body.data
+      const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+      if (!ANTHROPIC_API_KEY) return reply.status(500).send({ error: 'AI not configured' })
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: `Generate exactly 10 multiple choice questions for JAMB exam preparation on the topic "${topicName}" in ${subjectName}. Return ONLY a JSON array with no markdown, no explanation, no backticks. Each object must have: question (string), option_a, option_b, option_c, option_d (strings), correct_option ("a"|"b"|"c"|"d"), explanation (string, 1-2 sentences). Questions should vary in difficulty. Make them realistic JAMB-style questions.` }]
+        })
+      })
+      const data = await res.json()
+      const text = data.content?.[0]?.text ?? '[]'
+      const clean = text.replace(/```json|```/g, '').trim()
+      try {
+        const questions = JSON.parse(clean)
+        return reply.send({ questions })
+      } catch {
+        return reply.status(500).send({ error: 'Failed to parse AI response' })
+      }
     })
 }
