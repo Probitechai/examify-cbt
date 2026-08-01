@@ -51,7 +51,7 @@ export async function jambRoutes(app: FastifyInstance) {
   app.post('/jamb/profile', { preHandler: [authenticate] },
     async (request: any, reply: any) => {
       const schema = z.object({
-        selectedSubjects: z.array(z.string().uuid()).min(4).max(4),
+        selectedSubjects: z.array(z.string().uuid()).min(1).max(4),
         targetScore: z.number().min(0).max(400).default(280),
         examDate: z.string().optional(),
         dailyGoalQuestions: z.number().min(5).max(100).default(20),
@@ -60,7 +60,7 @@ export async function jambRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
       const d = body.data
       const uid = request.user.id
-      const subs = JSON.stringify(d.selectedSubjects.map(s => `${s}`))
+      const subs = d.selectedSubjects
       const ts = d.targetScore
       const ed = d.examDate ?? null
       const dg = d.dailyGoalQuestions
