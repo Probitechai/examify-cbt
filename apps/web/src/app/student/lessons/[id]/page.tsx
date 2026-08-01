@@ -300,6 +300,14 @@ export default function StudentLessonDetailPage() {
               const ytId = r.resource_type === 'video_link' ? getYoutubeId(r.url) : null
               return (
                 <div key={r.id} style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
+                  {r.resource_type === 'video_upload' && r.url && (
+                    <div style={{ background: '#000' }}>
+                      <video controls style={{ width: '100%', maxHeight: 420, display: 'block' }} src={r.url}
+                        onPlay={() => markResourceViewed(r.id)}>
+                        Your browser does not support video playback.
+                      </video>
+                    </div>
+                  )}
                   {ytId && (
                     <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
                       <iframe

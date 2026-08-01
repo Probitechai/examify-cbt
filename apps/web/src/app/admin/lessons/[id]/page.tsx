@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import LessonDiscussion from '../LessonDiscussion'
 import FlashcardDeck from '../FlashcardDeck'
+import VideoUpload from '../VideoUpload'
 import InlineQuiz from '../InlineQuiz'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -60,6 +61,7 @@ export default function LessonDetailPage() {
 
   // Resource form
   const [showResourceForm, setShowResourceForm] = useState(false)
+  const [showVideoUpload, setShowVideoUpload] = useState(false)
   const [resourceForm, setResourceForm] = useState({ resourceType: 'video_link', title: '', description: '', url: '', durationMins: '' })
   const [addingResource, setAddingResource] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -418,13 +420,39 @@ export default function LessonDetailPage() {
       {activeTab === 'resources' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button onClick={() => setShowResourceForm(true)}
+            <button onClick={() => setShowVideoUpload(true)}
+                style={{ padding: '0.375rem 0.875rem', background: '#7e22ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
+                🎬 Upload Video
+              </button>
+              <button onClick={() => setShowResourceForm(true)}
               style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
               + Add Resource
             </button>
           </div>
 
-          {showResourceForm && (
+          {showVideoUpload && (
+              <div style={{ marginBottom: '1rem' }}>
+                <VideoUpload
+                  onUploaded={async (url, fileName, fileSizeBytes) => {
+                    const body = {
+                      resourceType: 'video_upload',
+                      title: fileName.replace(/\.[^.]+$/, ''),
+                      url,
+                      fileSizeBytes,
+                    }
+                    await fetch(`${API}/lessons/${lessonId}/resources`, {
+                      method: 'POST', headers: hdrs(), body: JSON.stringify(body)
+                    })
+                    setShowVideoUpload(false)
+                    setSuccess('Video uploaded successfully!')
+                    setTimeout(() => setSuccess(''), 3000)
+                    loadLesson()
+                  }}
+                  onCancel={() => setShowVideoUpload(false)}
+                />
+              </div>
+            )}
+            {showResourceForm && (
             <div style={{ background: 'white', border: '1.5px solid #1a6b4a', borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
                 <div><label style={lbl}>Resource Type</label>
