@@ -209,7 +209,7 @@ export async function learningPathRoutes(app: FastifyInstance) {
     })
 
   // AUTO-BUILD PATH FROM SCHEME OF WORK
-  app.post('/learning-paths/:id/auto-build', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.patch('/learning-paths/:id/auto-build', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const pid = String(id)

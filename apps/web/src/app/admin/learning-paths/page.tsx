@@ -127,7 +127,7 @@ export default function LearningPathsPage() {
   async function autoBuild(pathId: string) {
     setBuildingPath(true); setError('')
     try {
-      const res = await fetch(`${API}/learning-paths/${pathId}/auto-build`, { method: 'POST', headers: hdrs() })
+      const res = await fetch(`${API}/learning-paths/${pathId}/auto-build`, { method: 'PATCH', headers: hdrs() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to build')
       setSuccess(`Auto-built ${data.built} steps from scheme of work!`)
