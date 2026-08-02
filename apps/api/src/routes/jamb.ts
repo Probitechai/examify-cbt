@@ -274,12 +274,19 @@ export async function jambRoutes(app: FastifyInstance) {
       })
       const data = await res.json()
       const text = data.content?.[0]?.text ?? '[]'
-      const clean = text.replace(/```json|```/g, '').trim()
+      // Strip markdown code blocks and find JSON array
+      let clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      // Extract JSON array if surrounded by other text
+      const arrayMatch = clean.match(/\[[\s\S]*\]/)
+      if (arrayMatch) clean = arrayMatch[0]
       try {
         const questions = JSON.parse(clean)
+        if (!Array.isArray(questions)) throw new Error('Not an array')
         return reply.send({ questions })
       } catch {
-        return reply.status(500).send({ error: 'Failed to parse AI response' })
+        // Log the raw response for debugging
+        console.error('[JAMB AI Quiz] Failed to parse:', text.slice(0, 200))
+        return reply.status(500).send({ error: 'Failed to parse AI response', raw: text.slice(0, 200) })
       }
     })
 
