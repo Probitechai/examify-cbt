@@ -265,10 +265,10 @@ export async function jambRoutes(app: FastifyInstance) {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1000,
+          max_tokens: 3000,
           messages: [{
             role: 'user',
-            content: `Generate exactly 10 multiple choice questions for JAMB exam preparation on the topic "${topicName}" in ${subjectName}. Return ONLY a JSON array with no markdown, no explanation, no backticks. Each object must have: question (string), option_a, option_b, option_c, option_d (strings), correct_option ("a"|"b"|"c"|"d"), explanation (string, 1-2 sentences). Questions should vary in difficulty. Make them realistic JAMB-style questions.`
+            content: `Generate exactly 5 multiple choice questions for JAMB exam preparation on the topic "${topicName}" in ${subjectName}. Return ONLY a JSON array with no markdown, no explanation, no backticks. Each object must have: question (string), option_a, option_b, option_c, option_d (strings), correct_option ("a"|"b"|"c"|"d"), explanation (string, 1-2 sentences). Questions should vary in difficulty. Make them realistic JAMB-style questions.`
           }]
         })
       })
