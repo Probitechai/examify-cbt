@@ -24,7 +24,8 @@ export async function jambRoutes(app: FastifyInstance) {
     async (request: any, reply: any) => {
       const { subjectId } = request.params as any
       const sid = String(subjectId)
-      const rows = await db()`
+      const sql = db()
+      const rows = await sql`
         SELECT jt.*, COUNT(jpq.id) AS question_count
         FROM jamb_topics jt
         LEFT JOIN jamb_past_questions jpq ON jpq.topic_id = jt.id

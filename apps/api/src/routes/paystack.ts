@@ -37,7 +37,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   app.post('/paystack/subscription/initialize', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const schema = z.object({
-        tier: z.enum(['starter', 'growth', 'premium']),
+        tier: z.enum(['basic', 'standard', 'premium', 'enterprise']),
         termName: z.string().min(1), // e.g. "Third Term 2025/2026"
       })
       const body = schema.safeParse(request.body)
@@ -46,15 +46,17 @@ export async function paystackRoutes(app: FastifyInstance) {
       const d = body.data
 
       const TIER_PRICES: Record<string, number> = {
-        starter: 8000000,  // ₦80,000 in kobo
-        growth: 15000000,  // ₦150,000 in kobo
-        premium: 25000000, // ₦250,000 in kobo
+        basic: 2500000,     // ₦25,000 in kobo
+        standard: 6000000,  // ₦60,000 in kobo
+        premium: 12000000,  // ₦120,000 in kobo
+        enterprise: 0,      // Custom pricing
       }
 
       const TIER_NAMES: Record<string, string> = {
-        starter: 'Starter Plan',
-        growth: 'Growth Plan',
+        basic: 'Basic Plan',
+        standard: 'Standard Plan',
         premium: 'Premium Plan',
+        enterprise: 'Enterprise Plan',
       }
 
       // Get school and admin email

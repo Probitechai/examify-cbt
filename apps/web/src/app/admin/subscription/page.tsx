@@ -14,9 +14,9 @@ interface Payment {
 
 const PLANS = [
   {
-    tier: 'starter',
-    name: 'Starter Plan',
-    price: 80000,
+    tier: 'basic',
+    name: 'Basic Plan',
+    price: 25000,
     color: '#1a6b4a',
     bg: '#e8f5ee',
     features: [
@@ -25,46 +25,72 @@ const PLANS = [
       'Result Entry & Report Cards',
       'Class Broadsheet',
       'Attendance Marking',
-      'Parent Portal (results & attendance)',
+      'Fee Management & Online Payments',
+      'Conduct Reports',
+      'Class Timetable Builder',
+      'Bulk Announcements',
+      'Parent Portal',
       'Email Notifications',
-      'School Logo on Reports',
       'Up to 200 students',
     ],
-    missing: ['Fee Management', 'Conduct Reports', 'Class Timetable', 'Announcements', 'SMS Notifications'],
+    missing: ['Admissions', 'Curriculum & Lesson Plans', 'Gradebook', 'Live Classes', 'Certificates', 'LMS Features', 'JAMB Prep'],
   },
   {
-    tier: 'growth',
-    name: 'Growth Plan',
-    price: 150000,
+    tier: 'standard',
+    name: 'Standard Plan',
+    price: 60000,
     color: '#1e40af',
     bg: '#eff6ff',
     popular: true,
     features: [
-      'Everything in Starter, plus:',
-      'Fee Management & Online Payments',
-      'Conduct Reports on Report Cards',
-      'Class Timetable Builder',
-      'Bulk Announcements',
+      'Everything in Basic, plus:',
+      'Admissions Management',
+      'Curriculum Management',
+      'Lesson Plans & Delivery',
+      'Unified Gradebook',
+      'Live Classes (Jitsi Meet)',
+      'Completion Certificates',
       'Result Approval Workflow',
-      'SMS Notifications (absence, fees, results)',
-      'Full Parent Portal',
+      'SMS Notifications',
+      'Hostel Management',
       'Up to 500 students',
     ],
-    missing: ['Advanced Analytics', 'Priority Support'],
+    missing: ['Learning Paths', 'AI Features', 'JAMB Prep', 'Direct Video Upload', 'Analytics'],
   },
   {
     tier: 'premium',
     name: 'Premium Plan',
-    price: 250000,
+    price: 120000,
     color: '#7e22ce',
     bg: '#f5f3ff',
     features: [
-      'Everything in Growth, plus:',
+      'Everything in Standard, plus:',
+      'Learning Paths',
+      'Discussion & Q&A',
+      'Flashcards & Inline Quizzes',
+      'Direct Video Upload',
+      'JAMB Prep (AI-powered)',
+      'Advanced Analytics',
       'Unlimited Students',
-      'Advanced CBT Analytics',
-      'Data Export (CSV)',
       'Priority Support',
-      'Early access to new features',
+    ],
+    missing: ['API Access', 'Multi-campus', 'Custom Branding'],
+  },
+  {
+    tier: 'enterprise',
+    name: 'Enterprise Plan',
+    price: 0,
+    color: '#b45309',
+    bg: '#fffbeb',
+    features: [
+      'Everything in Premium, plus:',
+      'Multi-campus Management',
+      'API Access',
+      'Custom Branding',
+      'Dedicated Account Manager',
+      'SLA Guarantee',
+      'Custom Integrations',
+      'Unlimited Everything',
     ],
     missing: [],
   },
@@ -145,7 +171,7 @@ export default function SubscriptionPage() {
     return new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
-  const tierOrder: Record<string, number> = { starter: 1, growth: 2, premium: 3 }
+  const tierOrder: Record<string, number> = { basic: 1, standard: 2, premium: 3, enterprise: 4 }
 
   return (
     <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 1000 }}>
@@ -193,7 +219,7 @@ export default function SubscriptionPage() {
       )}
 
       {/* Plans */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         {PLANS.map(plan => {
           const isCurrent = currentTier === plan.tier
           const isUpgrade = tierOrder[plan.tier] > tierOrder[currentTier]
@@ -214,8 +240,8 @@ export default function SubscriptionPage() {
 
               <div style={{ padding: '1.5rem' }}>
                 <p style={{ fontSize: '0.825rem', fontWeight: 700, color: plan.color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.375rem' }}>{plan.name}</p>
-                <p style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1a1a18', marginBottom: '0.25rem' }}>{formatAmount(plan.price)}</p>
-                <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginBottom: '1.25rem' }}>per term</p>
+                <p style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1a1a18', marginBottom: '0.25rem' }}>{plan.price === 0 ? 'Custom' : formatAmount(plan.price)}</p>
+                <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginBottom: '1.25rem' }}>{plan.price === 0 ? 'contact us' : 'per term'}</p>
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   {plan.features.map((f, i) => (
@@ -231,7 +257,7 @@ export default function SubscriptionPage() {
                 </div>
 
                 <button
-                  onClick={() => handlePay(plan.tier)}
+                  onClick={() => plan.price === 0 ? window.location.href = 'mailto:hello@probitechai.com?subject=Examify Enterprise Plan' : handlePay(plan.tier)}
                   disabled={!!paying || isCurrent}
                   style={{
                     width: '100%', padding: '0.75rem', border: 'none', borderRadius: '10px',
@@ -242,6 +268,7 @@ export default function SubscriptionPage() {
                   }}>
                   {paying === plan.tier ? 'Redirecting to Paystack…' :
                    isCurrent ? 'Current Plan' :
+                   plan.price === 0 ? 'Contact Us' :
                    isUpgrade ? `Upgrade to ${plan.name}` :
                    isDowngrade ? `Switch to ${plan.name}` :
                    `Pay ${formatAmount(plan.price)}`}

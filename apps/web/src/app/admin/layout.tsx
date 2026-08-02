@@ -5,13 +5,13 @@ import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
 import styles from './admin.layout.module.css'
 
-const TIER_ORDER: Record<string, number> = { starter: 1, growth: 2, premium: 3 }
+const TIER_ORDER: Record<string, number> = { basic: 1, standard: 2, premium: 3, enterprise: 4 }
 
 interface NavItem {
   href: string
   icon: string
   label: string
-  tier?: 'starter' | 'growth' | 'premium'
+  tier?: 'basic' | 'standard' | 'premium' | 'enterprise'
 }
 
 const NAV: NavItem[] = [
@@ -21,20 +21,20 @@ const NAV: NavItem[] = [
   { href: '/admin/sessions',      icon: '📆', label: 'Academic Sessions' },
   { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
   { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
-  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'growth' },
+  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'standard' },
   { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet' },
   { href: '/admin/report-card',   icon: '🎓', label: 'Report Card' },
-  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',   tier: 'growth' },
-  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'growth' },
-  { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',   tier: 'growth' },
-  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'growth' },
+  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',   tier: 'standard' },
+  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard' },
+  { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',   tier: 'standard' },
+  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard' },
   { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium' },
-  { href: '/admin/curriculum',    icon: '📚', label: 'Curriculum',        tier: 'growth' },
-  { href: '/admin/lessons',       icon: '📖', label: 'Lesson Plans',      tier: 'growth' },
-  { href: '/admin/gradebook',     icon: '📊', label: 'Gradebook',         tier: 'growth' },
-  { href: '/admin/live-classes',  icon: '🎥', label: 'Live Classes',      tier: 'growth' },
-  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'growth' },
-  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'growth' },
+  { href: '/admin/curriculum',    icon: '📚', label: 'Curriculum',        tier: 'standard' },
+  { href: '/admin/lessons',       icon: '📖', label: 'Lesson Plans',      tier: 'standard' },
+  { href: '/admin/gradebook',     icon: '📊', label: 'Gradebook',         tier: 'standard' },
+  { href: '/admin/live-classes',  icon: '🎥', label: 'Live Classes',      tier: 'standard' },
+  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'standard' },
+  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'standard' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams' },
@@ -93,11 +93,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   function tierLabel(tier: string) {
-    return tier === 'premium' ? 'Premium' : 'Growth'
+    if (tier === 'enterprise') return 'Enterprise'
+    if (tier === 'premium') return 'Premium'
+    if (tier === 'standard') return 'Standard'
+    return 'Basic'
   }
 
-  const tierColor = schoolTier === 'premium' ? '#7e22ce' : schoolTier === 'growth' ? '#1e40af' : '#0f4a32'
-  const tierBg = schoolTier === 'premium' ? '#f5f3ff' : schoolTier === 'growth' ? '#eff6ff' : '#e8f5ee'
+  const tierColor = schoolTier === 'enterprise' ? '#b45309' : schoolTier === 'premium' ? '#7e22ce' : schoolTier === 'standard' ? '#1e40af' : '#0f4a32'
+  const tierBg = schoolTier === 'enterprise' ? '#fffbeb' : schoolTier === 'premium' ? '#f5f3ff' : schoolTier === 'standard' ? '#eff6ff' : '#e8f5ee'
 
   return (
     <div className={styles.shell}>
