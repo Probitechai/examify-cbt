@@ -45,7 +45,8 @@ export default function ParentDashboard() {
   const [parentName, setParentName] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning'>('results')
+  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning' | 'hostel'>('results')
+  const [hostel, setHostel] = useState<any>(null)
   const [results, setResults] = useState<any>(null)
   const [attendance, setAttendance] = useState<any>(null)
   const [fees, setFees] = useState<any>(null)
@@ -86,7 +87,7 @@ export default function ParentDashboard() {
     } catch {} finally { setLoading(false) }
   }
 
-  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning', studentId: string, termId: string) {
+  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning' | 'hostel', studentId: string, termId: string) {
     setSectionLoading(true)
     setActiveSection(section)
     try {
@@ -103,11 +104,15 @@ export default function ParentDashboard() {
         })
       } else {
         const params = new URLSearchParams({ studentId, termId })
-        const res = await fetch(`${API}/parents/${section}?${params}`, { headers: hdrs() })
+        const url = section === 'hostel'
+          ? `${API}/hostels/student/${studentId}?termId=${termId}`
+          : `${API}/parents/${section}?${params}`
+        const res = await fetch(url, { headers: hdrs() })
         const data = await res.json()
         if (section === 'results') setResults(data)
         if (section === 'attendance') setAttendance(data)
         if (section === 'fees') setFees(data)
+        if (section === 'hostel') setHostel(data)
       }
     } catch {} finally { setSectionLoading(false) }
   }
@@ -251,6 +256,7 @@ export default function ParentDashboard() {
                     { key: 'results', label: '📊 Results' },
                     { key: 'attendance', label: '📋 Attendance' },
                     { key: 'fees', label: '💰 Fees' },
+                    { key: 'hostel', label: '🏠 Hostel' },
                   ] as const).map(tab => (
                     <button key={tab.key}
                       onClick={() => { if (termId) loadSection(tab.key, currentItem.student.id, termId) }}
@@ -481,10 +487,63 @@ export default function ParentDashboard() {
                             </div>
                             <div style={{ textAlign: 'right' as const }}>
                               <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a6b4a' }}>{formatAmount(p.amount_paid)}</p>
-                              <p style={{ fontSize: '0.68rem', color: '#a0a09a' }}>Rcpt: {p.receipt_number}</p>
+                              <p style={{ fontSize: '0.68rem', color: '#a0a09a' }}>Rcpt: {p.receipt_number}</p><p style={{ fontSize: '0.68rem', color: '#a0a09a' }}>Rcpt: {p.receipt_number}</p>
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hostel section */}
+                {activeSection === 'hostel' && (
+                  <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
+                    {!hostel ? (
+                      <div style={{ padding: '3rem', textAlign: 'center' as const }}>
+                        <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏠</p>
+                        <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>
+                          {currentItem?.student.full_name.split(' ')[0]} does not have a hostel allocation for this term.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #1a6b4a 0%, #0f4a32 100%)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ width: 48, height: 48, background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🏠</div>
+                          <div>
+                            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.75)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Hostel Allocation</p>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'white' }}>{hostel.hostel_name}</h3>
+                            <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)', textTransform: 'capitalize' as const }}>{hostel.hostel_type} hostel</p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
+                          {[
+                            { icon: '🚪', label: 'Room', value: `Room ${hostel.room_number}` },
+                            { icon: '🛏️', label: 'Bed', value: hostel.bed_number },
+                            { icon: '🏢', label: 'Floor', value: `Floor ${hostel.floor_number ?? 1}` },
+                          ].map((item, i) => (
+                            <div key={i} style={{ padding: '1.25rem', textAlign: 'center' as const, borderRight: i < 2 ? '1px solid #e5e5e0' : 'none', borderBottom: '1px solid #e5e5e0' }}>
+                              <p style={{ fontSize: '1.5rem', marginBottom: '0.375rem' }}>{item.icon}</p>
+                              <p style={{ fontSize: '1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.2rem' }}>{item.value}</p>
+                              <p style={{ fontSize: '0.72rem', color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{item.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {hostel.housemaster_name && (
+                          <div style={{ padding: '1.25rem', borderTop: '1px solid #e5e5e0', display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                            <div style={{ width: 40, height: 40, background: '#e8f5ee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>👤</div>
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontSize: '0.72rem', color: '#6b6b65', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Housemaster / Matron</p>
+                              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{hostel.housemaster_name}</p>
+                              {hostel.housemaster_phone && <p style={{ fontSize: '0.78rem', color: '#1a6b4a', marginTop: '0.2rem' }}>📞 {hostel.housemaster_phone}</p>}
+                            </div>
+                          </div>
+                        )}
+                        {hostel.notes && (
+                          <div style={{ padding: '1rem 1.25rem', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+                            <p style={{ fontSize: '0.78rem', color: '#92400e' }}>📝 {hostel.notes}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
