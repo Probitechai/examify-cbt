@@ -147,6 +147,7 @@ export default function JambPrepPage() {
   useEffect(() => { hydrate() }, [hydrate])
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
+    if (!isLoading && user && user.classLevel !== 'SS3') router.replace('/student')
   }, [user, isLoading, router])
   useEffect(() => {
     if (user) {
