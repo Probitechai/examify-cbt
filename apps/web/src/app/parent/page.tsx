@@ -112,7 +112,7 @@ export default function ParentDashboard() {
         if (section === 'results') setResults(data)
         if (section === 'attendance') setAttendance(data)
         if (section === 'fees') setFees(data)
-        if (section === 'hostel') setHostel(data)
+        if (section === 'hostel') setHostel(data.allocation ?? null)
       }
     } catch {} finally { setSectionLoading(false) }
   }
