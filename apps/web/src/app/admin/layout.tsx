@@ -34,6 +34,7 @@ const NAV: NavItem[] = [
   { href: '/admin/gradebook',     icon: '📊', label: 'Gradebook',         tier: 'standard' },
   { href: '/admin/live-classes',  icon: '🎥', label: 'Live Classes',      tier: 'standard' },
   { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'standard' },
+  { href: '/admin/hostels',       icon: '🏠', label: 'Hostel Management', tier: 'standard' },
   { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'standard' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
