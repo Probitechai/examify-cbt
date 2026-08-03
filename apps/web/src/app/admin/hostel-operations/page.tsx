@@ -137,6 +137,36 @@ export default function Hostel2Page() {
     setMealPlans(data.mealPlans ?? [])
   }
 
+  async function lookupGuardian(studentId: string) {
+    if (!studentId) return
+    try {
+      const res = await fetch(`${API}/hostels/student-guardian/${studentId}`, { headers: hdrs() })
+      const data = await res.json()
+      if (data.guardian) {
+        setExeatForm(f => ({
+          ...f,
+          guardianName: data.guardian.full_name ?? '',
+          guardianPhone: data.guardian.phone ?? '',
+        }))
+      }
+    } catch {}
+  }
+
+  async function lookupGuardian(studentId: string) {
+    if (!studentId) return
+    try {
+      const res = await fetch(`${API}/hostels/student-guardian/${studentId}`, { headers: hdrs() })
+      const data = await res.json()
+      if (data.guardian) {
+        setExeatForm(f => ({
+          ...f,
+          guardianName: data.guardian.full_name ?? '',
+          guardianPhone: data.guardian.phone ?? '',
+        }))
+      }
+    } catch {}
+  }
+
   async function submitExeat() {
     const f = exeatForm
     if (!f.studentId || !f.reason || !f.destination || !f.departureDate || !f.returnDate || !f.guardianName || !f.guardianPhone) {
@@ -292,10 +322,13 @@ export default function Hostel2Page() {
               <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>New Exeat Request</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Student *</label>
-                  <select style={sel} value={exeatForm.studentId} onChange={e => setExeatForm(f => ({ ...f, studentId: e.target.value }))}>
+                  <select style={sel} value={exeatForm.studentId} onChange={e => { setExeatForm(f => ({ ...f, studentId: e.target.value })); lookupGuardian(e.target.value) }}>
                     <option value="">Select student...</option>
                     {allocations.map(a => <option key={a.student_id} value={a.student_id}>{a.student_name} — {a.class_level} {a.class_arm}</option>)}
                   </select></div>
+                <div style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '0.625rem 0.875rem', fontSize: '0.78rem', color: '#92400e' }}>
+                  💡 Guardian details will auto-fill if the student parent is linked in the system. Otherwise fill in manually.
+                </div>
                 <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Reason *</label>
                   <input style={inp} value={exeatForm.reason} onChange={e => setExeatForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. Family event, Medical appointment" /></div>
                 <div><label style={lbl}>Destination *</label>

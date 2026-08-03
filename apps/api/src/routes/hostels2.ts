@@ -387,4 +387,20 @@ export async function hostel2Routes(app: FastifyInstance) {
       `
       return reply.status(201).send({ saved: true })
     })
+    // LOOKUP PARENT FOR A STUDENT
+  app.get('/hostels/student-guardian/:studentId', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const { studentId } = request.params as any
+      const sid = String(studentId)
+      const tdb = tenantDb(request.schoolId)
+      const rows = await tdb.query`
+        SELECT id, full_name, phone, email
+        FROM users
+        WHERE school_id = ${request.schoolId}::uuid
+        AND role = 'parent'
+        AND ${sid}::uuid = ANY(parent_of)
+        LIMIT 1
+      ` as any[]
+      return reply.send({ guardian: rows[0] ?? null })
+    })
 }
