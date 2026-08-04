@@ -228,6 +228,7 @@ export async function transportRoutes(app: FastifyInstance) {
     })
 
   // DELETE route
+   // DELETE route
   app.delete('/transport/routes/:id', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
