@@ -577,12 +577,12 @@ export default function TransportPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Morning Departure</label>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>🌅 Morning Departure (from 1st stop)</label>
                   <input type="time" value={routeForm.morningDepartureTime} onChange={e => setRouteForm(p => ({ ...p, morningDepartureTime: e.target.value }))}
                     style={{ width: '100%', padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Afternoon Departure</label>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>🌇 Afternoon Departure (from school)</label>
                   <input type="time" value={routeForm.afternoonDepartureTime} onChange={e => setRouteForm(p => ({ ...p, afternoonDepartureTime: e.target.value }))}
                     style={{ width: '100%', padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
@@ -642,12 +642,12 @@ export default function TransportPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Pickup Time</label>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>🌅 Morning Pickup</label>
                   <input type="time" value={stopForm.estimatedPickupTime} onChange={e => setStopForm(p => ({ ...p, estimatedPickupTime: e.target.value }))}
                     style={{ width: '100%', padding: '0.625rem 0.5rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Dropoff Time</label>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>🌇 Afternoon Dropoff</label>
                   <input type="time" value={stopForm.estimatedDropoffTime} onChange={e => setStopForm(p => ({ ...p, estimatedDropoffTime: e.target.value }))}
                     style={{ width: '100%', padding: '0.625rem 0.5rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
