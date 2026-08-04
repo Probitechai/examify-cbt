@@ -62,9 +62,12 @@ export default function TransportPage() {
   }, [])
 
   useEffect(() => {
+    loadBuses()
+    loadRoutes()
+  }, [])
+
+  useEffect(() => {
     if (termId) {
-      loadBuses()
-      loadRoutes()
       loadOccupancy()
       loadAssignments()
     }
