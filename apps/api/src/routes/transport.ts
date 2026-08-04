@@ -174,15 +174,16 @@ export async function transportRoutes(app: FastifyInstance) {
       ` as any[]
 
       if (stops && stops.length > 0) {
+        const schoolId = request.schoolId
+        const routeId = route.id
         for (const stop of stops) {
           const sn = stop.name
           const ept = stop.estimatedPickupTime ?? null
           const edt = stop.estimatedDropoffTime ?? null
           const so = stop.sortOrder
-          const rid = route.id
           await db`
             INSERT INTO route_stops (school_id, route_id, name, estimated_pickup_time, estimated_dropoff_time, sort_order)
-            VALUES (${request.schoolId}, ${rid}::uuid, ${sn}, ${ept}, ${edt}, ${so})
+            VALUES (${schoolId}, ${routeId}::uuid, ${sn}, ${ept}, ${edt}, ${so})
           `
         }
       }
