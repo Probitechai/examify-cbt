@@ -146,7 +146,7 @@ export async function transportRoutes(app: FastifyInstance) {
     async (request: any, reply: any) => {
       const schema = z.object({
         name: z.string(),
-        busId: z.string().uuid().optional(),
+        busId: z.string().uuid().optional().or(z.literal('')),
         morningDepartureTime: z.string().optional(),
         afternoonDepartureTime: z.string().optional(),
         notes: z.string().optional(),
@@ -161,7 +161,7 @@ export async function transportRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
       const { name, busId, morningDepartureTime, afternoonDepartureTime, notes, stops } = body.data
       const n = name
-      const bid = busId ?? null
+      const bid = busId && busId !== '' ? busId : null
       const mdt = morningDepartureTime ?? null
       const adt = afternoonDepartureTime ?? null
       const nt = notes ?? null
@@ -196,7 +196,7 @@ export async function transportRoutes(app: FastifyInstance) {
       const { id } = request.params as any
       const schema = z.object({
         name: z.string().optional(),
-        busId: z.string().uuid().nullable().optional(),
+        busId: z.string().uuid().nullable().optional().or(z.literal('')),
         morningDepartureTime: z.string().nullable().optional(),
         afternoonDepartureTime: z.string().nullable().optional(),
         isActive: z.boolean().optional(),
