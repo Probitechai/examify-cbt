@@ -172,6 +172,7 @@ export default function TransportPage() {
     try {
       const url = editRoute ? `${API}/transport/routes/${editRoute.id}` : `${API}/transport/routes`
       const method = editRoute ? 'PATCH' : 'POST'
+      console.log('saveRoute payload check:', JSON.stringify({ routeForm, routeStops }))
       const payload: any = {
         name: routeForm.name,
         busId: routeForm.busId || undefined,
