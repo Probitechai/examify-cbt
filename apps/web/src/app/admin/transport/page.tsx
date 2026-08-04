@@ -74,6 +74,12 @@ export default function TransportPage() {
   }, [termId])
 
   useEffect(() => {
+    if (termId && showAssignModal) {
+      loadAssignments()
+    }
+  }, [showAssignModal])
+
+  useEffect(() => {
     if (assignForm.routeId) {
       const route = routes.find(r => r.id === assignForm.routeId)
       setAssignStops(route?.stops ?? [])
@@ -105,7 +111,9 @@ export default function TransportPage() {
   }
 
   async function loadAssignments() {
-    if (!termId) return
+    const tid = termId || terms[0]?.term_id || terms[0]?.id
+    if (!tid) return
+    if (!termId) setTermId(tid)
     const res = await fetch(`${API}/transport/assignments?termId=${termId}`, { headers: hdrs() })
     const data = await res.json()
     setAssignments(data.assignments ?? [])
