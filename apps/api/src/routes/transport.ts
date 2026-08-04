@@ -365,16 +365,26 @@ export async function transportRoutes(app: FastifyInstance) {
       const sid = studentId
       const rid = routeId
       const stid = stopId ?? null
-      const [assignment] = await db`
-        INSERT INTO student_transport (school_id, student_id, bus_id, route_id, stop_id, term_id)
-        VALUES (${request.schoolId}, ${sid}::uuid, ${bid}::uuid, ${rid}::uuid, ${stid ? stid + '::uuid' : null}, ${tid}::uuid)
-        ON CONFLICT (school_id, student_id, term_id) DO UPDATE SET
-          bus_id = EXCLUDED.bus_id,
-          route_id = EXCLUDED.route_id,
-          stop_id = EXCLUDED.stop_id,
-          is_active = true
-        RETURNING *
-      ` as any[]
+      let assignment: any
+      if (stid) {
+        const [a] = await db`
+          INSERT INTO student_transport (school_id, student_id, bus_id, route_id, stop_id, term_id)
+          VALUES (${request.schoolId}, ${sid}::uuid, ${bid}::uuid, ${rid}::uuid, ${stid}::uuid, ${tid}::uuid)
+          ON CONFLICT (school_id, student_id, term_id) DO UPDATE SET
+            bus_id = EXCLUDED.bus_id, route_id = EXCLUDED.route_id, stop_id = EXCLUDED.stop_id, is_active = true
+          RETURNING *
+        ` as any[]
+        assignment = a
+      } else {
+        const [a] = await db`
+          INSERT INTO student_transport (school_id, student_id, bus_id, route_id, term_id)
+          VALUES (${request.schoolId}, ${sid}::uuid, ${bid}::uuid, ${rid}::uuid, ${tid}::uuid)
+          ON CONFLICT (school_id, student_id, term_id) DO UPDATE SET
+            bus_id = EXCLUDED.bus_id, route_id = EXCLUDED.route_id, stop_id = NULL, is_active = true
+          RETURNING *
+        ` as any[]
+        assignment = a
+      }
       return reply.send({ assignment })
     })
 
