@@ -172,9 +172,20 @@ export default function TransportPage() {
     try {
       const url = editRoute ? `${API}/transport/routes/${editRoute.id}` : `${API}/transport/routes`
       const method = editRoute ? 'PATCH' : 'POST'
-      const payload: any = { ...routeForm, busId: routeForm.busId || undefined }
+      const payload: any = {
+        name: routeForm.name,
+        busId: routeForm.busId || undefined,
+        morningDepartureTime: routeForm.morningDepartureTime || undefined,
+        afternoonDepartureTime: routeForm.afternoonDepartureTime || undefined,
+        notes: routeForm.notes || undefined,
+      }
       if (!editRoute && routeStops.length > 0) {
-        payload.stops = routeStops.map((s, i) => ({ ...s, sortOrder: i }))
+        payload.stops = routeStops.map((s, i) => ({
+          name: s.name,
+          sortOrder: i,
+          estimatedPickupTime: s.estimatedPickupTime || undefined,
+          estimatedDropoffTime: s.estimatedDropoffTime || undefined,
+        }))
       }
       const res = await fetch(url, { method, headers: hdrs(), body: JSON.stringify(payload) })
       if (!res.ok) { flash('Failed to save route', true); return }
