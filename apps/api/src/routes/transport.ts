@@ -174,17 +174,18 @@ export async function transportRoutes(app: FastifyInstance) {
       ` as any[]
 
       if (stops && stops.length > 0) {
-        const schoolId = request.schoolId
-        const routeId = route.id
-        const stopValues = stops.map((s: any, i: number) => ({
-          school_id: schoolId,
-          route_id: routeId,
-          name: s.name,
-          estimated_pickup_time: s.estimatedPickupTime ?? null,
-          estimated_dropoff_time: s.estimatedDropoffTime ?? null,
-          sort_order: i,
-        }))
-        await db`INSERT INTO route_stops ${db(stopValues, 'school_id', 'route_id', 'name', 'estimated_pickup_time', 'estimated_dropoff_time', 'sort_order')}`
+        const schoolId = String(request.schoolId)
+        const routeId = String(route.id)
+        for (let i = 0; i < stops.length; i++) {
+          const sn = String(stops[i].name)
+          const ept = stops[i].estimatedPickupTime ? String(stops[i].estimatedPickupTime) : null
+          const edt = stops[i].estimatedDropoffTime ? String(stops[i].estimatedDropoffTime) : null
+          const so = i
+          await db`
+            INSERT INTO route_stops (school_id, route_id, name, estimated_pickup_time, estimated_dropoff_time, sort_order)
+            VALUES (${schoolId}::uuid, ${routeId}::uuid, ${sn}, ${ept}, ${edt}, ${so})
+          `
+        }
       }
 
       return reply.send({ route })
