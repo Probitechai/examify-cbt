@@ -585,8 +585,8 @@ export default function TransportPage() {
                 </div>
               </div>
 
-              {/* Stops (new route only) */}
-              {!editRoute && (
+              {/* Stops added after route creation via + Stop button */}
+              {false && !editRoute && (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18' }}>Stops</label>
