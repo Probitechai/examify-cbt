@@ -32,6 +32,7 @@ export default function TransportPage() {
   const [unassigned, setUnassigned] = useState<any[]>([])
   const [termId, setTermId] = useState('')
   const [terms, setTerms] = useState<any[]>([])
+  const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -89,13 +90,18 @@ export default function TransportPage() {
   }, [assignForm.routeId, routes])
 
   async function loadTerms() {
-    const res = await fetch(`${API}/terms`, { headers: hdrs() })
-    const data = await res.json()
-    const termList = data.terms ?? []
+    const sessRes = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const sessData = await sessRes.json()
+    const sessionList = sessData.sessions ?? []
+    setSessions(sessionList)
+    const activeSession = sessionList.find((s: any) => s.is_active) ?? sessionList[0]
+    if (!activeSession) return
+    const termRes = await fetch(`${API}/sessions/${activeSession.id}/terms`, { headers: hdrs() })
+    const termData = await termRes.json()
+    const termList = termData.terms ?? []
     setTerms(termList)
-    const active = termList.find((t: any) => t.is_active)
-    if (active) setTermId(active.term_id ?? active.id)
-    else if (termList.length > 0) setTermId(termList[0].term_id ?? termList[0].id)
+    const active = termList.find((t: any) => t.is_active) ?? termList[termList.length - 1]
+    if (active) setTermId(active.id)
   }
 
   async function loadBuses() {
