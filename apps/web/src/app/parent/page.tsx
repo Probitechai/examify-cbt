@@ -45,8 +45,9 @@ export default function ParentDashboard() {
   const [parentName, setParentName] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning' | 'hostel'>('results')
+  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning' | 'hostel' | 'transport'>('results')
   const [hostel, setHostel] = useState<any>(null)
+  const [transport, setTransport] = useState<any>(null)
   const [results, setResults] = useState<any>(null)
   const [attendance, setAttendance] = useState<any>(null)
   const [fees, setFees] = useState<any>(null)
@@ -87,7 +88,7 @@ export default function ParentDashboard() {
     } catch {} finally { setLoading(false) }
   }
 
-  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning' | 'hostel', studentId: string, termId: string) {
+  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning' | 'hostel' | 'transport', studentId: string, termId: string) {
     setSectionLoading(true)
     setActiveSection(section)
     try {
@@ -106,6 +107,8 @@ export default function ParentDashboard() {
         const params = new URLSearchParams({ studentId, termId })
         const url = section === 'hostel'
           ? `${API}/hostels/student/${studentId}?termId=${termId}`
+          : section === 'transport'
+          ? `${API}/transport/student/${studentId}?termId=${termId}`
           : `${API}/parents/${section}?${params}`
         const res = await fetch(url, { headers: hdrs() })
         const data = await res.json()
@@ -113,6 +116,7 @@ export default function ParentDashboard() {
         if (section === 'attendance') setAttendance(data)
         if (section === 'fees') setFees(data)
         if (section === 'hostel') setHostel(data.allocation ?? null)
+        if (section === 'transport') setTransport(data.transport ?? null)
       }
     } catch {} finally { setSectionLoading(false) }
   }
@@ -257,6 +261,7 @@ export default function ParentDashboard() {
                     { key: 'attendance', label: '📋 Attendance' },
                     { key: 'fees', label: '💰 Fees' },
                     { key: 'hostel', label: '🏠 Hostel' },
+                    { key: 'transport', label: '🚌 Transport' },
                   ] as const).map(tab => (
                     <button key={tab.key}
                       onClick={() => { if (termId) loadSection(tab.key, currentItem.student.id, termId) }}
@@ -491,6 +496,54 @@ export default function ParentDashboard() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Transport section */}
+                {activeSection === 'transport' && (
+                  <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
+                    {!transport ? (
+                      <div style={{ padding: '3rem', textAlign: 'center' as const }}>
+                        <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🚌</p>
+                        <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>
+                          {currentItem?.student.full_name.split(' ')[0]} is not assigned to a bus this term.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #1a6b4a 0%, #0f4a32 100%)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ width: 48, height: 48, background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🚌</div>
+                          <div>
+                            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.75)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Transport Assignment</p>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'white' }}>{transport.bus_name}</h3>
+                            <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)' }}>{transport.plate_number} · {transport.route_name}</p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0 }}>
+                          {[
+                            { icon: '📍', label: 'Pickup Stop', value: transport.stop_name ?? 'Not assigned' },
+                            { icon: '🌅', label: 'Morning Pickup', value: transport.morning_pickup_time ?? transport.morning_departure_time ?? '—' },
+                            { icon: '🌇', label: 'Afternoon Dropoff', value: transport.afternoon_dropoff_time ?? transport.afternoon_departure_time ?? '—' },
+                            { icon: '🚌', label: 'Plate Number', value: transport.plate_number },
+                          ].map((item, i) => (
+                            <div key={i} style={{ padding: '1rem 1.25rem', borderRight: i % 2 === 0 ? '1px solid #e5e5e0' : 'none', borderBottom: i < 2 ? '1px solid #e5e5e0' : 'none' }}>
+                              <p style={{ fontSize: '0.72rem', color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.375rem' }}>{item.icon} {item.label}</p>
+                              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{item.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {transport.driver_name && (
+                          <div style={{ padding: '1.25rem', borderTop: '1px solid #e5e5e0', display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                            <div style={{ width: 40, height: 40, background: '#e8f5ee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>👤</div>
+                            <div>
+                              <p style={{ fontSize: '0.72rem', color: '#6b6b65', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Driver</p>
+                              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{transport.driver_name}</p>
+                              {transport.driver_phone && <p style={{ fontSize: '0.78rem', color: '#1a6b4a', marginTop: '0.2rem' }}>📞 {transport.driver_phone}</p>}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
