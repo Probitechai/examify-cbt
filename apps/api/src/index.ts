@@ -39,6 +39,7 @@ import { jambRoutes } from './routes/jamb'
 import { hostelRoutes } from './routes/hostels'
 import { hostel2Routes } from './routes/hostels2'
 import { transportRoutes } from './routes/transport'
+import { transport2Routes } from './routes/transport2'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -98,6 +99,7 @@ async function start() {
   await app.register(hostelRoutes, { prefix: '/api' })
   await app.register(hostel2Routes, { prefix: '/api' })
   await app.register(transportRoutes, { prefix: '/api' })
+  await app.register(transport2Routes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
