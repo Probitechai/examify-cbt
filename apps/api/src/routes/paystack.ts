@@ -46,7 +46,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const d = body.data
 
       const TIER_PRICES: Record<string, number> = {
-        basic: 2500000,     // ₦25,000 in kobo
+        basic: 3500000,     // ₦35,000 in kobo
         standard: 6000000,  // ₦60,000 in kobo
         premium: 12000000,  // ₦120,000 in kobo
         enterprise: 0,      // Custom pricing
