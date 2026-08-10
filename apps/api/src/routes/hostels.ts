@@ -249,7 +249,8 @@ export async function hostelRoutes(app: FastifyInstance) {
       const rid = d.roomId
       const tid = d.termId
       const notes = d.notes ?? null
-      const uid = request.user.id
+      const uid = request.user?.id
+if (!uid) return reply.status(401).send({ error: 'UNAUTHORIZED' })
       const tdb = tenantDb(request.schoolId)
 
       // Check bed is available
