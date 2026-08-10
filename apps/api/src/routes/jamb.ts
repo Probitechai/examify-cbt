@@ -9,6 +9,15 @@ export async function jambRoutes(app: FastifyInstance) {
   // GET ALL JAMB SUBJECTS WITH TOPIC COUNTS
   app.get('/jamb/subjects', { preHandler: [authenticate] },
     async (request: any, reply: any) => {
+      const tdb = tenantDb(request.schoolId)
+      const userRows = await tdb.query`
+        SELECT class_level FROM users
+        WHERE id = ${request.user.id}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      const classLevel = userRows[0]?.class_level ?? ''
+      if (!['SS3', 'ss3'].includes(classLevel) && request.user.role !== 'school_admin') {
+        return reply.status(403).send({ error: 'JAMB Prep is only available to SS3 students' })
+      }
       const rows = await db()`
         SELECT js.*, COUNT(jt.id) AS topic_count
         FROM jamb_subjects js
@@ -22,6 +31,15 @@ export async function jambRoutes(app: FastifyInstance) {
   // GET TOPICS FOR A SUBJECT
   app.get('/jamb/subjects/:subjectId/topics', { preHandler: [authenticate] },
     async (request: any, reply: any) => {
+      const tdb = tenantDb(request.schoolId)
+      const userRows = await tdb.query`
+        SELECT class_level FROM users
+        WHERE id = ${request.user.id}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      const classLevel = userRows[0]?.class_level ?? ''
+      if (!['SS3', 'ss3'].includes(classLevel) && request.user.role !== 'school_admin') {
+        return reply.status(403).send({ error: 'JAMB Prep is only available to SS3 students' })
+      }
       const { subjectId } = request.params as any
       const sid = String(subjectId)
       const sql = db()
