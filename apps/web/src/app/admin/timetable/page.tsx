@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Exam {
@@ -41,10 +42,8 @@ export default function TimetablePage() {
   const [classFilter, setClassFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  function getToken() {
-    return document.cookie.split(';')
-      .find(c => c.trim().startsWith('examify_token='))?.split('=')[1]
-  }
+  
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     const token = getToken()

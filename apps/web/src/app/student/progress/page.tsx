@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../hooks/useAuth'
@@ -32,11 +33,17 @@ export default function StudentProgressPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'history' | 'subjects' | 'trends'>('history')
 
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { hydrate() }, [hydrate])
+
+  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
+
+  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!user) return
@@ -122,7 +129,7 @@ export default function StudentProgressPage() {
   )
 
   function formatDate(iso: string) {
-    if (!iso) return '—'
+    if (!iso) return 'â€”'
     return new Date(iso).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
@@ -158,7 +165,7 @@ export default function StudentProgressPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button onClick={() => router.push('/student')}
               style={{ fontSize: '0.875rem', color: '#6b6b65', padding: '0.375rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: 8, background: 'transparent', cursor: 'pointer' }}>
-              ← Dashboard
+              â† Dashboard
             </button>
             <span style={{ color: '#e5e5e0' }}>|</span>
             <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>My Progress</p>
@@ -184,10 +191,10 @@ export default function StudentProgressPage() {
           </div>
           <div style={{ flex: 1 }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>{user.fullName}</h1>
-            <p style={{ opacity: 0.85, fontSize: '0.9rem' }}>{user.school?.name} · {user.classLevel} {user.classArm}</p>
+            <p style={{ opacity: 0.85, fontSize: '0.9rem' }}>{user.school?.name} Â· {user.classLevel} {user.classArm}</p>
             {strongestSubject && (
               <p style={{ opacity: 0.75, fontSize: '0.8rem', marginTop: '0.375rem' }}>
-                ⭐ Strongest subject: <strong>{strongestSubject.subject}</strong> ({strongestSubject.avgScore}% avg)
+                â­ Strongest subject: <strong>{strongestSubject.subject}</strong> ({strongestSubject.avgScore}% avg)
               </p>
             )}
           </div>
@@ -206,11 +213,11 @@ export default function StudentProgressPage() {
         {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
           {[
-            { label: 'Exams taken', value: totalExams, icon: '📋', color: '#1a6b4a', bg: '#e8f5ee' },
-            { label: 'Passed', value: totalPassed, icon: '✅', color: '#1a6b4a', bg: '#e8f5ee' },
-            { label: 'Failed', value: totalFailed, icon: '❌', color: '#dc2626', bg: '#fef2f2' },
-            { label: 'Best score', value: `${bestScore}%`, icon: '🏆', color: '#d97706', bg: '#fffbeb' },
-            { label: 'Subjects', value: subjectSummaries.length, icon: '📚', color: '#7e22ce', bg: '#fdf4ff' },
+            { label: 'Exams taken', value: totalExams, icon: 'ðŸ“‹', color: '#1a6b4a', bg: '#e8f5ee' },
+            { label: 'Passed', value: totalPassed, icon: 'âœ…', color: '#1a6b4a', bg: '#e8f5ee' },
+            { label: 'Failed', value: totalFailed, icon: 'âŒ', color: '#dc2626', bg: '#fef2f2' },
+            { label: 'Best score', value: `${bestScore}%`, icon: 'ðŸ†', color: '#d97706', bg: '#fffbeb' },
+            { label: 'Subjects', value: subjectSummaries.length, icon: 'ðŸ“š', color: '#7e22ce', bg: '#fdf4ff' },
           ].map(s => (
             <div key={s.label} style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 14, padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ width: 38, height: 38, background: s.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>{s.icon}</div>
@@ -227,16 +234,16 @@ export default function StudentProgressPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
             {strongestSubject && (
               <div style={{ background: '#e8f5ee', border: '1.5px solid #1a6b4a', borderRadius: 14, padding: '1.25rem' }}>
-                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f4a32', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '0.5rem' }}>⭐ Strongest subject</p>
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f4a32', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '0.5rem' }}>â­ Strongest subject</p>
                 <p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f4a32', marginBottom: '0.25rem' }}>{strongestSubject.subject}</p>
-                <p style={{ fontSize: '0.875rem', color: '#1a6b4a' }}>{strongestSubject.avgScore}% average · {strongestSubject.passed}/{strongestSubject.exams} passed</p>
+                <p style={{ fontSize: '0.875rem', color: '#1a6b4a' }}>{strongestSubject.avgScore}% average Â· {strongestSubject.passed}/{strongestSubject.exams} passed</p>
               </div>
             )}
             {weakestSubject && weakestSubject.subject !== strongestSubject?.subject && (
               <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 14, padding: '1.25rem' }}>
-                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#991b1b', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '0.5rem' }}>📚 Needs improvement</p>
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#991b1b', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '0.5rem' }}>ðŸ“š Needs improvement</p>
                 <p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#991b1b', marginBottom: '0.25rem' }}>{weakestSubject.subject}</p>
-                <p style={{ fontSize: '0.875rem', color: '#dc2626' }}>{weakestSubject.avgScore}% average · {weakestSubject.passed}/{weakestSubject.exams} passed</p>
+                <p style={{ fontSize: '0.875rem', color: '#dc2626' }}>{weakestSubject.avgScore}% average Â· {weakestSubject.passed}/{weakestSubject.exams} passed</p>
               </div>
             )}
           </div>
@@ -245,9 +252,9 @@ export default function StudentProgressPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: 12, overflow: 'hidden', marginBottom: '1.5rem' }}>
           {([
-            { key: 'history', label: '📋 Exam History' },
-            { key: 'subjects', label: '📚 By Subject' },
-            { key: 'trends', label: '📈 Score Trend' },
+            { key: 'history', label: 'ðŸ“‹ Exam History' },
+            { key: 'subjects', label: 'ðŸ“š By Subject' },
+            { key: 'trends', label: 'ðŸ“ˆ Score Trend' },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               style={{ flex: 1, padding: '0.875rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', transition: 'all 0.15s' }}>
@@ -259,16 +266,16 @@ export default function StudentProgressPage() {
         {loading ? (
           <div style={{ background: 'white', borderRadius: 14, padding: '3rem', textAlign: 'center', border: '1px solid #e5e5e0' }}>
             <div style={{ width: 32, height: 32, border: '2.5px solid #e5e5e0', borderTopColor: '#1a6b4a', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 1rem' }} />
-            <p style={{ color: '#6b6b65' }}>Loading your progress…</p>
+            <p style={{ color: '#6b6b65' }}>Loading your progressâ€¦</p>
           </div>
         ) : results.length === 0 ? (
           <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 16, padding: '4rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>ðŸ“Š</div>
             <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No exam history yet</p>
             <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Take your first exam to see your progress here.</p>
             <button onClick={() => router.push('/student')}
               style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', fontWeight: 600, fontSize: '0.875rem', borderRadius: 10, border: 'none', cursor: 'pointer' }}>
-              View available exams →
+              View available exams â†’
             </button>
           </div>
         ) : (
@@ -281,12 +288,12 @@ export default function StudentProgressPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' as const }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: 20, background: r.passed ? '#e8f5ee' : '#fef2f2', color: r.passed ? '#0f4a32' : '#dc2626', textTransform: 'uppercase' as const }}>
-                          {r.passed ? '✓ Passed' : '✗ Failed'}
+                          {r.passed ? 'âœ“ Passed' : 'âœ— Failed'}
                         </span>
                         <span style={{ fontSize: '0.78rem', color: '#6b6b65', background: '#f7f7f5', padding: '0.2rem 0.625rem', borderRadius: 20 }}>{r.subject}</span>
                       </div>
                       <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>{r.title}</h3>
-                      <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>📅 {formatDate(r.submitted_at)}</p>
+                      <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>ðŸ“… {formatDate(r.submitted_at)}</p>
                     </div>
                     <div style={{ textAlign: 'center', flexShrink: 0 }}>
                       <div style={{ width: 64, height: 64, borderRadius: '50%', background: getScoreBg(r.percentage), border: `3px solid ${getScoreColor(r.percentage)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' as const }}>
@@ -371,7 +378,7 @@ export default function StudentProgressPage() {
                       return (
                         <div style={{ marginTop: '1.5rem', padding: '1rem', background: improving ? '#e8f5ee' : diff < 0 ? '#fef2f2' : '#f7f7f5', borderRadius: 10, textAlign: 'center' }}>
                           <p style={{ fontSize: '0.875rem', fontWeight: 600, color: improving ? '#0f4a32' : diff < 0 ? '#dc2626' : '#6b6b65' }}>
-                            {improving ? '📈 You are improving!' : diff < 0 ? '📉 Performance has declined' : '➡️ Performance is steady'}
+                            {improving ? 'ðŸ“ˆ You are improving!' : diff < 0 ? 'ðŸ“‰ Performance has declined' : 'âž¡ï¸ Performance is steady'}
                           </p>
                           <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.25rem' }}>
                             {improving ? `Up ${diff}% from your first exam` : diff < 0 ? `Down ${Math.abs(diff)}% from your first exam` : 'Consistent performance across all exams'}

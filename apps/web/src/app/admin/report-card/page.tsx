@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect, useRef } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -26,10 +27,6 @@ const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Sc
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -38,8 +35,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -77,9 +73,17 @@ export default function ReportCardPage() {
   const [schoolName, setSchoolName] = useState('')
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadStudents() }, [classLevel, classArm])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     if (selectedStudent) {
       const s = students.find(s => s.id === selectedStudent)
@@ -91,9 +95,9 @@ export default function ReportCardPage() {
 
   async function loadInitial() {
     const [sessRes, meRes, schoolRes] = await Promise.all([
-      fetch(`${API}/sessions`, { headers: hdrs() }),
-      fetch(`${API}/auth/me`, { headers: hdrs() }),
-      fetch(`${API}/schools/settings`, { headers: hdrs() }),
+      apiFetch(`${API}/sessions`),
+      apiFetch(`${API}/auth/me`),
+      apiFetch(`${API}/schools/settings`),
     ])
     const sessData = await sessRes.json()
     const meData = await meRes.json()
@@ -108,7 +112,7 @@ export default function ReportCardPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -119,7 +123,7 @@ export default function ReportCardPage() {
   async function loadStudents() {
     setStudentsLoading(true)
     try {
-      const res = await fetch(`${API}/users`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/users`)
       const data = await res.json()
       const all = data.users ?? []
       const filtered = all.filter((u: any) => {
@@ -138,7 +142,7 @@ export default function ReportCardPage() {
     setLoading(true); setError(''); setReportCard(null)
     try {
       const params = new URLSearchParams({ termId: selectedTerm, studentId: selectedStudent })
-      const res = await fetch(`${API}/results/report-card?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/results/report-card?${params}`)
       const data = await res.json()
       setReportCard(data.reportCard)
     } catch { setError('Failed to load report card') } finally { setLoading(false) }
@@ -154,8 +158,7 @@ export default function ReportCardPage() {
     try {
       const ext = file.name.split('.').pop()
       const fileName = `${selectedStudent}-${Date.now()}.${ext}`
-      const uploadRes = await fetch(
-        `${SUPABASE_URL}/storage/v1/object/student-photos/${fileName}`,
+      const uploadRes = await apiFetch(`${SUPABASE_URL}/storage/v1/object/student-photos/${fileName}`
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
@@ -166,8 +169,7 @@ export default function ReportCardPage() {
       const photoUrl = `${SUPABASE_URL}/storage/v1/object/public/student-photos/${fileName}`
 
       // Save to database
-      await fetch(`${API}/users/${selectedStudent}/photo`, {
-        method: 'PATCH', headers: hdrs(),
+            await apiFetch(`${API}/users/${selectedStudent}/photo`, {
         body: JSON.stringify({ photoUrl })
       })
 

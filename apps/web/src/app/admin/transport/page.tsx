@@ -1,23 +1,11 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 type Tab = 'fleet' | 'routes' | 'assignments' | 'occupancy'
@@ -58,14 +46,20 @@ export default function TransportPage() {
   const [assignForm, setAssignForm] = useState({ studentId: '', busId: '', routeId: '', stopId: '' })
   const [assignStops, setAssignStops] = useState<any[]>([])
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     loadTerms()
   }, [])
+
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     loadBuses()
     loadRoutes()
   }, [])
+
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     if (termId) {
@@ -74,11 +68,15 @@ export default function TransportPage() {
     }
   }, [termId])
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     if (termId && showAssignModal) {
       loadAssignments()
     }
   }, [showAssignModal])
+
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     if (assignForm.routeId) {
@@ -90,13 +88,13 @@ export default function TransportPage() {
   }, [assignForm.routeId, routes])
 
   async function loadTerms() {
-    const sessRes = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const sessRes = await apiFetch(`${API}/sessions`)
     const sessData = await sessRes.json()
     const sessionList = sessData.sessions ?? []
     setSessions(sessionList)
     const activeSession = sessionList.find((s: any) => s.is_active) ?? sessionList[0]
     if (!activeSession) return
-    const termRes = await fetch(`${API}/sessions/${activeSession.id}/terms`, { headers: hdrs() })
+    const termRes = await apiFetch(`${API}/sessions/${activeSession.id}/terms`)
     const termData = await termRes.json()
     const termList = termData.terms ?? []
     setTerms(termList)
@@ -105,13 +103,13 @@ export default function TransportPage() {
   }
 
   async function loadBuses() {
-    const res = await fetch(`${API}/transport/buses`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/buses`)
     const data = await res.json()
     setBuses(data.buses ?? [])
   }
 
   async function loadRoutes() {
-    const res = await fetch(`${API}/transport/routes`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/routes`)
     const data = await res.json()
     setRoutes(data.routes ?? [])
   }
@@ -120,17 +118,17 @@ export default function TransportPage() {
     const tid = termId || terms[0]?.term_id || terms[0]?.id
     if (!tid) return
     if (!termId) setTermId(tid)
-    const res = await fetch(`${API}/transport/assignments?termId=${termId}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/assignments?termId=${termId}`)
     const data = await res.json()
     setAssignments(data.assignments ?? [])
-    const unRes = await fetch(`${API}/transport/unassigned-students?termId=${termId}`, { headers: hdrs() })
+    const unRes = await apiFetch(`${API}/transport/unassigned-students?termId=${termId}`)
     const unData = await unRes.json()
     setUnassigned(unData.students ?? [])
   }
 
   async function loadOccupancy() {
     if (!termId) return
-    const res = await fetch(`${API}/transport/occupancy?termId=${termId}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/occupancy?termId=${termId}`)
     const data = await res.json()
     setOccupancy(data.report ?? [])
   }
@@ -156,7 +154,7 @@ export default function TransportPage() {
     try {
       const url = editBus ? `${API}/transport/buses/${editBus.id}` : `${API}/transport/buses`
       const method = editBus ? 'PATCH' : 'POST'
-      const res = await fetch(url, { method, headers: hdrs(), body: JSON.stringify({ ...busForm, capacity: Number(busForm.capacity) }) })
+      const res = await fetch(url, { method, body: JSON.stringify({ ...busForm, capacity: Number(busForm.capacity) }) })
       if (!res.ok) { const d = await res.json(); flash(d.message ?? 'Failed to save bus', true); return }
       flash(editBus ? 'Bus updated' : 'Bus added')
       setShowBusModal(false)
@@ -166,7 +164,7 @@ export default function TransportPage() {
 
   async function deleteBus(id: string) {
     if (!confirm('Delete this bus?')) return
-    await fetch(`${API}/transport/buses/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/transport/buses/${id}`, { method: 'DELETE' })
     flash('Bus deleted')
     loadBuses(); loadOccupancy()
   }
@@ -205,7 +203,7 @@ export default function TransportPage() {
           estimatedDropoffTime: s.estimatedDropoffTime || undefined,
         }))
       }
-      const res = await fetch(url, { method, headers: hdrs(), body: JSON.stringify(payload) })
+      const res = await fetch(url, { method, body: JSON.stringify(payload) })
       if (!res.ok) { flash('Failed to save route', true); return }
       flash(editRoute ? 'Route updated' : 'Route created')
       setShowRouteModal(false)
@@ -215,7 +213,7 @@ export default function TransportPage() {
 
   async function deleteRoute(id: string) {
     if (!confirm('Delete this route and all its stops?')) return
-    await fetch(`${API}/transport/routes/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/transport/routes/${id}`, { method: 'DELETE' })
     flash('Route deleted')
     loadRoutes()
   }
@@ -231,7 +229,7 @@ export default function TransportPage() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/transport/routes/${activeRouteForStop.id}/stops`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ ...stopForm, sortOrder: activeRouteForStop.stops?.length ?? 0 })
       })
       if (!res.ok) { flash('Failed to add stop', true); return }
@@ -242,7 +240,7 @@ export default function TransportPage() {
   }
 
   async function deleteStop(id: string) {
-    await fetch(`${API}/transport/stops/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/transport/stops/${id}`, { method: 'DELETE' })
     flash('Stop removed')
     loadRoutes()
   }
@@ -255,7 +253,7 @@ export default function TransportPage() {
     setLoading(true)
     try {
       const payload: any = { ...assignForm, termId, stopId: assignForm.stopId || undefined }
-      const res = await fetch(`${API}/transport/assignments`, { method: 'POST', headers: hdrs(), body: JSON.stringify(payload) })
+      const res = await fetch(`${API}/transport/assignments`, { method: 'POST', body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) { flash(data.message ?? 'Failed to assign', true); return }
       flash('Student assigned to bus')
@@ -267,7 +265,7 @@ export default function TransportPage() {
 
   async function removeAssignment(id: string) {
     if (!confirm('Remove this student from the bus?')) return
-    await fetch(`${API}/transport/assignments/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/transport/assignments/${id}`, { method: 'DELETE' })
     flash('Assignment removed')
     loadAssignments(); loadOccupancy()
   }

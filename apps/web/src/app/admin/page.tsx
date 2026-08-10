@@ -2,7 +2,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import styles from './overview.module.css'
+
 
 interface Stats {
   totalStudents: number
@@ -25,6 +27,7 @@ export default function AdminOverview() {
   const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
   const token = document.cookie.split(';')
@@ -36,24 +39,12 @@ export default function AdminOverview() {
   async function loadStats() {
     try {
       // Fetch real exams
-      const examsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-School-Subdomain': subdomain,
-          'Content-Type': 'application/json'
-        }
-      })
+      const examsRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`)
       const examsData = await examsRes.json()
       const exams = examsData.exams ?? []
 
       // Fetch real students count
-      const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-School-Subdomain': subdomain,
-          'Content-Type': 'application/json'
-        }
-      })
+      const usersRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`)
       const usersData = await usersRes.json()
       const students = usersData.users ?? []
 

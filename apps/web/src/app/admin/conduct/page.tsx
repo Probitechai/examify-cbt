@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -29,10 +30,6 @@ const TRAITS = [
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent']
 const RATING_COLORS = ['', '#dc2626', '#d97706', '#0284c7', '#1a6b4a', '#0f4a32']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -41,8 +38,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -61,11 +57,15 @@ export default function ConductPage() {
   const [error, setError] = useState('')
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -74,7 +74,7 @@ export default function ConductPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -88,7 +88,7 @@ export default function ConductPage() {
     try {
       const params = new URLSearchParams({ termId: selectedTerm, classLevel })
       if (classArm) params.append('classArm', classArm)
-      const res = await fetch(`${API}/conduct?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/conduct?${params}`)
       const data = await res.json()
       const list = data.students ?? []
       setStudents(list)
@@ -127,7 +127,7 @@ export default function ConductPage() {
         participation: localData[s.id]?.participation || undefined,
       }))
       const res = await fetch(`${API}/conduct/bulk`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ termId: selectedTerm, reports })
       })
       if (!res.ok) throw new Error('Failed to save')

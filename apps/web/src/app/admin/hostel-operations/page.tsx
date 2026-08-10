@@ -1,22 +1,10 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 function formatDate(d: string) {
@@ -71,8 +59,14 @@ export default function Hostel2Page() {
   const [showMealForm, setShowMealForm] = useState(false)
   const [mealForm, setMealForm] = useState({ studentId: '', planType: 'full', dietaryRequirements: '' })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     if (selectedTerm && selectedHostel) {
       loadAllocations()
@@ -84,8 +78,8 @@ export default function Hostel2Page() {
 
   async function loadInitial() {
     const [sessRes, hostelRes] = await Promise.all([
-      fetch(`${API}/sessions`, { headers: hdrs() }),
-      fetch(`${API}/hostels`, { headers: hdrs() }),
+      apiFetch(`${API}/sessions`),
+      apiFetch(`${API}/hostels`),
     ])
     const sessData = await sessRes.json()
     const hostelData = await hostelRes.json()
@@ -97,7 +91,7 @@ export default function Hostel2Page() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -107,7 +101,7 @@ export default function Hostel2Page() {
 
   async function loadAllocations() {
     if (!selectedTerm || !selectedHostel) return
-    const res = await fetch(`${API}/hostels/allocations?termId=${selectedTerm}&hostelId=${selectedHostel}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/allocations?termId=${selectedTerm}&hostelId=${selectedHostel}`)
     const data = await res.json()
     setAllocations(data.allocations ?? [])
     // Init roll call entries
@@ -118,21 +112,21 @@ export default function Hostel2Page() {
 
   async function loadExeats() {
     if (!selectedTerm || !selectedHostel) return
-    const res = await fetch(`${API}/hostels/exeats?termId=${selectedTerm}&hostelId=${selectedHostel}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/exeats?termId=${selectedTerm}&hostelId=${selectedHostel}`)
     const data = await res.json()
     setExeats(data.exeats ?? [])
   }
 
   async function loadVisitors() {
     if (!selectedHostel) return
-    const res = await fetch(`${API}/hostels/visitors?hostelId=${selectedHostel}&date=${visitorDate}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/visitors?hostelId=${selectedHostel}&date=${visitorDate}`)
     const data = await res.json()
     setVisitors(data.visitors ?? [])
   }
 
   async function loadMealPlans() {
     if (!selectedTerm || !selectedHostel) return
-    const res = await fetch(`${API}/hostels/meal-plans?termId=${selectedTerm}&hostelId=${selectedHostel}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/meal-plans?termId=${selectedTerm}&hostelId=${selectedHostel}`)
     const data = await res.json()
     setMealPlans(data.mealPlans ?? [])
   }
@@ -140,7 +134,7 @@ export default function Hostel2Page() {
   async function lookupGuardian(studentId: string) {
     if (!studentId) return
     try {
-      const res = await fetch(`${API}/hostels/student-guardian/${studentId}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/hostels/student-guardian/${studentId}`)
       const data = await res.json()
       if (data.guardian) {
         setExeatForm(f => ({
@@ -155,7 +149,7 @@ export default function Hostel2Page() {
   async function lookupGuardian(studentId: string) {
     if (!studentId) return
     try {
-      const res = await fetch(`${API}/hostels/student-guardian/${studentId}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/hostels/student-guardian/${studentId}`)
       const data = await res.json()
       if (data.guardian) {
         setExeatForm(f => ({
@@ -175,9 +169,9 @@ export default function Hostel2Page() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/hostels/exeats`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ studentId: f.studentId, hostelId: selectedHostel, termId: selectedTerm, reason: f.reason, destination: f.destination, departureDate: f.departureDate, returnDate: f.returnDate, guardianName: f.guardianName, guardianPhone: f.guardianPhone, guardianRelationship: f.guardianRelationship })
-      })
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
       setShowExeatForm(false)
@@ -189,9 +183,9 @@ export default function Hostel2Page() {
 
   async function updateExeatStatus(id: string, status: string, reason?: string) {
     await fetch(`${API}/hostels/exeats/${id}/status`, {
-      method: 'PATCH', headers: hdrs(),
+      method: 'PATCH',
       body: JSON.stringify({ status, rejectionReason: reason })
-    })
+    }
     setRejectingId(null); setRejectReason('')
     setSuccess(`Exeat ${status}!`); setTimeout(() => setSuccess(''), 3000)
     loadExeats()
@@ -203,9 +197,9 @@ export default function Hostel2Page() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/hostels/visitors`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ studentId: f.studentId, hostelId: selectedHostel, visitorName: f.visitorName, visitorPhone: f.visitorPhone || undefined, relationship: f.relationship, purpose: f.purpose || undefined })
-      })
+      }
       if (!res.ok) throw new Error('Failed to log visitor')
       setShowVisitorForm(false)
       setVisitorForm({ studentId: '', visitorName: '', visitorPhone: '', relationship: 'Parent', purpose: '' })
@@ -215,7 +209,7 @@ export default function Hostel2Page() {
   }
 
   async function checkoutVisitor(id: string) {
-    await fetch(`${API}/hostels/visitors/${id}/checkout`, { method: 'PATCH', headers: hdrs() })
+    await fetch(`${API}/hostels/visitors/${id}/checkout`, { method: 'PATCH' }
     setSuccess('Visitor checked out!'); setTimeout(() => setSuccess(''), 3000)
     loadVisitors()
   }
@@ -230,9 +224,9 @@ export default function Hostel2Page() {
         notes: rollCallNotes[a.student_id] ?? undefined,
       }))
       const res = await fetch(`${API}/hostels/roll-calls`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ hostelId: selectedHostel, date: rollCallDate, callTime, entries })
-      })
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
       setRollCallResult(data)
@@ -245,9 +239,9 @@ export default function Hostel2Page() {
     setSaving(true); setError('')
     try {
       await fetch(`${API}/hostels/meal-plans`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ studentId: mealForm.studentId, hostelId: selectedHostel, termId: selectedTerm, planType: mealForm.planType, dietaryRequirements: mealForm.dietaryRequirements || undefined })
-      })
+      }
       setShowMealForm(false)
       setMealForm({ studentId: '', planType: 'full', dietaryRequirements: '' })
       setSuccess('Meal plan saved!'); setTimeout(() => setSuccess(''), 3000)

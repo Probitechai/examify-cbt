@@ -1,24 +1,12 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 export default function StudentLiveClassesPage() {
@@ -27,16 +15,22 @@ export default function StudentLiveClassesPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { hydrate() }, [hydrate])
+useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
+useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { if (user) loadClasses() }, [user])
 
   async function loadClasses() {
     try {
       const cl = (user as any)?.classLevel ?? ''
-      const res = await fetch(`${API}/live-classes?classLevel=${cl}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/live-classes?classLevel=${cl}`)
       const data = await res.json()
       setClasses(data.classes ?? [])
     } catch {} finally { setLoading(false) }

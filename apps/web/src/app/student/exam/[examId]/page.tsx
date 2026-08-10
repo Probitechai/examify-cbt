@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import dynamic from 'next/dynamic'
 
 const ExamEngine = dynamic(() => import('./ExamEngine'), {

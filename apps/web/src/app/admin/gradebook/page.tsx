@@ -1,23 +1,11 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -60,12 +48,18 @@ export default function GradebookPage() {
   const [bulkScores, setBulkScores] = useState<Record<string, string>>({})
   const [savingBulk, setSavingBulk] = useState(false)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSubjects() }, [selectedClass])
 
   async function loadInitial() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -74,7 +68,7 @@ export default function GradebookPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -83,7 +77,7 @@ export default function GradebookPage() {
   }
 
   async function loadSubjects() {
-    const res = await fetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`)
     const data = await res.json()
     setSubjects(data.subjects ?? [])
   }
@@ -94,7 +88,7 @@ export default function GradebookPage() {
     try {
       let url = `${API}/gradebook/class?termId=${selectedTerm}&classLevel=${selectedClass}`
       if (selectedSubject) url += `&subjectId=${selectedSubject}`
-      const res = await fetch(url, { headers: hdrs() })
+      const res = await apiFetch(url)
       const data = await res.json()
       setStudents(data.students ?? [])
       setEntries(data.entries ?? [])
@@ -120,7 +114,7 @@ export default function GradebookPage() {
         maxScore: Number(entryForm.maxScore),
       }
       if (selectedSubject) body.subjectId = selectedSubject
-      await fetch(`${API}/gradebook/entries`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      await fetch(`${API}/gradebook/entries`, { method: 'POST', body: JSON.stringify(body) })
       setShowEntryForm(false)
       setEntryForm({ studentId: '', title: '', entryType: 'class_test', score: '', maxScore: '100' })
       setSuccess('Entry saved!'); setTimeout(() => setSuccess(''), 3000)
@@ -144,7 +138,7 @@ export default function GradebookPage() {
         scores,
       }
       if (selectedSubject) body.subjectId = selectedSubject
-      await fetch(`${API}/gradebook/entries/bulk`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      await fetch(`${API}/gradebook/entries/bulk`, { method: 'POST', body: JSON.stringify(body) })
       setShowBulkForm(false)
       setBulkTitle(''); setBulkMaxScore('100')
       const reset: Record<string, string> = {}
@@ -156,7 +150,7 @@ export default function GradebookPage() {
   }
 
   async function deleteEntry(id: string) {
-    await fetch(`${API}/gradebook/entries/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/gradebook/entries/${id}`, { method: 'DELETE' })
     setEntries(prev => prev.filter(e => e.id !== id))
   }
 

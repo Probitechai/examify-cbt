@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -27,10 +28,6 @@ interface SummaryRow {
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -39,8 +36,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -94,11 +90,15 @@ export default function FeesPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -107,7 +107,7 @@ export default function FeesPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -119,7 +119,7 @@ export default function FeesPage() {
     if (!selectedTerm) { setError('Please select a term'); return }
     setLoading(true); setError('')
     const params = new URLSearchParams({ termId: selectedTerm, classLevel })
-    const res = await fetch(`${API}/fees/structures?${params}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/fees/structures?${params}`)
     const data = await res.json()
     setStructures(data.structures ?? [])
     setLoading(false)
@@ -130,7 +130,7 @@ export default function FeesPage() {
     setSavingStructure(true); setError('')
     try {
       const res = await fetch(`${API}/fees/structures`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ termId: selectedTerm, classLevel: feeClassLevel, name: feeName, amount: parseFloat(feeAmount), isMandatory: feeMandatory })
       })
       if (!res.ok) throw new Error('Failed')
@@ -142,7 +142,7 @@ export default function FeesPage() {
 
   async function handleDeleteStructure(id: string, name: string) {
     if (!window.confirm(`Delete fee "${name}"?`)) return
-    await fetch(`${API}/fees/structures/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/fees/structures/${id}`, { method: 'DELETE' })
     loadStructures()
   }
 
@@ -151,7 +151,7 @@ export default function FeesPage() {
     setLoading(true); setError('')
     const params = new URLSearchParams({ termId: selectedTerm, classLevel })
     if (classArm) params.append('classArm', classArm)
-    const res = await fetch(`${API}/fees/ledger?${params}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/fees/ledger?${params}`)
     const data = await res.json()
     setLedger(data.ledger ?? [])
     setLedgerStructures(data.structures ?? [])
@@ -162,7 +162,7 @@ export default function FeesPage() {
   async function loadSummary() {
     if (!selectedTerm) { setError('Please select a term'); return }
     setLoading(true); setError('')
-    const res = await fetch(`${API}/fees/summary?termId=${selectedTerm}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/fees/summary?termId=${selectedTerm}`)
     const data = await res.json()
     setSummary(data.summary ?? [])
     setLoading(false)
@@ -173,7 +173,7 @@ export default function FeesPage() {
     setSavingPayment(true); setError('')
     try {
       const res = await fetch(`${API}/fees/payments`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           feeStructureId: paymentFeeId,
           studentId: paymentStudent.studentId,
@@ -388,7 +388,7 @@ export default function FeesPage() {
                   <button onClick={async () => {
                     if (!window.confirm('Send fee reminder SMS to all parents with outstanding balances?')) return
                     const res = await fetch(`${API}/fees/remind-sms`, {
-                      method: 'POST', headers: hdrs(),
+                      method: 'POST',
                       body: JSON.stringify({ termId: selectedTerm, classLevel, classArm: classArm || undefined })
                     })
                     const data = await res.json()

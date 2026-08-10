@@ -1,22 +1,10 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -76,16 +64,24 @@ export default function CurriculumPage() {
   const [deliveryForm, setDeliveryForm] = useState({ deliveryStatus: 'delivered', deliveredDate: new Date().toISOString().slice(0,10), notes: '', attendanceCount: '' })
   const [savingDelivery, setSavingDelivery] = useState(false)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (activeTab === 'subjects') loadSubjects() }, [activeTab, selectedClass])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (activeTab === 'coverage' && selectedTerm && selectedClass) loadCoverage() }, [activeTab, selectedTerm, selectedClass])
 
   async function loadInitial() {
     try {
       const [settingsRes, sessionsRes] = await Promise.all([
-        fetch(`${API}/curriculum/settings`, { headers: hdrs() }),
-        fetch(`${API}/sessions`, { headers: hdrs() }),
+        apiFetch(`${API}/curriculum/settings`),
+        apiFetch(`${API}/sessions`),
       ])
       const settingsData = await settingsRes.json()
       const sessionsData = await sessionsRes.json()
@@ -105,7 +101,7 @@ export default function CurriculumPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -114,7 +110,7 @@ export default function CurriculumPage() {
   }
 
   async function loadSubjects() {
-    const res = await fetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`)
     const data = await res.json()
     setSubjects(data.subjects ?? [])
   }
@@ -123,7 +119,7 @@ export default function CurriculumPage() {
     if (!selectedSubject || !selectedTerm || !selectedClass) { setError('Please select subject, term and class'); return }
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${API}/curriculum/scheme?subjectId=${selectedSubject}&termId=${selectedTerm}&classLevel=${selectedClass}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/curriculum/scheme?subjectId=${selectedSubject}&termId=${selectedTerm}&classLevel=${selectedClass}`)
       const data = await res.json()
       setScheme(data.scheme ?? [])
     } catch { setError('Failed to load scheme') } finally { setLoading(false) }
@@ -132,7 +128,7 @@ export default function CurriculumPage() {
   async function loadCoverage() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/curriculum/coverage?termId=${selectedTerm}&classLevel=${selectedClass}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/curriculum/coverage?termId=${selectedTerm}&classLevel=${selectedClass}`)
       const data = await res.json()
       setCoverage(data.coverage ?? [])
     } catch {} finally { setLoading(false) }
@@ -142,9 +138,9 @@ export default function CurriculumPage() {
     setSavingSettings(true)
     try {
       await fetch(`${API}/curriculum/settings`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ curriculumType: settingsForm.curriculumType, secondaryCurriculum: settingsForm.secondaryCurriculum || undefined, academicYear: settingsForm.academicYear || undefined })
-      })
+      }
       setSuccess('Settings saved!'); setTimeout(() => setSuccess(''), 3000)
       loadInitial()
     } catch { setError('Failed to save settings') } finally { setSavingSettings(false) }
@@ -154,9 +150,9 @@ export default function CurriculumPage() {
     setLoadingDefaults(true)
     try {
       const res = await fetch(`${API}/curriculum/load-defaults`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ curriculumType: settingsForm.curriculumType })
-      })
+      }
       const data = await res.json()
       setSuccess(`Loaded ${data.loaded} default subjects!`); setTimeout(() => setSuccess(''), 3000)
     } catch { setError('Failed to load defaults') } finally { setLoadingDefaults(false) }
@@ -167,9 +163,9 @@ export default function CurriculumPage() {
     setSavingSubject(true)
     try {
       await fetch(`${API}/curriculum/subjects`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ name: subjectForm.name, code: subjectForm.code || undefined, classLevels: subjectForm.classLevels, category: subjectForm.category, curriculumType: subjectForm.curriculumType })
-      })
+      }
       setShowSubjectForm(false)
       setSubjectForm({ name: '', code: '', category: 'elective', classLevels: [], curriculumType: 'nigerian' })
       loadSubjects()
@@ -177,15 +173,15 @@ export default function CurriculumPage() {
   }
 
   async function toggleSubject(id: string, isActive: boolean) {
-    await fetch(`${API}/curriculum/subjects/${id}`, {
-      method: 'PATCH', headers: hdrs(), body: JSON.stringify({ isActive: !isActive })
+    await apiFetch(`${API}/curriculum/subjects/${id}`, {
+      method: 'PATCH', body: JSON.stringify({ isActive: !isActive })
     })
     loadSubjects()
   }
 
   async function deleteSubject(id: string) {
     if (!window.confirm('Delete this subject?')) return
-    await fetch(`${API}/curriculum/subjects/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/curriculum/subjects/${id}`, { method: 'DELETE' })
     loadSubjects()
   }
 
@@ -194,7 +190,7 @@ export default function CurriculumPage() {
     setSavingScheme(true)
     try {
       await fetch(`${API}/curriculum/scheme`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           subjectId: selectedSubject, termId: selectedTerm, classLevel: selectedClass,
           weekNumber: schemeForm.weekNumber, topic: schemeForm.topic,
@@ -203,7 +199,7 @@ export default function CurriculumPage() {
           resources: schemeForm.resources || undefined,
           assessmentMethod: schemeForm.assessmentMethod || undefined,
         })
-      })
+      }
       setShowSchemeForm(false)
       setSchemeForm({ weekNumber: 1, topic: '', subTopics: '', objectives: '', resources: '', assessmentMethod: '' })
       loadScheme()
@@ -215,14 +211,14 @@ export default function CurriculumPage() {
     setSavingDelivery(true)
     try {
       await fetch(`${API}/curriculum/delivery`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           schemeId: deliveryEntry.id, deliveredDate: deliveryForm.deliveredDate,
           deliveryStatus: deliveryForm.deliveryStatus,
           notes: deliveryForm.notes || undefined,
           attendanceCount: deliveryForm.attendanceCount ? Number(deliveryForm.attendanceCount) : undefined,
         })
-      })
+      }
       setDeliveryEntry(null)
       loadScheme()
     } catch { setError('Failed to save delivery') } finally { setSavingDelivery(false) }

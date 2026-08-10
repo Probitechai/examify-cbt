@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect, useRef } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -25,10 +26,6 @@ interface Broadsheet {
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -37,8 +34,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -64,11 +60,15 @@ export default function BroadsheetPage() {
   const [schoolName, setSchoolName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -78,8 +78,8 @@ export default function BroadsheetPage() {
     // Get school name from /auth/me
     try {
       const [meRes, schoolRes] = await Promise.all([
-        fetch(`${API}/auth/me`, { headers: hdrs() }),
-        fetch(`${API}/schools/settings`, { headers: hdrs() }),
+        apiFetch(`${API}/auth/me`),
+        apiFetch(`${API}/schools/settings`),
       ])
       const meData = await meRes.json()
       const schoolData = schoolRes.ok ? await schoolRes.json() : {}
@@ -89,7 +89,7 @@ export default function BroadsheetPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -103,7 +103,7 @@ export default function BroadsheetPage() {
     try {
       const params = new URLSearchParams({ termId: selectedTerm, classLevel })
       if (classArm) params.append('classArm', classArm)
-      const res = await fetch(`${API}/results/broadsheet?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/results/broadsheet?${params}`)
       const data = await res.json()
       setBroadsheet(data.broadsheet)
     } catch { setError('Failed to load broadsheet') } finally { setLoading(false) }

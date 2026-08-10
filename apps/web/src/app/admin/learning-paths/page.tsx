@@ -1,23 +1,11 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -51,12 +39,18 @@ export default function LearningPathsPage() {
     lessonId: '', stepNumber: 1, title: '', description: '', isRequired: true
   })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSubjects() }, [selectedClass, createForm.classLevel])
 
   async function loadInitial() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -65,7 +59,7 @@ export default function LearningPathsPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -75,7 +69,7 @@ export default function LearningPathsPage() {
 
   async function loadSubjects() {
     const cl = selectedClass || createForm.classLevel
-    const res = await fetch(`${API}/curriculum/subjects?classLevel=${cl}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/curriculum/subjects?classLevel=${cl}`)
     const data = await res.json()
     setSubjects(data.subjects ?? [])
   }
@@ -84,19 +78,19 @@ export default function LearningPathsPage() {
     if (!selectedTerm) { setError('Please select a term'); return }
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${API}/learning-paths?classLevel=${selectedClass}&termId=${selectedTerm}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/learning-paths?classLevel=${selectedClass}&termId=${selectedTerm}`)
       const data = await res.json()
       setPaths(data.paths ?? [])
     } catch { setError('Failed to load paths') } finally { setLoading(false) }
   }
 
   async function loadPathDetails(pathId: string) {
-    const res = await fetch(`${API}/learning-paths/${pathId}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/learning-paths/${pathId}`)
     const data = await res.json()
     setSelectedPath(data.path)
     setPathSteps(data.steps ?? [])
     // Load lessons for this class/term
-    const lessonsRes = await fetch(`${API}/lessons?classLevel=${data.path.class_level}&termId=${data.path.term_id}`, { headers: hdrs() })
+    const lessonsRes = await apiFetch(`${API}/lessons?classLevel=${data.path.class_level}&termId=${data.path.term_id}`)
     const lessonsData = await lessonsRes.json()
     setLessons(lessonsData.lessons ?? [])
     setStepForm(f => ({ ...f, stepNumber: (data.steps?.length ?? 0) + 1 }))
@@ -114,7 +108,7 @@ export default function LearningPathsPage() {
         title: createForm.title, description: createForm.description || undefined,
         isSequential: createForm.isSequential,
       }
-      const res = await fetch(`${API}/learning-paths`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      const res = await fetch(`${API}/learning-paths`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowCreateForm(false)
@@ -148,7 +142,7 @@ export default function LearningPathsPage() {
         unlockAfterStep: stepForm.stepNumber > 1 ? stepForm.stepNumber - 1 : undefined,
       }
       if (stepForm.lessonId) body.lessonId = stepForm.lessonId
-      await fetch(`${API}/learning-paths/${pathId}/steps`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      await fetch(`${API}/learning-paths/${pathId}/steps`, { method: 'POST', body: JSON.stringify(body) })
       setShowAddStep(false)
       setStepForm(f => ({ ...f, stepNumber: f.stepNumber + 1, title: '', lessonId: '', description: '' }))
       loadPathDetails(pathId)
@@ -156,12 +150,12 @@ export default function LearningPathsPage() {
   }
 
   async function deleteStep(stepId: string, pathId: string) {
-    await fetch(`${API}/learning-paths/steps/${stepId}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/learning-paths/steps/${stepId}`, { method: 'DELETE' })
     loadPathDetails(pathId)
   }
 
   async function togglePublish(pathId: string) {
-    await fetch(`${API}/learning-paths/${pathId}/publish`, { method: 'PATCH', headers: hdrs() })
+    await fetch(`${API}/learning-paths/${pathId}/publish`, { method: 'PATCH' })
     loadPaths()
     if (selectedPath?.id === pathId) {
       setSelectedPath((prev: any) => ({ ...prev, is_published: !prev.is_published }))
@@ -170,7 +164,7 @@ export default function LearningPathsPage() {
 
   async function deletePath(pathId: string) {
     if (!window.confirm('Delete this learning path?')) return
-    await fetch(`${API}/learning-paths/${pathId}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/learning-paths/${pathId}`, { method: 'DELETE' })
     setPaths(prev => prev.filter(p => p.id !== pathId))
     if (selectedPath?.id === pathId) setSelectedPath(null)
   }

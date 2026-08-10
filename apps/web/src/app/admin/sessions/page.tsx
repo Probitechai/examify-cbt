@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -19,10 +20,6 @@ interface Term {
   is_active: boolean
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 
 function getSubdomain() {
   try {
@@ -33,8 +30,7 @@ function getSubdomain() {
   return 'greensprings'
 }
 
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -62,12 +58,14 @@ export default function SessionsPage() {
   const [termEnd, setTermEnd] = useState('')
   const [termActive, setTermActive] = useState(false)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
 
   async function loadSessions() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/sessions`)
       const data = await res.json()
       setSessions(data.sessions ?? [])
     } catch {}
@@ -77,7 +75,7 @@ export default function SessionsPage() {
   async function loadTerms(sessionId: string) {
     setTermsLoading(true)
     try {
-      const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
       const data = await res.json()
       setTerms(data.terms ?? [])
     } catch {}
@@ -89,7 +87,7 @@ export default function SessionsPage() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/sessions`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ name: sessionName.trim(), isActive: sessionActive })
       })
       if (!res.ok) throw new Error('Failed to create session')
@@ -99,14 +97,14 @@ export default function SessionsPage() {
   }
 
   async function handleActivateSession(id: string) {
-    await fetch(`${API}/sessions/${id}/activate`, { method: 'PATCH', headers: hdrs(), body: '{}' })
+    await fetch(`${API}/sessions/${id}/activate`, { method: 'PATCH', body: '{}' })
     loadSessions()
     if (selectedSession?.id === id) setSelectedSession(prev => prev ? { ...prev, is_active: true } : null)
   }
 
   async function handleDeleteSession(id: string, name: string) {
     if (!window.confirm(`Delete session "${name}"? All terms in this session will also be deleted.`)) return
-    await fetch(`${API}/sessions/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/sessions/${id}`, { method: 'DELETE' })
     if (selectedSession?.id === id) { setSelectedSession(null); setTerms([]) }
     loadSessions()
   }
@@ -117,7 +115,7 @@ export default function SessionsPage() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/sessions/${selectedSession.id}/terms`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ name: termName.trim(), termNumber, startDate: termStart, endDate: termEnd, isActive: termActive })
       })
       if (!res.ok) throw new Error('Failed to create term')
@@ -127,13 +125,13 @@ export default function SessionsPage() {
   }
 
   async function handleActivateTerm(id: string) {
-    await fetch(`${API}/terms/${id}/activate`, { method: 'PATCH', headers: hdrs(), body: '{}' })
+    await fetch(`${API}/terms/${id}/activate`, { method: 'PATCH', body: '{}' })
     if (selectedSession) loadTerms(selectedSession.id)
   }
 
   async function handleDeleteTerm(id: string, name: string) {
     if (!window.confirm(`Delete term "${name}"?`)) return
-    await fetch(`${API}/terms/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/terms/${id}`, { method: 'DELETE' })
     if (selectedSession) loadTerms(selectedSession.id)
   }
 

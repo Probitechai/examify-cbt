@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './exams.module.css'
@@ -16,10 +17,6 @@ interface Exam {
   created_by_name: string
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 
 function getSubdomain() {
   try {
@@ -51,6 +48,8 @@ export default function ExamsPage() {
    const [deleting, setDeleting] = useState<string | null>(null)
   const [reminding, setReminding] = useState<string | null>(null)
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     loadExams()
   }, [])
@@ -78,7 +77,7 @@ export default function ExamsPage() {
     if (!window.confirm(`Are you sure you want to cancel "${title}"? This cannot be undone.`)) return
     setDeleting(examId)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${examId}`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${examId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${getToken()}`,
@@ -167,7 +166,7 @@ export default function ExamsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className={styles.empty}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>ðŸ“‹</div>
           <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
             {exams.length === 0 ? 'No exams yet' : 'No exams match this filter'}
           </p>
@@ -194,10 +193,10 @@ export default function ExamsPage() {
                 </div>
                 <h2 className={styles.examTitle}>{exam.title}</h2>
                 <div className={styles.examMeta}>
-                  <span>⏱ {exam.duration_minutes} min</span>
-                  <span>📋 {exam.question_count ?? 0} questions</span>
-                  <span>📅 {formatDate(exam.scheduled_at)}</span>
-                  {exam.created_by_name && <span>👤 {exam.created_by_name}</span>}
+                  <span>â± {exam.duration_minutes} min</span>
+                  <span>ðŸ“‹ {exam.question_count ?? 0} questions</span>
+                  <span>ðŸ“… {formatDate(exam.scheduled_at)}</span>
+                  {exam.created_by_name && <span>ðŸ‘¤ {exam.created_by_name}</span>}
                 </div>
               </div>
               <div className={styles.examCardRight}>
@@ -213,7 +212,7 @@ export default function ExamsPage() {
                     onClick={() => handleRemind(exam.id, exam.title)}
                     disabled={reminding === exam.id}
                   >
-                    {reminding === exam.id ? 'Sending…' : '📧 Remind'}
+                    {reminding === exam.id ? 'Sendingâ€¦' : 'ðŸ“§ Remind'}
                   </button>
                 )}
                 {exam.status !== 'completed' && (

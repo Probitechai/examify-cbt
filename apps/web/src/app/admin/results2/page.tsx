@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -22,10 +23,6 @@ const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religi
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -34,8 +31,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -54,11 +50,15 @@ export default function ResultEntryPage() {
   const [error, setError] = useState('')
   const [localScores, setLocalScores] = useState<Record<string, { ca: string; exam: string; comment: string }>>({})
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -67,7 +67,7 @@ export default function ResultEntryPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -84,7 +84,7 @@ export default function ResultEntryPage() {
     try {
       const params = new URLSearchParams({ termId: selectedTerm, classLevel, subject })
       if (classArm) params.append('classArm', classArm)
-      const res = await fetch(`${API}/results/entry?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/results/entry?${params}`)
       const data = await res.json()
       const list = data.students ?? []
       setStudents(list)
@@ -120,8 +120,7 @@ export default function ResultEntryPage() {
         examScore: localScores[s.id]?.exam !== '' ? parseFloat(localScores[s.id]?.exam) || null : null,
         teacherComment: localScores[s.id]?.comment || undefined,
       }))
-      const res = await fetch(`${API}/results/bulk`, {
-        method: 'POST', headers: hdrs(),
+            const res = await apiFetch(`${API}/results/bulk`, {
         body: JSON.stringify({ termId: selectedTerm, subject, results })
       })
       if (!res.ok) throw new Error('Failed to save')

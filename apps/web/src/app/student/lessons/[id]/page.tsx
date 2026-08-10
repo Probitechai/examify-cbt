@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../../hooks/useAuth'
@@ -10,26 +11,15 @@ const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+
+
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 async function uploadFile(file: File, folder: string): Promise<string> {
   const ext = file.name.split('.').pop()
   const path = `${folder}/${Date.now()}.${ext}`
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/lesson-files/${path}`, {
+  const res = await apiFetch(`${SUPABASE_URL}/storage/v1/object/lesson-files/${path}`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
     body: file,
@@ -71,6 +61,8 @@ export default function StudentLessonDetailPage() {
   // Submission forms per assignment
   const [submissionForms, setSubmissionForms] = useState<Record<string, { text: string; fileUrl: string; fileName: string; submitted: boolean }>>({})
 
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { hydrate() }, [hydrate])
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
@@ -80,7 +72,7 @@ export default function StudentLessonDetailPage() {
   async function loadLesson() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/lessons/${lessonId}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/lessons/${lessonId}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Lesson not found')
       setLesson(data.lesson)
@@ -96,8 +88,8 @@ export default function StudentLessonDetailPage() {
       setSubmissionForms(forms)
       // Load interactive elements
       const [flashRes, inlineRes] = await Promise.all([
-        fetch(`${API}/lessons/${lessonId}/flashcards`, { headers: hdrs() }),
-        fetch(`${API}/lessons/${lessonId}/inline-quizzes`, { headers: hdrs() }),
+        apiFetch(`${API}/lessons/${lessonId}/flashcards`),
+        apiFetch(`${API}/lessons/${lessonId}/inline-quizzes`),
       ])
       const flashData = await flashRes.json()
       const inlineData = await inlineRes.json()
@@ -105,10 +97,7 @@ export default function StudentLessonDetailPage() {
       setInlineQuizzes(inlineData.quizzes ?? [])
 
       // Track that student started this lesson
-      await fetch(`${API}/lessons/${lessonId}/progress`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })
-      })
+      await apiFetch(`${API}/lessons/${lessonId}/progress`, {method: 'POST',body: JSON.stringify({ progressPct: 10, resourcesViewed: 0 })})
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }
 
@@ -117,10 +106,7 @@ export default function StudentLessonDetailPage() {
     setResourcesViewed(newCount)
     const totalResources = resources.length
     const pct = Math.min(Math.round((newCount / Math.max(totalResources, 1)) * 60) + 10, 70)
-    await fetch(`${API}/lessons/${lessonId}/progress`, {
-      method: 'POST', headers: hdrs(),
-      body: JSON.stringify({ progressPct: pct, resourcesViewed: newCount })
-    })
+    await apiFetch(`${API}/lessons/${lessonId}/progress`, {method: 'POST',body: JSON.stringify({ progressPct: pct, resourcesViewed: newCount })})
   }
 
   async function submitAssignment(assignmentId: string) {
@@ -128,14 +114,10 @@ export default function StudentLessonDetailPage() {
     if (!form?.text && !form?.fileUrl) { setError('Please enter a response or upload a file'); return }
     setSubmitting(true); setError('')
     try {
-      await fetch(`${API}/lessons/assignments/${assignmentId}/submit`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({
+      await apiFetch(`${API}/lessons/assignments/${assignmentId}/submit`, {method: 'POST',body: JSON.stringify({
           textResponse: form.text || undefined,
           fileUrl: form.fileUrl || undefined,
-          fileName: form.fileName || undefined,
-        })
-      })
+          fileName: form.fileName || undefined})})
       setSubmissionForms(prev => ({ ...prev, [assignmentId]: { ...prev[assignmentId], submitted: true } }))
       setSuccess('Assignment submitted successfully!')
       setTimeout(() => setSuccess(''), 3000)
@@ -143,15 +125,9 @@ export default function StudentLessonDetailPage() {
       // Update progress
       const allSubmitted = assignments.every(a => a.id === assignmentId || submissionForms[a.id]?.submitted)
       if (allSubmitted) {
-        await fetch(`${API}/lessons/${lessonId}/progress`, {
-          method: 'POST', headers: hdrs(),
-          body: JSON.stringify({ progressPct: 100, resourcesViewed, assignmentSubmitted: true })
-        })
+        await apiFetch(`${API}/lessons/${lessonId}/progress`, {method: 'POST',body: JSON.stringify({ progressPct: 100, resourcesViewed, assignmentSubmitted: true })})
       } else {
-        await fetch(`${API}/lessons/${lessonId}/progress`, {
-          method: 'POST', headers: hdrs(),
-          body: JSON.stringify({ progressPct: 85, resourcesViewed, assignmentSubmitted: true })
-        })
+        await apiFetch(`${API}/lessons/${lessonId}/progress`, {method: 'POST',body: JSON.stringify({ progressPct: 85, resourcesViewed, assignmentSubmitted: true })})
       }
     } catch { setError('Failed to submit assignment') } finally { setSubmitting(false) }
   }

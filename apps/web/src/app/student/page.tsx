@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import dynamic from 'next/dynamic'
 
 const StudentDashboard = dynamic(() => import('./StudentDashboard2'), {

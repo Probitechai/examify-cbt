@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -23,10 +24,6 @@ const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
 const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religious Studies','Civic Education','Commerce','Computer Science','Economics','English Language','Financial Accounting','French','Further Mathematics','Geography','Government','History','Home Economics','Islamic Religious Studies','Literature in English','Mathematics','Music','Physical Education','Physics','Technical Drawing']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -35,8 +32,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -55,11 +51,15 @@ export default function ApprovalsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -68,7 +68,7 @@ export default function ApprovalsPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -83,7 +83,7 @@ export default function ApprovalsPage() {
       const params = new URLSearchParams({ termId: selectedTerm, classLevel })
       if (classArm) params.append('classArm', classArm)
       if (subject) params.append('subject', subject)
-      const res = await fetch(`${API}/results?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/results?${params}`)
       const data = await res.json()
       setResults(data.results ?? [])
     } catch { setError('Failed to load results') } finally { setLoading(false) }
@@ -103,7 +103,7 @@ export default function ApprovalsPage() {
       if (scope === 'subject' && subject) body.subject = subject
 
       const res = await fetch(`${API}/results/approve`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify(body)
       })
       if (!res.ok) throw new Error('Failed to approve')

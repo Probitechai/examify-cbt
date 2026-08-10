@@ -1,23 +1,11 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -58,6 +46,8 @@ export default function AdmissionsPage() {
   const [settingsForm, setSettingsForm] = useState<any>({})
   const [savingSettings, setSavingSettings] = useState(false)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     const sub = getSubdomain()
     setSubdomain(sub)
@@ -68,9 +58,9 @@ export default function AdmissionsPage() {
     setLoading(true)
     try {
       const [statsRes, appsRes, settingsRes] = await Promise.all([
-        fetch(`${API}/admissions/stats`, { headers: hdrs() }),
-        fetch(`${API}/admissions/applications`, { headers: hdrs() }),
-        fetch(`${API}/admissions/settings`, { headers: hdrs() }),
+        apiFetch(`${API}/admissions/stats`),
+        apiFetch(`${API}/admissions/applications`),
+        apiFetch(`${API}/admissions/settings`),
       ])
       const statsData = await statsRes.json()
       const appsData = await appsRes.json()
@@ -89,7 +79,7 @@ export default function AdmissionsPage() {
     setAdding(true); setAddError('')
     try {
       const res = await fetch(`${API}/admissions/applicants`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           firstName: addForm.firstName, lastName: addForm.lastName,
           middleName: addForm.middleName || undefined,
@@ -101,7 +91,7 @@ export default function AdmissionsPage() {
           parentPhone: addForm.parentPhone, parentRelationship: addForm.parentRelationship,
           stateOfOrigin: addForm.stateOfOrigin || undefined,
         })
-      })
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to add applicant')
       setShowAddForm(false)
@@ -114,7 +104,7 @@ export default function AdmissionsPage() {
     setSavingSettings(true)
     try {
       await fetch(`${API}/admissions/settings`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           intakeMode: settingsForm.intake_mode ?? 'both',
           examType: settingsForm.exam_type ?? 'manual',
@@ -126,7 +116,7 @@ export default function AdmissionsPage() {
           applyForClasses: settingsForm.apply_for_classes ?? [],
           welcomeMessage: settingsForm.welcome_message ?? '',
         })
-      })
+      }
       loadAll()
       setShowSettings(false)
     } catch {} finally { setSavingSettings(false) }

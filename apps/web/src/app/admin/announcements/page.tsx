@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Announcement {
@@ -17,10 +18,6 @@ const AUDIENCE_CONFIG = {
   students: { label: 'Students only', icon: '🎓', color: '#d97706', bg: '#fffbeb' },
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -29,8 +26,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -46,12 +42,14 @@ export default function AnnouncementsPage() {
   const [success, setSuccess] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadAnnouncements() }, [])
 
   async function loadAnnouncements() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/announcements`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/announcements`)
       const data = await res.json()
       setAnnouncements(data.announcements ?? [])
     } catch {} finally { setLoading(false) }
@@ -62,7 +60,7 @@ export default function AnnouncementsPage() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/announcements`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ title: title.trim(), body: body.trim(), audience })
       })
       if (!res.ok) throw new Error('Failed to post')
@@ -75,7 +73,7 @@ export default function AnnouncementsPage() {
 
   async function handleDelete(id: string) {
     if (!window.confirm('Delete this announcement?')) return
-    await fetch(`${API}/announcements/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/announcements/${id}`, { method: 'DELETE' })
     setAnnouncements(prev => prev.filter(a => a.id !== id))
   }
 

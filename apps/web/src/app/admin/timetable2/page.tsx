@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -30,10 +31,6 @@ const DAY_BG: Record<string, string> = {
   Thursday: '#fffbeb', Friday: '#fef2f2'
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -42,8 +39,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -71,11 +67,15 @@ export default function TimetablePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -84,7 +84,7 @@ export default function TimetablePage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -98,7 +98,7 @@ export default function TimetablePage() {
     try {
       const params = new URLSearchParams({ termId: selectedTerm, classLevel })
       if (classArm) params.append('classArm', classArm)
-      const res = await fetch(`${API}/timetable?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/timetable?${params}`)
       const data = await res.json()
       setEntries(data.entries ?? [])
     } catch { setError('Failed to load timetable') } finally { setLoading(false) }
@@ -108,8 +108,7 @@ export default function TimetablePage() {
     if (!selectedTerm || !classLevel || !formSubject) { setError('All required fields must be filled'); return }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/timetable`, {
-        method: 'POST', headers: hdrs(),
+            const res = await apiFetch(`${API}/timetable`, {
         body: JSON.stringify({
           termId: selectedTerm,
           classLevel,
@@ -121,8 +120,6 @@ export default function TimetablePage() {
           startTime: formStart || undefined,
           endTime: formEnd || undefined,
           venue: formVenue || undefined,
-        })
-      })
       if (!res.ok) throw new Error('Failed to save')
       setSuccess('Entry saved!'); setTimeout(() => setSuccess(''), 2000)
       setShowForm(false)
@@ -131,7 +128,7 @@ export default function TimetablePage() {
   }
 
   async function handleDelete(id: string) {
-    await fetch(`${API}/timetable/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/timetable/${id}`, { method: 'DELETE' })
     setEntries(prev => prev.filter(e => e.id !== id))
   }
 
@@ -139,7 +136,7 @@ export default function TimetablePage() {
     if (!window.confirm(`Clear entire timetable for ${classLevel} ${classArm}?`)) return
     const params = new URLSearchParams({ termId: selectedTerm, classLevel })
     if (classArm) params.append('classArm', classArm)
-    await fetch(`${API}/timetable?${params}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/timetable?${params}`, { method: 'DELETE' })
     setEntries([])
   }
 

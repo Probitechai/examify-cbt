@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -6,10 +7,6 @@ type QType = 'mcq' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay'
 
 const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religious Studies','Civic Education','Commerce','Computer Science','Economics','English Language','Financial Accounting','French','Further Mathematics','Geography','Government','History','Home Economics','Islamic Religious Studies','Literature in English','Mathematics','Music','Physical Education','Physics','Technical Drawing']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 
 function getSubdomain() {
   try {
@@ -80,11 +77,11 @@ export default function NewQuestionPage() {
   }
 
   const types: { key: QType; icon: string; label: string; desc: string }[] = [
-    { key: 'mcq', icon: '🔤', label: 'Multiple Choice', desc: 'Pick from A, B, C, D' },
-    { key: 'true_false', icon: '✅', label: 'True / False', desc: 'True or False answer' },
-    { key: 'short_answer', icon: '✏️', label: 'Short Answer', desc: 'Auto-graded typed answer' },
-    { key: 'fill_blank', icon: '📝', label: 'Fill in Blank', desc: 'Complete the sentence' },
-    { key: 'essay', icon: '📄', label: 'Essay', desc: 'Teacher marks manually' },
+    { key: 'mcq', icon: 'ðŸ”¤', label: 'Multiple Choice', desc: 'Pick from A, B, C, D' },
+    { key: 'true_false', icon: 'âœ…', label: 'True / False', desc: 'True or False answer' },
+    { key: 'short_answer', icon: 'âœï¸', label: 'Short Answer', desc: 'Auto-graded typed answer' },
+    { key: 'fill_blank', icon: 'ðŸ“', label: 'Fill in Blank', desc: 'Complete the sentence' },
+    { key: 'essay', icon: 'ðŸ“„', label: 'Essay', desc: 'Teacher marks manually' },
   ]
 
   return (
@@ -93,7 +90,7 @@ export default function NewQuestionPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <button onClick={() => router.push('/admin/qbank')}
           style={{ padding: '0.5rem 1rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
-          ← Back
+          â† Back
         </button>
         <div>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 600, color: '#1a1a18' }}>New Question</h1>
@@ -103,7 +100,7 @@ export default function NewQuestionPage() {
 
       {success && (
         <div style={{ padding: '0.875rem 1.25rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#0f4a32' }}>
-          ✅ Question saved! Add another below.
+          âœ… Question saved! Add another below.
         </div>
       )}
 
@@ -131,13 +128,13 @@ export default function NewQuestionPage() {
           <label style={lbl}>Subject</label>
           {showCustom ? (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input style={{ ...inp, flex: 1 }} value={customSubject} onChange={e => setCustomSubject(e.target.value)} placeholder="Type subject name…" autoFocus />
+              <input style={{ ...inp, flex: 1 }} value={customSubject} onChange={e => setCustomSubject(e.target.value)} placeholder="Type subject nameâ€¦" autoFocus />
               <button type="button" onClick={() => setShowCustom(false)} style={{ padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '0.825rem', color: '#6b6b65' }}>Cancel</button>
             </div>
           ) : (
             <select style={inp} value={subject} onChange={e => { if (e.target.value === '__custom__') setShowCustom(true); else setSubject(e.target.value) }}>
               {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-              <option value="__custom__">➕ Add new subject…</option>
+              <option value="__custom__">âž• Add new subjectâ€¦</option>
             </select>
           )}
         </div>
@@ -170,14 +167,14 @@ export default function NewQuestionPage() {
 
         {/* Question text */}
         <div>
-          <label style={lbl}>{type === 'fill_blank' ? 'Question — use ___ for the blank' : 'Question text'}</label>
+          <label style={lbl}>{type === 'fill_blank' ? 'Question â€” use ___ for the blank' : 'Question text'}</label>
           <textarea style={{ ...inp, resize: 'vertical' as const, lineHeight: 1.6 }} rows={4} value={qText} onChange={e => setQText(e.target.value)}
             placeholder={
               type === 'fill_blank' ? 'e.g. The capital of Nigeria is ___.' :
               type === 'true_false' ? 'e.g. The earth revolves around the sun.' :
               type === 'essay' ? 'e.g. Discuss the causes of the Nigerian Civil War (10 marks).' :
               type === 'short_answer' ? 'e.g. What is the chemical symbol for water?' :
-              'Type the question here…'
+              'Type the question hereâ€¦'
             } />
         </div>
 
@@ -185,7 +182,7 @@ export default function NewQuestionPage() {
         {type === 'mcq' && (
           <div>
             <label style={{ ...lbl, marginBottom: '0.75rem' }}>
-              Answer options — click the letter button to mark correct answer
+              Answer options â€” click the letter button to mark correct answer
               <span style={{ fontWeight: 400, color: '#1a6b4a', marginLeft: '0.5rem' }}>({correct} is correct)</span>
             </label>
             {[{ k: 'A', v: optA, s: setOptA }, { k: 'B', v: optB, s: setOptB }, { k: 'C', v: optC, s: setOptC }, { k: 'D', v: optD, s: setOptD }].map(o => (
@@ -210,7 +207,7 @@ export default function NewQuestionPage() {
               {['True', 'False'].map(v => (
                 <button key={v} type="button" onClick={() => setCorrect(v)}
                   style={{ flex: 1, padding: '1rem', border: `2px solid ${correct === v ? '#1a6b4a' : '#e5e5e0'}`, borderRadius: '12px', background: correct === v ? '#e8f5ee' : 'white', fontSize: '1rem', fontWeight: 600, color: correct === v ? '#0f4a32' : '#6b6b65', cursor: 'pointer' }}>
-                  {v === 'True' ? '✅ True' : '❌ False'}
+                  {v === 'True' ? 'âœ… True' : 'âŒ False'}
                 </button>
               ))}
             </div>
@@ -222,20 +219,20 @@ export default function NewQuestionPage() {
           <div>
             <label style={lbl}>{type === 'fill_blank' ? 'Correct word/phrase for the blank' : 'Correct answer'}</label>
             <input style={inp} value={answer} onChange={e => setAnswer(e.target.value)}
-              placeholder={type === 'fill_blank' ? 'e.g. Lagos, photosynthesis, 42' : 'e.g. H₂O, osmosis, 1914'} />
-            <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>ℹ️ Not case sensitive — exact match required</p>
+              placeholder={type === 'fill_blank' ? 'e.g. Lagos, photosynthesis, 42' : 'e.g. Hâ‚‚O, osmosis, 1914'} />
+            <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>â„¹ï¸ Not case sensitive â€” exact match required</p>
           </div>
         )}
 
         {/* Essay */}
         {type === 'essay' && (
           <div style={{ padding: '1rem', background: '#fdf4ff', border: '1.5px solid #e9d5ff', borderRadius: '10px' }}>
-            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#7e22ce', marginBottom: '0.375rem' }}>📄 Essay question</p>
+            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#7e22ce', marginBottom: '0.375rem' }}>ðŸ“„ Essay question</p>
             <p style={{ fontSize: '0.8rem', color: '#6b6b65', lineHeight: 1.5 }}>Students write a long answer. You will mark these manually in Results after the exam.</p>
             <div style={{ marginTop: '0.75rem' }}>
-              <label style={lbl}>Marking guide <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional — for your reference only)</span></label>
+              <label style={lbl}>Marking guide <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional â€” for your reference only)</span></label>
               <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={answer} onChange={e => setAnswer(e.target.value)}
-                placeholder="e.g. 2 marks for mentioning X, 2 marks for Y, 1 mark for conclusion…" />
+                placeholder="e.g. 2 marks for mentioning X, 2 marks for Y, 1 mark for conclusionâ€¦" />
             </div>
           </div>
         )}
@@ -258,7 +255,7 @@ export default function NewQuestionPage() {
           </button>
           <button onClick={() => save(false)} disabled={saving}
             style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 600, borderRadius: '10px', border: 'none', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Saving…' : 'Save question →'}
+            {saving ? 'Savingâ€¦' : 'Save question â†’'}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
@@ -6,26 +7,15 @@ const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+
+
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 async function uploadToSupabase(file: File, studentId: string): Promise<string> {
   const ext = file.name.split('.').pop()
   const path = `${studentId}/${Date.now()}.${ext}`
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/student-documents/${path}`, {
+  const res = await apiFetch(`${SUPABASE_URL}/storage/v1/object/student-documents/${path}`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
     body: file,
@@ -100,16 +90,18 @@ export default function StudentProfilePage() {
   const [docType, setDocType] = useState('birth_certificate')
   const [docName, setDocName] = useState('')
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadAll() }, [studentId])
 
   async function loadAll() {
     setLoading(true)
     try {
       const [profileRes, docsRes, achRes, discRes] = await Promise.all([
-        fetch(`${API}/students/${studentId}/profile`, { headers: hdrs() }),
-        fetch(`${API}/students/${studentId}/documents`, { headers: hdrs() }),
-        fetch(`${API}/students/${studentId}/achievements`, { headers: hdrs() }),
-        fetch(`${API}/students/${studentId}/discipline`, { headers: hdrs() }),
+        apiFetch(`${API}/students/${studentId}/profile`),
+        apiFetch(`${API}/students/${studentId}/documents`),
+        apiFetch(`${API}/students/${studentId}/achievements`),
+        apiFetch(`${API}/students/${studentId}/discipline`),
       ])
       const profileData = await profileRes.json()
       const docsData = await docsRes.json()
@@ -128,9 +120,7 @@ export default function StudentProfilePage() {
   async function saveProfile() {
     setSaving(true); setError(''); setSuccess('')
     try {
-      const res = await fetch(`${API}/students/${studentId}/profile`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({
+      const res = await apiFetch(`${API}/students/${studentId}/profile`, {method: 'POST',body: JSON.stringify({
           dateOfBirth: profileForm.date_of_birth?.slice(0,10) || undefined,
           gender: profileForm.gender || undefined,
           religion: profileForm.religion || undefined,
@@ -148,9 +138,7 @@ export default function StudentProfilePage() {
           previousSchoolAddress: profileForm.previous_school_address || undefined,
           emergencyContactName: profileForm.emergency_contact_name || undefined,
           emergencyContactPhone: profileForm.emergency_contact_phone || undefined,
-          emergencyContactRelationship: profileForm.emergency_contact_relationship || undefined,
-        })
-      })
+          emergencyContactRelationship: profileForm.emergency_contact_relationship || undefined})})
       if (!res.ok) throw new Error('Failed to save')
       setSuccess('Profile saved!')
       setTimeout(() => setSuccess(''), 3000)
@@ -165,10 +153,7 @@ export default function StudentProfilePage() {
     setUploading(true); setError('')
     try {
       const fileUrl = await uploadToSupabase(file, studentId)
-      await fetch(`${API}/students/${studentId}/documents`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ documentType: docType, documentName: docName, fileUrl })
-      })
+      await apiFetch(`${API}/students/${studentId}/documents`, {method: 'POST',body: JSON.stringify({ documentType: docType, documentName: docName, fileUrl })})
       setDocName(''); setDocType('birth_certificate')
       if (fileInputRef.current) fileInputRef.current.value = ''
       setSuccess('Document uploaded!'); setTimeout(() => setSuccess(''), 3000)
@@ -178,7 +163,7 @@ export default function StudentProfilePage() {
 
   async function deleteDocument(docId: string) {
     if (!window.confirm('Delete this document?')) return
-    await fetch(`${API}/students/${studentId}/documents/${docId}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/students/${studentId}/documents/${docId}`, { method: 'DELETE' })
     setDocuments(prev => prev.filter(d => d.id !== docId))
   }
 
@@ -186,10 +171,7 @@ export default function StudentProfilePage() {
     if (!achForm.title.trim()) { setError('Title is required'); return }
     setSaving(true)
     try {
-      await fetch(`${API}/students/${studentId}/achievements`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ title: achForm.title, category: achForm.category, description: achForm.description || undefined, dateAwarded: achForm.dateAwarded || undefined, awardedBy: achForm.awardedBy || undefined })
-      })
+      await apiFetch(`${API}/students/${studentId}/achievements`, {method: 'POST',body: JSON.stringify({ title: achForm.title, category: achForm.category, description: achForm.description || undefined, dateAwarded: achForm.dateAwarded || undefined, awardedBy: achForm.awardedBy || undefined })})
       setAchForm({ title: '', category: 'academic', description: '', dateAwarded: '', awardedBy: '' })
       setShowAchForm(false); loadAll()
     } catch { setError('Failed to save') } finally { setSaving(false) }
@@ -197,7 +179,7 @@ export default function StudentProfilePage() {
 
   async function deleteAchievement(achId: string) {
     if (!window.confirm('Delete this achievement?')) return
-    await fetch(`${API}/students/${studentId}/achievements/${achId}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/students/${studentId}/achievements/${achId}`, { method: 'DELETE' })
     setAchievements(prev => prev.filter(a => a.id !== achId))
   }
 
@@ -205,10 +187,7 @@ export default function StudentProfilePage() {
     if (!discForm.incidentDate || !discForm.description.trim()) { setError('Date and description are required'); return }
     setSaving(true)
     try {
-      await fetch(`${API}/students/${studentId}/discipline`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ incidentDate: discForm.incidentDate, incidentType: discForm.incidentType, description: discForm.description, actionTaken: discForm.actionTaken, actionDetails: discForm.actionDetails || undefined, parentNotified: discForm.parentNotified })
-      })
+      await apiFetch(`${API}/students/${studentId}/discipline`, {method: 'POST',body: JSON.stringify({ incidentDate: discForm.incidentDate, incidentType: discForm.incidentType, description: discForm.description, actionTaken: discForm.actionTaken, actionDetails: discForm.actionDetails || undefined, parentNotified: discForm.parentNotified })})
       setDiscForm({ incidentDate: '', incidentType: 'misconduct', description: '', actionTaken: 'verbal_warning', actionDetails: '', parentNotified: false })
       setShowDiscForm(false); loadAll()
     } catch { setError('Failed to save') } finally { setSaving(false) }
@@ -217,9 +196,7 @@ export default function StudentProfilePage() {
   async function resolveRecord(recId: string) {
     const notes = window.prompt('Resolution notes (optional):')
     if (notes === null) return
-    await fetch(`${API}/students/${studentId}/discipline/${recId}/resolve`, {
-      method: 'PATCH', headers: hdrs(), body: JSON.stringify({ resolutionNotes: notes })
-    })
+    await apiFetch(`${API}/students/${studentId}/discipline/${recId}/resolve`, {method: 'PATCH',body: JSON.stringify({ resolutionNotes: notes })})
     loadAll()
   }
 

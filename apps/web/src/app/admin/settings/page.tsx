@@ -1,10 +1,7 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect, useRef } from 'react'
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -13,8 +10,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -31,18 +27,20 @@ export default function SettingsPage() {
   const [schoolId, setSchoolId] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSettings() }, [])
 
   async function loadSettings() {
     try {
-      const res = await fetch(`${API}/auth/me`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/auth/me`)
       const data = await res.json()
       const school = data.user?.school
       setSchoolName(school?.name ?? '')
       setSchoolId(school?.id ?? '')
 
       // Load current logo
-      const schoolRes = await fetch(`${API}/schools/settings`, { headers: hdrs() })
+      const schoolRes = await apiFetch(`${API}/schools/settings`)
       if (schoolRes.ok) {
         const schoolData = await schoolRes.json()
         setLogoUrl(schoolData.logo_url ?? '')
@@ -96,9 +94,8 @@ export default function SettingsPage() {
     if (!logoUrl) return
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/schools/settings`, {
+      const res = await apiFetch(`${API}/schools/settings`, {
         method: 'PATCH',
-        headers: hdrs(),
         body: JSON.stringify({ logoUrl })
       })
       if (!res.ok) throw new Error('Failed to save')

@@ -1,22 +1,10 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -48,12 +36,18 @@ export default function CertificatesPage() {
     description: '', minCompletionPct: '80'
   })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSubjects() }, [selectedClass])
 
   async function loadInitial() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -62,7 +56,7 @@ export default function CertificatesPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -71,13 +65,13 @@ export default function CertificatesPage() {
   }
 
   async function loadSubjects() {
-    const res = await fetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`)
     const data = await res.json()
     setSubjects(data.subjects ?? [])
   }
 
   async function loadStudents() {
-    const res = await fetch(`${API}/gradebook/class?termId=${selectedTerm}&classLevel=${selectedClass}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/gradebook/class?termId=${selectedTerm}&classLevel=${selectedClass}`)
     const data = await res.json()
     setStudents(data.students ?? [])
   }
@@ -86,7 +80,7 @@ export default function CertificatesPage() {
     if (!selectedTerm) { setError('Please select a term'); return }
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${API}/certificates?termId=${selectedTerm}&classLevel=${selectedClass}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/certificates?termId=${selectedTerm}&classLevel=${selectedClass}`)
       const data = await res.json()
       setCertificates(data.certificates ?? [])
     } catch { setError('Failed to load certificates') } finally { setLoading(false) }
@@ -104,7 +98,7 @@ export default function CertificatesPage() {
         description: issueForm.description || undefined,
       }
       if (issueForm.subjectId) body.subjectId = issueForm.subjectId
-      const res = await fetch(`${API}/certificates`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      const res = await fetch(`${API}/certificates`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to issue')
       if (data.alreadyIssued) { setSuccess('Certificate already issued to this student.') }
@@ -128,7 +122,7 @@ export default function CertificatesPage() {
         minCompletionPct: Number(bulkForm.minCompletionPct),
       }
       if (bulkForm.subjectId) body.subjectId = bulkForm.subjectId
-      const res = await fetch(`${API}/certificates/bulk-issue`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      const res = await fetch(`${API}/certificates/bulk-issue`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to bulk issue')
       setSuccess(`Issued ${data.issued} certificates to eligible students!`)
@@ -140,7 +134,7 @@ export default function CertificatesPage() {
 
   async function revoke(id: string) {
     if (!window.confirm('Revoke this certificate?')) return
-    await fetch(`${API}/certificates/${id}/revoke`, { method: 'PATCH', headers: hdrs() })
+    await fetch(`${API}/certificates/${id}/revoke`, { method: 'PATCH' })
     setCertificates(prev => prev.filter(c => c.id !== id))
   }
 

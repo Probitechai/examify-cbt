@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -96,20 +97,7 @@ const PLANS = [
   },
 ]
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -124,14 +112,16 @@ export default function SubscriptionPage() {
   const [termName, setTermName] = useState('')
   const [error, setError] = useState('')
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
     setLoading(true)
     try {
       const [schoolRes, historyRes] = await Promise.all([
-        fetch(`${API}/schools/settings`, { headers: hdrs() }),
-        fetch(`${API}/paystack/subscription/history`, { headers: hdrs() }),
+        apiFetch(`${API}/schools/settings`),
+        apiFetch(`${API}/paystack/subscription/history`),
       ])
       const schoolData = await schoolRes.json()
       const historyData = await historyRes.json()
@@ -150,9 +140,9 @@ export default function SubscriptionPage() {
     setPaying(tier); setError('')
     try {
       const res = await fetch(`${API}/paystack/subscription/initialize`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ tier, termName: termName.trim() })
-      })
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Failed to initialize payment')
 

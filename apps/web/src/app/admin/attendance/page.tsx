@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -32,10 +33,6 @@ const STATUS_CONFIG = {
   excused: { label: 'Excused', color: '#1e40af', bg: '#eff6ff', icon: '📋' },
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 function getSubdomain() {
   try {
     const t = getToken()
@@ -44,8 +41,7 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -71,11 +67,15 @@ export default function AttendancePage() {
   const [alreadyMarked, setAlreadyMarked] = useState(false)
   const [error, setError] = useState('')
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSessions() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   async function loadSessions() {
-    const res = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions`)
     const data = await res.json()
     const list = data.sessions ?? []
     setSessions(list)
@@ -84,7 +84,7 @@ export default function AttendancePage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -98,7 +98,7 @@ export default function AttendancePage() {
     try {
       const params = new URLSearchParams({ termId: selectedTerm, date, classLevel })
       if (classArm) params.append('classArm', classArm)
-      const res = await fetch(`${API}/attendance?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/attendance?${params}`)
       const data = await res.json()
       const list = data.students ?? []
       setStudents(list)
@@ -119,7 +119,7 @@ export default function AttendancePage() {
     try {
       const params = new URLSearchParams({ termId: selectedTerm, classLevel })
       if (classArm) params.append('classArm', classArm)
-      const res = await fetch(`${API}/attendance/summary?${params}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/attendance/summary?${params}`)
       const data = await res.json()
       setSummary(data.summary ?? [])
     } catch { setError('Failed to load summary') } finally { setLoading(false) }
@@ -143,7 +143,7 @@ export default function AttendancePage() {
         remark: localStatus[s.id]?.remark || undefined,
       }))
       const res = await fetch(`${API}/attendance`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ termId: selectedTerm, date, classLevel, classArm: classArm || undefined, records })
       })
       if (!res.ok) throw new Error('Failed to save')

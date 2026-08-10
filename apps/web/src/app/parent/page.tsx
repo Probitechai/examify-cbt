@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -18,20 +19,7 @@ interface DashboardItem {
   feeSummary: { totalFees: number; totalPaid: number; balance: number } | null
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 function formatAmount(n: number) {
   return `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
@@ -55,6 +43,8 @@ export default function ParentDashboard() {
   const [sectionLoading, setSectionLoading] = useState(false)
   const [announcements, setAnnouncements] = useState<any[]>([])
 
+useEffect(() => { checkAuth(router, 'parent') }, [])
+
   useEffect(() => {
     // Verify role
     try {
@@ -70,9 +60,9 @@ export default function ParentDashboard() {
     setLoading(true)
     try {
       const [dashRes, meRes, annRes] = await Promise.all([
-        fetch(`${API}/parents/dashboard`, { headers: hdrs() }),
-        fetch(`${API}/auth/me`, { headers: hdrs() }),
-        fetch(`${API}/announcements`, { headers: hdrs() }),
+        apiFetch(`${API}/parents/dashboard`),
+        apiFetch(`${API}/auth/me`),
+        apiFetch(`${API}/announcements`),
       ])
       const dashData = await dashRes.json()
       const meData = await meRes.json()
@@ -94,8 +84,8 @@ export default function ParentDashboard() {
     try {
       if (section === 'learning') {
         const [lessonsRes, gradebookRes] = await Promise.all([
-          fetch(`${API}/lessons?classLevel=${currentItem?.student?.class_level ?? ''}`, { headers: hdrs() }),
-          fetch(`${API}/gradebook/student/${studentId}?termId=${termId}`, { headers: hdrs() }),
+          apiFetch(`${API}/lessons?classLevel=${currentItem?.student?.class_level ?? ''}`),
+          apiFetch(`${API}/gradebook/student/${studentId}?termId=${termId}`),
         ])
         const lessonsData = await lessonsRes.json()
         const gradebookData = await gradebookRes.json()
@@ -110,7 +100,7 @@ export default function ParentDashboard() {
           : section === 'transport'
           ? `${API}/transport/student/${studentId}?termId=${termId}`
           : `${API}/parents/${section}?${params}`
-        const res = await fetch(url, { headers: hdrs() })
+        const res = await apiFetch(url)
         const data = await res.json()
         if (section === 'results') setResults(data)
         if (section === 'attendance') setAttendance(data)
@@ -469,7 +459,7 @@ export default function ParentDashboard() {
                                   method: 'POST',
                                   headers: { 'Authorization': `Bearer ${token}`, 'X-School-Subdomain': subdomain, 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ feeStructureId: f.id, studentId: currentItem.student.id, amount: f.balance })
-                                })
+                                }
                                 const data = await res.json()
                                 if (data.authorizationUrl) window.location.href = data.authorizationUrl
                                 else alert('Could not initialize payment. Please try again.')

@@ -1,24 +1,12 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 export default function StudentLearningPathsPage() {
@@ -29,16 +17,22 @@ export default function StudentLearningPathsPage() {
   const [pathProgress, setPathProgress] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { hydrate() }, [hydrate])
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { if (user) loadPaths() }, [user])
 
   async function loadPaths() {
     try {
       const cl = (user as any)?.classLevel ?? ''
-      const res = await fetch(`${API}/learning-paths?classLevel=${cl}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/learning-paths?classLevel=${cl}`)
       const data = await res.json()
       const published = (data.paths ?? []).filter((p: any) => p.is_published)
       setPaths(published)
@@ -47,8 +41,8 @@ export default function StudentLearningPathsPage() {
 
   async function loadPathProgress(pathId: string) {
     const [pathRes, progressRes] = await Promise.all([
-      fetch(`${API}/learning-paths/${pathId}`, { headers: hdrs() }),
-      fetch(`${API}/learning-paths/${pathId}/progress`, { headers: hdrs() }),
+      apiFetch(`${API}/learning-paths/${pathId}`),
+      apiFetch(`${API}/learning-paths/${pathId}/progress`),
     ])
     const pathData = await pathRes.json()
     const progressData = await progressRes.json()

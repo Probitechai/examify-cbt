@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -16,10 +17,6 @@ interface Question {
   created_at: string
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 
 function getSubdomain() {
   try {
@@ -30,8 +27,7 @@ function getSubdomain() {
   return 'greensprings'
 }
 
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 export default function QuestionsPage() {
@@ -42,12 +38,14 @@ export default function QuestionsPage() {
   const [subjectFilter, setSubjectFilter] = useState('')
   const [selected, setSelected] = useState<string[]>([])
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, { headers: hdrs() })
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`)
       const data = await res.json()
       setQuestions(data.questions ?? [])
     } catch (err) { console.error(err) }
@@ -56,7 +54,7 @@ export default function QuestionsPage() {
 
   async function del() {
     if (!selected.length || !window.confirm(`Delete ${selected.length} question(s)?`)) return
-    await Promise.all(selected.map(id => fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${id}`, { method: 'DELETE', headers: hdrs() })))
+    await Promise.all(selected.map(id => apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${id}`, { method: 'DELETE' })))
     setSelected([])
     load()
   }

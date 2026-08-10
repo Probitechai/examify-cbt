@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface ExamStat {
@@ -29,10 +30,6 @@ interface StudentStat {
   avg_score: number
 }
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 
 function getSubdomain() {
   try {
@@ -62,6 +59,8 @@ export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'exams' | 'students' | 'subjects'>('overview')
   const [classFilter, setClassFilter] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
+
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     loadData()

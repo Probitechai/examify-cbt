@@ -1,24 +1,12 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 function CertificateRenderer({ cert }: { cert: any }) {
@@ -82,15 +70,21 @@ export default function StudentCertificatesPage() {
   const [loading, setLoading] = useState(true)
   const [viewingCert, setViewingCert] = useState<any>(null)
 
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { hydrate() }, [hydrate])
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
+  useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { if (user) loadCertificates() }, [user])
 
   async function loadCertificates() {
     try {
-      const res = await fetch(`${API}/certificates/student/${(user as any).id}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/certificates/student/${(user as any).id}`)
       const data = await res.json()
       setCertificates(data.certificates ?? [])
     } catch {} finally { setLoading(false) }

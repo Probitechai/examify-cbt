@@ -1,23 +1,13 @@
 'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+
+
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -79,12 +69,14 @@ export default function ApplicationDetailPage() {
   const [enrollForm, setEnrollForm] = useState({ admissionNo: '', classLevel: '', classArm: '', password: 'Student@1234' })
   const [enrolling, setEnrolling] = useState(false)
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadApplication() }, [applicantId])
 
   async function loadApplication() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/admissions/applications/${applicantId}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/admissions/applications/${applicantId}`)
       const data = await res.json()
       setApplication(data.application)
       setDocuments(data.documents ?? [])
@@ -103,9 +95,7 @@ export default function ApplicationDetailPage() {
       if (interviewVenue) body.interviewVenue = interviewVenue
       if (actionStatus === 'interview_done') body.interviewOutcome = interviewOutcome
 
-      const res = await fetch(`${API}/admissions/applications/${applicantId}/status`, {
-        method: 'PATCH', headers: hdrs(), body: JSON.stringify(body)
-      })
+      const res = await apiFetch(`${API}/admissions/applications/${applicantId}/status`, {method: 'PATCH',body: JSON.stringify(body)})
       if (!res.ok) throw new Error('Failed to update')
       setShowActionModal(false)
       setActionNotes(''); setExamScore(''); setExamDate(''); setInterviewDate(''); setInterviewVenue('')
@@ -119,9 +109,7 @@ export default function ApplicationDetailPage() {
     if (!enrollForm.classLevel) { setError('Class level is required'); return }
     setEnrolling(true); setError('')
     try {
-      const res = await fetch(`${API}/admissions/applications/${applicantId}/enroll`, {
-        method: 'POST', headers: hdrs(), body: JSON.stringify(enrollForm)
-      })
+      const res = await apiFetch(`${API}/admissions/applications/${applicantId}/enroll`, {method: 'POST',body: JSON.stringify(enrollForm)})
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to enroll')
       setShowEnrollModal(false)
@@ -329,14 +317,10 @@ export default function ApplicationDetailPage() {
                   onClick={async () => {
                     setSendingOffer(true); setError('')
                     try {
-                      const res = await fetch(`${API}/admissions/applications/${applicantId}/offer`, {
-                        method: 'POST', headers: hdrs(),
-                        body: JSON.stringify({
+                      const res = await apiFetch(`${API}/admissions/applications/${applicantId}/offer`, {method: 'POST',body: JSON.stringify({
                           acceptanceFeeAmount: offerForm.acceptanceFeeAmount,
                           offerExpiresAt: new Date(offerForm.offerExpiresAt).toISOString(),
-                          customMessage: offerForm.customMessage || undefined,
-                        })
-                      })
+                          customMessage: offerForm.customMessage || undefined})})
                       const d = await res.json()
                       if (!res.ok) throw new Error(d.error ?? 'Failed to send offer')
                       setShowOfferModal(false)

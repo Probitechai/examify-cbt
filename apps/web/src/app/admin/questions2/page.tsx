@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 interface Question {
@@ -19,10 +20,6 @@ type QType = 'mcq' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay'
 
 const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religious Studies','Civic Education','Commerce','Computer Science','Economics','English Language','Financial Accounting','French','Further Mathematics','Geography','Government','History','Home Economics','Islamic Religious Studies','Literature in English','Mathematics','Music','Physical Education','Physics','Technical Drawing']
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
 
 function getSubdomain() {
   try {
@@ -33,8 +30,7 @@ function getSubdomain() {
   return 'greensprings'
 }
 
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const inp = { padding: '0.625rem 0.875rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', width: '100%', fontFamily: 'inherit', boxSizing: 'border-box' as const }
@@ -48,12 +44,14 @@ export default function QuestionsPage() {
   const [subjectFilter, setSubjectFilter] = useState('')
   const [selected, setSelected] = useState<string[]>([])
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, { headers: hdrs() })
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`)
       const data = await res.json()
       setQuestions(data.questions ?? [])
     } catch {}
@@ -62,7 +60,7 @@ export default function QuestionsPage() {
 
   async function del() {
     if (!selected.length || !window.confirm(`Delete ${selected.length} question(s)?`)) return
-    await Promise.all(selected.map(id => fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${id}`, { method: 'DELETE', headers: hdrs() })))
+    await Promise.all(selected.map(id => apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/questions/${id}`, { method: 'DELETE' })))
     setSelected([])
     load()
   }
@@ -163,8 +161,7 @@ function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void 
       } else if (type === 'essay') { correctAnswer = 'ESSAY'; apiType = 'short_answer' }
 
       const finalSubject = showCustom && customSubject.trim() ? customSubject.trim() : subject
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, {
-        method: 'POST', headers: hdrs(),
+            const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, {
         body: JSON.stringify({ type: apiType, subject: finalSubject, classLevel, topic: topic || undefined, questionText: qText, options: options || undefined, correctAnswer, marks, difficulty })
       })
       const data = await res.json()

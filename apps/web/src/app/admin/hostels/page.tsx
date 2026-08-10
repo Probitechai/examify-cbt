@@ -1,22 +1,10 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -48,15 +36,21 @@ export default function HostelPage() {
   const [roomForm, setRoomForm] = useState({ roomNumber: '', roomType: 'shared', bedCapacity: '4', floorNumber: '1' })
   const [allocForm, setAllocForm] = useState({ studentId: '', bedId: '', hostelId: '', roomId: '', notes: '' })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedTerm) { loadAllocations(); loadOccupancy() } }, [selectedTerm])
 
   async function loadInitial() {
     try {
       const [sessRes, staffRes] = await Promise.all([
-        fetch(`${API}/sessions`, { headers: hdrs() }),
-        fetch(`${API}/users?role=teacher`, { headers: hdrs() }),
+        apiFetch(`${API}/sessions`),
+        apiFetch(`${API}/users?role=teacher`),
       ])
       const sessData = await sessRes.json()
       const staffData = await staffRes.json()
@@ -69,7 +63,7 @@ export default function HostelPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -78,19 +72,19 @@ export default function HostelPage() {
   }
 
   async function loadHostels() {
-    const res = await fetch(`${API}/hostels`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels`)
     const data = await res.json()
     setHostels(data.hostels ?? [])
   }
 
   async function loadRooms(hostelId: string) {
-    const res = await fetch(`${API}/hostels/${hostelId}/rooms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/${hostelId}/rooms`)
     const data = await res.json()
     setRooms(data.rooms ?? [])
   }
 
   async function loadBeds(roomId: string) {
-    const res = await fetch(`${API}/hostels/rooms/${roomId}/beds`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/rooms/${roomId}/beds`)
     const data = await res.json()
     setBeds(data.beds ?? [])
   }
@@ -99,20 +93,20 @@ export default function HostelPage() {
     if (!selectedTerm) return
     let url = `${API}/hostels/allocations?termId=${selectedTerm}`
     if (selectedHostel) url += `&hostelId=${selectedHostel.id}`
-    const res = await fetch(url, { headers: hdrs() })
+    const res = await apiFetch(url)
     const data = await res.json()
     setAllocations(data.allocations ?? [])
   }
 
   async function loadOccupancy() {
     if (!selectedTerm) return
-    const res = await fetch(`${API}/hostels/occupancy?termId=${selectedTerm}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/hostels/occupancy?termId=${selectedTerm}`)
     const data = await res.json()
     setOccupancyReport(data.report ?? [])
   }
 
   async function loadStudents(classLevel?: string) {
-    const res = await fetch(`${API}/gradebook/class?termId=${selectedTerm}&classLevel=${classLevel ?? 'SS1'}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/gradebook/class?termId=${selectedTerm}&classLevel=${classLevel ?? 'SS1'}`)
     const data = await res.json()
     setStudents(data.students ?? [])
   }
@@ -123,7 +117,7 @@ export default function HostelPage() {
     try {
       const body: any = { name: hostelForm.name, type: hostelForm.type, description: hostelForm.description || undefined }
       if (hostelForm.housemasterId) body.housemasterId = hostelForm.housemasterId
-      const res = await fetch(`${API}/hostels`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      const res = await fetch(`${API}/hostels`, { method: 'POST', body: JSON.stringify(body) }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowHostelForm(false)
@@ -138,14 +132,14 @@ export default function HostelPage() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/hostels/${selectedHostel.id}/rooms`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           roomNumber: roomForm.roomNumber,
           roomType: roomForm.roomType,
           bedCapacity: Number(roomForm.bedCapacity),
           floorNumber: Number(roomForm.floorNumber),
         })
-      })
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowRoomForm(false)
@@ -161,7 +155,7 @@ export default function HostelPage() {
     setSaving(true); setError('')
     try {
       const res = await fetch(`${API}/hostels/allocations`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({
           studentId: allocForm.studentId,
           bedId: allocForm.bedId,
@@ -170,7 +164,7 @@ export default function HostelPage() {
           termId: selectedTerm,
           notes: allocForm.notes || undefined,
         })
-      })
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to allocate')
       setShowAllocForm(false)
@@ -183,7 +177,7 @@ export default function HostelPage() {
 
   async function vacateAllocation(id: string) {
     if (!window.confirm('Remove this student from their bed?')) return
-    await fetch(`${API}/hostels/allocations/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/hostels/allocations/${id}`, { method: 'DELETE' })
     setSuccess('Student vacated'); setTimeout(() => setSuccess(''), 3000)
     loadAllocations(); loadOccupancy(); loadHostels()
     if (selectedRoom) loadBeds(selectedRoom.id)

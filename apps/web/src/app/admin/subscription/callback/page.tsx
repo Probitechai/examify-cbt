@@ -1,21 +1,9 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -26,6 +14,8 @@ export default function SubscriptionCallbackPage() {
   const [message, setMessage] = useState('')
   const [tier, setTier] = useState('')
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref')
     if (!reference) { setStatus('failed'); setMessage('No payment reference found.'); return }
@@ -34,7 +24,7 @@ export default function SubscriptionCallbackPage() {
 
   async function verifyPayment(reference: string) {
     try {
-      const res = await fetch(`${API}/paystack/subscription/verify?reference=${reference}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/paystack/subscription/verify?reference=${reference}`)
       const data = await res.json()
       if (data.success) {
         setStatus('success')

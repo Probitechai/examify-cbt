@@ -1,4 +1,5 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../../hooks/useAuth'
@@ -7,20 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 export default function StudentLessonsPage() {
@@ -29,17 +17,23 @@ export default function StudentLessonsPage() {
   const [lessons, setLessons] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { hydrate() }, [hydrate])
+useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
     if (!isLoading && user && user.role !== 'student') router.replace('/admin')
   }, [user, isLoading, router])
+useEffect(() => { checkAuth(router, 'student') }, [])
+
   useEffect(() => { if (user) loadLessons() }, [user])
 
   async function loadLessons() {
     try {
       const cl = (user as any)?.classLevel ?? ''
-      const res = await fetch(`${API}/lessons?classLevel=${cl}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/lessons?classLevel=${cl}`)
       const data = await res.json()
       setLessons((data.lessons ?? []).filter((l: any) => l.status === 'published'))
     } catch {} finally { setLoading(false) }

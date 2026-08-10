@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import LessonDiscussion from '../LessonDiscussion'
@@ -10,25 +11,14 @@ const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+
+
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 async function uploadFile(file: File, folder: string): Promise<string> {
   const ext = file.name.split('.').pop()
   const path = `${folder}/${Date.now()}.${ext}`
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/lesson-files/${path}`, {
+  const res = await apiFetch(`${SUPABASE_URL}/storage/v1/object/lesson-files/${path}`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
     body: file,
@@ -91,12 +81,14 @@ export default function LessonDetailPage() {
   const [gradingSubmission, setGradingSubmission] = useState<any>(null)
   const [gradeForm, setGradeForm] = useState({ score: '', feedback: '' })
 
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadLesson(); loadExams() }, [lessonId])
 
   async function loadLesson() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/lessons/${lessonId}`, { headers: hdrs() })
+      const res = await apiFetch(`${API}/lessons/${lessonId}`)
       const data = await res.json()
       setLesson(data.lesson)
       setResources(data.resources ?? [])
@@ -105,8 +97,8 @@ export default function LessonDetailPage() {
       setCompletions(data.completions)
       // Load interactive elements
       const [flashRes, inlineRes] = await Promise.all([
-        fetch(`${API}/lessons/${lessonId}/flashcards`, { headers: hdrs() }),
-        fetch(`${API}/lessons/${lessonId}/inline-quizzes`, { headers: hdrs() }),
+        apiFetch(`${API}/lessons/${lessonId}/flashcards`),
+        apiFetch(`${API}/lessons/${lessonId}/inline-quizzes`),
       ])
       const flashData = await flashRes.json()
       const inlineData = await inlineRes.json()
@@ -116,13 +108,13 @@ export default function LessonDetailPage() {
   }
 
   async function loadExams() {
-    const res = await fetch(`${API}/exams`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/exams`)
     const data = await res.json()
     setExams(data.exams ?? [])
   }
 
   async function loadCompletionList() {
-    const res = await fetch(`${API}/lessons/${lessonId}/completions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/lessons/${lessonId}/completions`)
     const data = await res.json()
     setCompletionList(data.completions ?? [])
   }
@@ -130,8 +122,8 @@ export default function LessonDetailPage() {
   async function publishLesson() {
     setPublishing(true)
     try {
-      await fetch(`${API}/lessons/${lessonId}`, {
-        method: 'PATCH', headers: hdrs(),
+      await apiFetch(`${API}/lessons/${lessonId}`, {
+        method: 'PATCH',
         body: JSON.stringify({ status: lesson.status === 'published' ? 'draft' : 'published' })
       })
       setSuccess(lesson.status === 'published' ? 'Lesson unpublished' : 'Lesson published to students!')
@@ -144,16 +136,12 @@ export default function LessonDetailPage() {
     if (!resourceForm.title || !resourceForm.url) { setError('Title and URL required'); return }
     setAddingResource(true); setError('')
     try {
-      await fetch(`${API}/lessons/${lessonId}/resources`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({
+      await apiFetch(`${API}/lessons/${lessonId}/resources`, {method: 'POST',body: JSON.stringify({
           resourceType: resourceForm.resourceType,
           title: resourceForm.title,
           description: resourceForm.description || undefined,
           url: resourceForm.url,
-          durationMins: resourceForm.durationMins ? Number(resourceForm.durationMins) : undefined,
-        })
-      })
+          durationMins: resourceForm.durationMins ? Number(resourceForm.durationMins) : undefined})})
       setShowResourceForm(false)
       setResourceForm({ resourceType: 'video_link', title: '', description: '', url: '', durationMins: '' })
       loadLesson()
@@ -167,10 +155,7 @@ export default function LessonDetailPage() {
     try {
       const url = await uploadFile(file, lessonId)
       const rt = file.type.startsWith('video/') ? 'video_upload' : file.type.startsWith('image/') ? 'image' : 'file'
-      await fetch(`${API}/lessons/${lessonId}/resources`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ resourceType: rt, title: resourceForm.title, url, fileSizeBytes: file.size })
-      })
+      await apiFetch(`${API}/lessons/${lessonId}/resources`, {method: 'POST',body: JSON.stringify({ resourceType: rt, title: resourceForm.title, url, fileSizeBytes: file.size })})
       setShowResourceForm(false)
       setResourceForm({ resourceType: 'video_link', title: '', description: '', url: '', durationMins: '' })
       loadLesson()
@@ -178,7 +163,7 @@ export default function LessonDetailPage() {
   }
 
   async function deleteResource(id: string) {
-    await fetch(`${API}/lessons/${lessonId}/resources/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/lessons/${lessonId}/resources/${id}`, { method: 'DELETE' })
     setResources(prev => prev.filter(r => r.id !== id))
   }
 
@@ -186,15 +171,11 @@ export default function LessonDetailPage() {
     if (!quizForm.title) { setError('Title required'); return }
     setAddingQuiz(true); setError('')
     try {
-      await fetch(`${API}/lessons/${lessonId}/quizzes`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({
+      await apiFetch(`${API}/lessons/${lessonId}/quizzes`, {method: 'POST',body: JSON.stringify({
           examId: quizForm.examId || undefined,
           title: quizForm.title,
           instructions: quizForm.instructions || undefined,
-          isRequired: quizForm.isRequired,
-        })
-      })
+          isRequired: quizForm.isRequired})})
       setShowQuizForm(false)
       setQuizForm({ examId: '', title: '', instructions: '', isRequired: false })
       loadLesson()
@@ -202,7 +183,7 @@ export default function LessonDetailPage() {
   }
 
   async function deleteQuiz(id: string) {
-    await fetch(`${API}/lessons/${lessonId}/quizzes/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/lessons/${lessonId}/quizzes/${id}`, { method: 'DELETE' })
     setQuizzes(prev => prev.filter(q => q.id !== id))
   }
 
@@ -210,17 +191,13 @@ export default function LessonDetailPage() {
     if (!assignmentForm.title || !assignmentForm.instructions) { setError('Title and instructions required'); return }
     setAddingAssignment(true); setError('')
     try {
-      await fetch(`${API}/lessons/${lessonId}/assignments`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({
+      await apiFetch(`${API}/lessons/${lessonId}/assignments`, {method: 'POST',body: JSON.stringify({
           title: assignmentForm.title,
           instructions: assignmentForm.instructions,
           dueDate: assignmentForm.dueDate || undefined,
           maxScore: Number(assignmentForm.maxScore),
           submissionType: assignmentForm.submissionType,
-          isRequired: assignmentForm.isRequired,
-        })
-      })
+          isRequired: assignmentForm.isRequired})})
       setShowAssignmentForm(false)
       setAssignmentForm({ title: '', instructions: '', dueDate: '', maxScore: '100', submissionType: 'both', isRequired: true })
       loadLesson()
@@ -228,23 +205,20 @@ export default function LessonDetailPage() {
   }
 
   async function deleteAssignment(id: string) {
-    await fetch(`${API}/lessons/${lessonId}/assignments/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/lessons/${lessonId}/assignments/${id}`, { method: 'DELETE' })
     setAssignments(prev => prev.filter(a => a.id !== id))
   }
 
   async function loadSubmissions(assignment: any) {
     setViewingSubmissions(assignment)
-    const res = await fetch(`${API}/lessons/assignments/${assignment.id}/submissions`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/lessons/assignments/${assignment.id}/submissions`)
     const data = await res.json()
     setSubmissions(data.submissions ?? [])
   }
 
   async function gradeSubmission() {
     if (!gradingSubmission || !gradeForm.score) return
-    await fetch(`${API}/lessons/submissions/${gradingSubmission.id}/grade`, {
-      method: 'PATCH', headers: hdrs(),
-      body: JSON.stringify({ score: Number(gradeForm.score), feedback: gradeForm.feedback || undefined })
-    })
+    await apiFetch(`${API}/lessons/submissions/${gradingSubmission.id}/grade`, {method: 'PATCH',body: JSON.stringify({ score: Number(gradeForm.score), feedback: gradeForm.feedback || undefined })})
     setGradingSubmission(null)
     loadSubmissions(viewingSubmissions)
   }
@@ -254,10 +228,7 @@ export default function LessonDetailPage() {
     if (validCards.length === 0) { setError('Add at least one complete card'); return }
     setSavingFlashcards(true)
     try {
-      await fetch(`${API}/lessons/${lessonId}/flashcards`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({ cards: validCards.map(c => ({ front: c.front, back: c.back, hint: c.hint || undefined })) })
-      })
+      await apiFetch(`${API}/lessons/${lessonId}/flashcards`, {method: 'POST',body: JSON.stringify({ cards: validCards.map(c => ({ front: c.front, back: c.back, hint: c.hint || undefined })) })})
       setShowFlashcardForm(false)
       setFlashcardPairs([{ front: '', back: '', hint: '' }])
       loadLesson()
@@ -265,7 +236,7 @@ export default function LessonDetailPage() {
   }
 
   async function deleteFlashcard(id: string) {
-    await fetch(`${API}/lessons/flashcards/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/lessons/flashcards/${id}`, { method: 'DELETE' })
     setFlashcards(prev => prev.filter((f: any) => f.id !== id))
   }
 
@@ -273,17 +244,13 @@ export default function LessonDetailPage() {
     if (!inlineQuizForm.question || !inlineQuizForm.optionA || !inlineQuizForm.optionB) { setError('Question and options A, B required'); return }
     setSavingInlineQuiz(true)
     try {
-      await fetch(`${API}/lessons/${lessonId}/inline-quizzes`, {
-        method: 'POST', headers: hdrs(),
-        body: JSON.stringify({
+      await apiFetch(`${API}/lessons/${lessonId}/inline-quizzes`, {method: 'POST',body: JSON.stringify({
           question: inlineQuizForm.question, optionA: inlineQuizForm.optionA,
           optionB: inlineQuizForm.optionB, optionC: inlineQuizForm.optionC || undefined,
           optionD: inlineQuizForm.optionD || undefined,
           correctOption: inlineQuizForm.correctOption,
           explanation: inlineQuizForm.explanation || undefined,
-          sortOrder: inlineQuizzes.length,
-        })
-      })
+          sortOrder: inlineQuizzes.length})})
       setShowInlineQuizForm(false)
       setInlineQuizForm({ question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'a', explanation: '' })
       loadLesson()
@@ -291,7 +258,7 @@ export default function LessonDetailPage() {
   }
 
   async function deleteInlineQuiz(id: string) {
-    await fetch(`${API}/lessons/inline-quizzes/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/lessons/inline-quizzes/${id}`, { method: 'DELETE' })
     setInlineQuizzes(prev => prev.filter((q: any) => q.id !== id))
   }
 
@@ -440,9 +407,7 @@ export default function LessonDetailPage() {
                       url,
                       fileSizeBytes,
                     }
-                    await fetch(`${API}/lessons/${lessonId}/resources`, {
-                      method: 'POST', headers: hdrs(), body: JSON.stringify(body)
-                    })
+                    await apiFetch(`${API}/lessons/${lessonId}/resources`, {method: 'POST',body: JSON.stringify(body)})
                     setShowVideoUpload(false)
                     setSuccess('Video uploaded successfully!')
                     setTimeout(() => setSuccess(''), 3000)

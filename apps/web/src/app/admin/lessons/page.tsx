@@ -1,23 +1,11 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -48,15 +36,23 @@ export default function LessonsPage() {
     objectives: '', introduction: '', mainContent: '', conclusion: ''
   })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSubjects() }, [selectedClass])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadLessons() }, [selectedClass, selectedSubject, selectedTerm] )
 
   async function loadInitial() {
     try {
       const [sessionsRes] = await Promise.all([
-        fetch(`${API}/sessions`, { headers: hdrs() }),
+        apiFetch(`${API}/sessions`),
       ])
       const sessionsData = await sessionsRes.json()
       const sessionList = sessionsData.sessions ?? []
@@ -67,7 +63,7 @@ export default function LessonsPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -76,7 +72,7 @@ export default function LessonsPage() {
   }
 
   async function loadSubjects() {
-    const res = await fetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/curriculum/subjects?classLevel=${selectedClass}`)
     const data = await res.json()
     setSubjects(data.subjects ?? [])
   }
@@ -87,7 +83,7 @@ export default function LessonsPage() {
       let url = `${API}/lessons?classLevel=${selectedClass}`
       if (selectedSubject) url += `&subjectId=${selectedSubject}`
       if (selectedTerm) url += `&termId=${selectedTerm}`
-      const res = await fetch(url, { headers: hdrs() })
+      const res = await apiFetch(url)
       const data = await res.json()
       setLessons(data.lessons ?? [])
     } catch {} finally { setLoading(false) }
@@ -110,7 +106,7 @@ export default function LessonsPage() {
         mainContent: createForm.mainContent || undefined,
         conclusion: createForm.conclusion || undefined,
       }
-      const res = await fetch(`${API}/lessons`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      const res = await fetch(`${API}/lessons`, { method: 'POST', body: JSON.stringify(body) }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create lesson')
       setShowCreateForm(false)

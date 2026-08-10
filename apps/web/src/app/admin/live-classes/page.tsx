@@ -1,22 +1,10 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
@@ -65,15 +53,23 @@ export default function LiveClassesPage() {
     subjectId: '', termId: '', scheduledAt: '', durationMins: '40'
   })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadInitial() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadSubjects() }, [createForm.classLevel])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadClasses() }, [selectedClass])
 
   async function loadInitial() {
     try {
       const [sessionsRes] = await Promise.all([
-        fetch(`${API}/sessions`, { headers: hdrs() }),
+        apiFetch(`${API}/sessions`),
       ])
       const sessionsData = await sessionsRes.json()
       const sessionList = sessionsData.sessions ?? []
@@ -85,7 +81,7 @@ export default function LiveClassesPage() {
   }
 
   async function loadTerms(sessionId: string) {
-    const res = await fetch(`${API}/sessions/${sessionId}/terms`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/sessions/${sessionId}/terms`)
     const data = await res.json()
     const list = data.terms ?? []
     setTerms(list)
@@ -95,7 +91,7 @@ export default function LiveClassesPage() {
 
   async function loadSubjects() {
     const cl = createForm.classLevel
-    const res = await fetch(`${API}/curriculum/subjects?classLevel=${cl}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/curriculum/subjects?classLevel=${cl}`)
     const data = await res.json()
     setSubjects(data.subjects ?? [])
   }
@@ -105,7 +101,7 @@ export default function LiveClassesPage() {
     try {
       let url = `${API}/live-classes`
       if (selectedClass) url += `?classLevel=${selectedClass}`
-      const res = await fetch(url, { headers: hdrs() })
+      const res = await apiFetch(url)
       const data = await res.json()
       setClasses(data.classes ?? [])
     } catch {} finally { setLoading(false) }
@@ -127,7 +123,7 @@ export default function LiveClassesPage() {
       }
       if (createForm.subjectId) body.subjectId = createForm.subjectId
       if (createForm.termId) body.termId = createForm.termId
-      const res = await fetch(`${API}/live-classes`, { method: 'POST', headers: hdrs(), body: JSON.stringify(body) })
+      const res = await fetch(`${API}/live-classes`, { method: 'POST', body: JSON.stringify(body) }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create class')
       setShowCreateForm(false)
@@ -139,8 +135,8 @@ export default function LiveClassesPage() {
 
   async function updateStatus(id: string, status: string) {
     await fetch(`${API}/live-classes/${id}/status`, {
-      method: 'PATCH', headers: hdrs(), body: JSON.stringify({ status })
-    })
+      method: 'PATCH', body: JSON.stringify({ status })
+    }
     loadClasses()
   }
 
@@ -149,9 +145,9 @@ export default function LiveClassesPage() {
     setSavingRecording(true)
     try {
       await fetch(`${API}/live-classes/${showRecordingForm.id}/recording`, {
-        method: 'PATCH', headers: hdrs(),
+        method: 'PATCH',
         body: JSON.stringify({ recordingUrl, recordingType })
-      })
+      }
       setShowRecordingForm(null); setRecordingUrl(''); setRecordingType('youtube')
       setSuccess('Recording saved!'); setTimeout(() => setSuccess(''), 3000)
       loadClasses()
@@ -160,7 +156,7 @@ export default function LiveClassesPage() {
 
   async function deleteClass(id: string) {
     if (!window.confirm('Delete this live class?')) return
-    await fetch(`${API}/live-classes/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/live-classes/${id}`, { method: 'DELETE' })
     setClasses(prev => prev.filter(c => c.id !== id))
   }
 

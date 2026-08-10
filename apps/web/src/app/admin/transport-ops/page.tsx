@@ -1,22 +1,10 @@
-'use client'
+﻿'use client'
+import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
-function hdrs() {
-  return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
 function formatAmount(n: number) {
   return `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
@@ -65,20 +53,30 @@ export default function TransportOpsPage() {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false)
   const [maintenanceForm, setMaintenanceForm] = useState({ busId: '', date: today(), maintenanceType: 'routine', description: '', cost: 0, performedBy: '', nextMaintenanceDate: '' })
 
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { loadTerms() }, [])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (termId) { loadBuses(); loadRoutes() } }, [termId])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (selectedBus && selectedDate && termId) loadRollCalls() }, [selectedBus, selectedDate, termId])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (tab === 'incidents') loadIncidents() }, [tab])
+useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
   useEffect(() => { if (tab === 'maintenance') loadMaintenance() }, [tab])
 
   async function loadTerms() {
-    const sessRes = await fetch(`${API}/sessions`, { headers: hdrs() })
+    const sessRes = await apiFetch(`${API}/sessions`)
     const sessData = await sessRes.json()
     const sessionList = sessData.sessions ?? []
     setSessions(sessionList)
     const activeSession = sessionList.find((s: any) => s.is_active) ?? sessionList[0]
     if (!activeSession) return
-    const termRes = await fetch(`${API}/sessions/${activeSession.id}/terms`, { headers: hdrs() })
+    const termRes = await apiFetch(`${API}/sessions/${activeSession.id}/terms`)
     const termData = await termRes.json()
     const termList = termData.terms ?? []
     setTerms(termList)
@@ -87,45 +85,45 @@ export default function TransportOpsPage() {
   }
 
   async function loadBuses() {
-    const res = await fetch(`${API}/transport/buses`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/buses`)
     const data = await res.json()
     setBuses(data.buses ?? [])
   }
 
   async function loadRoutes() {
-    const res = await fetch(`${API}/transport/routes`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/routes`)
     const data = await res.json()
     setRoutes(data.routes ?? [])
   }
 
   async function loadRollCalls() {
     if (!selectedBus || !selectedDate || !termId) return
-    const res = await fetch(`${API}/transport/roll-calls?busId=${selectedBus}&date=${selectedDate}&termId=${termId}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/roll-calls?busId=${selectedBus}&date=${selectedDate}&termId=${termId}`)
     const data = await res.json()
     setRollCalls(data.rollCalls ?? [])
   }
 
   async function loadRollCallEntries(rollCallId: string) {
-    const res = await fetch(`${API}/transport/roll-calls/${rollCallId}/entries`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/roll-calls/${rollCallId}/entries`)
     const data = await res.json()
     setRollCallEntries(data.entries ?? [])
   }
 
   async function loadRollCallHistory() {
     if (!selectedBus || !termId) return
-    const res = await fetch(`${API}/transport/roll-calls/history?busId=${selectedBus}&termId=${termId}`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/roll-calls/history?busId=${selectedBus}&termId=${termId}`)
     const data = await res.json()
     setRollCallHistory(data.history ?? [])
   }
 
   async function loadIncidents() {
-    const res = await fetch(`${API}/transport/incidents`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/incidents`)
     const data = await res.json()
     setIncidents(data.incidents ?? [])
   }
 
   async function loadMaintenance() {
-    const res = await fetch(`${API}/transport/maintenance`, { headers: hdrs() })
+    const res = await apiFetch(`${API}/transport/maintenance`)
     const data = await res.json()
     setMaintenance(data.records ?? [])
   }
@@ -143,7 +141,7 @@ export default function TransportOpsPage() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/transport/roll-calls`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ busId: selectedBus, routeId: route.id, termId, date: selectedDate, tripType })
       })
       const data = await res.json()
@@ -157,8 +155,8 @@ export default function TransportOpsPage() {
 
   async function toggleEntry(entry: any) {
     const newStatus = entry.status === 'present' ? 'absent' : 'present'
-    const res = await fetch(`${API}/transport/roll-call-entries/${entry.id}`, {
-      method: 'PATCH', headers: hdrs(),
+    const res = await apiFetch(`${API}/transport/roll-call-entries/${entry.id}`, {
+      method: 'PATCH',
       body: JSON.stringify({ status: newStatus })
     })
     if (res.ok) {
@@ -176,7 +174,7 @@ export default function TransportOpsPage() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/transport/incidents`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ ...incidentForm, cost: undefined })
       })
       if (!res.ok) { flash('Failed to save incident', true); return }
@@ -190,8 +188,8 @@ export default function TransportOpsPage() {
   async function resolveIncidentSubmit() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/transport/incidents/${resolveIncident.id}`, {
-        method: 'PATCH', headers: hdrs(),
+      const res = await apiFetch(`${API}/transport/incidents/${resolveIncident.id}`, {
+        method: 'PATCH',
         body: JSON.stringify({ resolved: true, resolutionNotes })
       })
       if (!res.ok) { flash('Failed to resolve incident', true); return }
@@ -206,7 +204,7 @@ export default function TransportOpsPage() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/transport/maintenance`, {
-        method: 'POST', headers: hdrs(),
+        method: 'POST',
         body: JSON.stringify({ ...maintenanceForm, cost: Number(maintenanceForm.cost), nextMaintenanceDate: maintenanceForm.nextMaintenanceDate || undefined, performedBy: maintenanceForm.performedBy || undefined })
       })
       if (!res.ok) { flash('Failed to save maintenance record', true); return }
@@ -219,7 +217,7 @@ export default function TransportOpsPage() {
 
   async function deleteMaintenance(id: string) {
     if (!confirm('Delete this maintenance record?')) return
-    await fetch(`${API}/transport/maintenance/${id}`, { method: 'DELETE', headers: hdrs() })
+    await apiFetch(`${API}/transport/maintenance/${id}`, { method: 'DELETE' })
     flash('Record deleted')
     loadMaintenance()
   }
