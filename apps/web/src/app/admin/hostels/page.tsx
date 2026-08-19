@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function HostelPage() {
@@ -36,13 +33,11 @@ export default function HostelPage() {
   const [roomForm, setRoomForm] = useState({ roomNumber: '', roomType: 'shared', bedCapacity: '4', floorNumber: '1' })
   const [allocForm, setAllocForm] = useState({ studentId: '', bedId: '', hostelId: '', roomId: '', notes: '' })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedTerm) { loadAllocations(); loadOccupancy() } }, [selectedTerm])
 
@@ -117,7 +112,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
     try {
       const body: any = { name: hostelForm.name, type: hostelForm.type, description: hostelForm.description || undefined }
       if (hostelForm.housemasterId) body.housemasterId = hostelForm.housemasterId
-      const res = await fetch(`${API}/hostels`, { method: 'POST', body: JSON.stringify(body) }
+      const res = await fetch(`${API}/hostels`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowHostelForm(false)
@@ -139,7 +134,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
           bedCapacity: Number(roomForm.bedCapacity),
           floorNumber: Number(roomForm.floorNumber),
         })
-      }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowRoomForm(false)
@@ -164,7 +159,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
           termId: selectedTerm,
           notes: allocForm.notes || undefined,
         })
-      }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to allocate')
       setShowAllocForm(false)

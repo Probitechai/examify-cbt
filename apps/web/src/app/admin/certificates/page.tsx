@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function CertificatesPage() {
@@ -36,13 +33,11 @@ export default function CertificatesPage() {
     description: '', minCompletionPct: '80'
   })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSubjects() }, [selectedClass])
 

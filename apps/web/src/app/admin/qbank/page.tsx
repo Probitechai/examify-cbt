@@ -27,9 +27,6 @@ function getSubdomain() {
   return 'greensprings'
 }
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 export default function QuestionsPage() {
   const router = useRouter()
   const [questions, setQuestions] = useState<Question[]>([])

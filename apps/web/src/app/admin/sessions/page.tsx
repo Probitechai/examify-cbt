@@ -30,9 +30,6 @@ function getSubdomain() {
   return 'greensprings'
 }
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function SessionsPage() {
@@ -58,7 +55,7 @@ export default function SessionsPage() {
   const [termEnd, setTermEnd] = useState('')
   const [termActive, setTermActive] = useState(false)
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSessions() }, [])
 

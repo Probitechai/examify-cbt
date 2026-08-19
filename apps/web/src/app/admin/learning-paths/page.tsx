@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function LearningPathsPage() {
@@ -39,13 +36,11 @@ export default function LearningPathsPage() {
     lessonId: '', stepNumber: 1, title: '', description: '', isRequired: true
   })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSubjects() }, [selectedClass, createForm.classLevel])
 

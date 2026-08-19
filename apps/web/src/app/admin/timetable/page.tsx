@@ -43,7 +43,7 @@ export default function TimetablePage() {
   const [statusFilter, setStatusFilter] = useState('')
 
   
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     const token = getToken()

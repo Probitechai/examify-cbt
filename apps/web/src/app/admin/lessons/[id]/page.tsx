@@ -13,8 +13,6 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 async function uploadFile(file: File, folder: string): Promise<string> {
   const ext = file.name.split('.').pop()
   const path = `${folder}/${Date.now()}.${ext}`

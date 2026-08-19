@@ -43,7 +43,6 @@ export default function UsersPage() {
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadUsers() }, [])
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (tab === 'parent') loadLinks() }, [tab])
 
@@ -155,7 +154,7 @@ export default function UsersPage() {
         ) : filtered.length === 0 ? (
           <div className={styles.empty}>
             <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>
-              {tab === 'student' ? 'ðŸ‘¤' : tab === 'parent' ? 'ðŸ‘¨â€ðŸ‘©â€ðŸ‘§' : 'ðŸ‘©â€ðŸ«'}
+              {tab === 'student' ? 'ðŸ`¤' : tab === 'parent' ? 'ðŸ`¨â€ðŸ`©â€ðŸ`§' : 'ðŸ`©â€ðŸ«'}
             </div>
             <p>{search ? 'No results found' : `No ${tab}s yet.`}</p>
           </div>
@@ -230,8 +229,6 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   })
 
   function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
-
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`, {

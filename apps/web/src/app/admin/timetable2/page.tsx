@@ -39,8 +39,6 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function TimetablePage() {
@@ -70,7 +68,6 @@ export default function TimetablePage() {
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSessions() }, [])
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
@@ -109,17 +106,20 @@ export default function TimetablePage() {
     setSaving(true); setError('')
     try {
             const res = await apiFetch(`${API}/timetable`, {
-        body: JSON.stringify({
-          termId: selectedTerm,
-          classLevel,
-          classArm: classArm || undefined,
-          day: formDay,
-          period: formPeriod,
-          subject: formSubject,
-          teacherName: formTeacher || undefined,
-          startTime: formStart || undefined,
-          endTime: formEnd || undefined,
-          venue: formVenue || undefined,
+              method: 'POST',
+              body: JSON.stringify({
+                termId: selectedTerm,
+                classLevel,
+                classArm: classArm || undefined,
+                day: formDay,
+                period: formPeriod,
+                subject: formSubject,
+                teacherName: formTeacher || undefined,
+                startTime: formStart || undefined,
+                endTime: formEnd || undefined,
+                venue: formVenue || undefined,
+              })
+            })
       if (!res.ok) throw new Error('Failed to save')
       setSuccess('Entry saved!'); setTimeout(() => setSuccess(''), 2000)
       setShowForm(false)

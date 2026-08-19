@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
 }
@@ -59,13 +56,11 @@ export default function Hostel2Page() {
   const [showMealForm, setShowMealForm] = useState(false)
   const [mealForm, setMealForm] = useState({ studentId: '', planType: 'full', dietaryRequirements: '' })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     if (selectedTerm && selectedHostel) {
@@ -171,7 +166,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       const res = await fetch(`${API}/hostels/exeats`, {
         method: 'POST',
         body: JSON.stringify({ studentId: f.studentId, hostelId: selectedHostel, termId: selectedTerm, reason: f.reason, destination: f.destination, departureDate: f.departureDate, returnDate: f.returnDate, guardianName: f.guardianName, guardianPhone: f.guardianPhone, guardianRelationship: f.guardianRelationship })
-      }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
       setShowExeatForm(false)
@@ -185,7 +180,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
     await fetch(`${API}/hostels/exeats/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, rejectionReason: reason })
-    }
+    })
     setRejectingId(null); setRejectReason('')
     setSuccess(`Exeat ${status}!`); setTimeout(() => setSuccess(''), 3000)
     loadExeats()
@@ -199,7 +194,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       const res = await fetch(`${API}/hostels/visitors`, {
         method: 'POST',
         body: JSON.stringify({ studentId: f.studentId, hostelId: selectedHostel, visitorName: f.visitorName, visitorPhone: f.visitorPhone || undefined, relationship: f.relationship, purpose: f.purpose || undefined })
-      }
+      })
       if (!res.ok) throw new Error('Failed to log visitor')
       setShowVisitorForm(false)
       setVisitorForm({ studentId: '', visitorName: '', visitorPhone: '', relationship: 'Parent', purpose: '' })
@@ -209,7 +204,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
   }
 
   async function checkoutVisitor(id: string) {
-    await fetch(`${API}/hostels/visitors/${id}/checkout`, { method: 'PATCH' }
+    await fetch(`${API}/hostels/visitors/${id}/checkout`, { method: 'PATCH' })
     setSuccess('Visitor checked out!'); setTimeout(() => setSuccess(''), 3000)
     loadVisitors()
   }
@@ -226,7 +221,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       const res = await fetch(`${API}/hostels/roll-calls`, {
         method: 'POST',
         body: JSON.stringify({ hostelId: selectedHostel, date: rollCallDate, callTime, entries })
-      }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
       setRollCallResult(data)
@@ -241,7 +236,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       await fetch(`${API}/hostels/meal-plans`, {
         method: 'POST',
         body: JSON.stringify({ studentId: mealForm.studentId, hostelId: selectedHostel, termId: selectedTerm, planType: mealForm.planType, dietaryRequirements: mealForm.dietaryRequirements || undefined })
-      }
+      })
       setShowMealForm(false)
       setMealForm({ studentId: '', planType: 'full', dietaryRequirements: '' })
       setSuccess('Meal plan saved!'); setTimeout(() => setSuccess(''), 3000)

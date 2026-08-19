@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CURRICULUM_TYPES = [
   { value: 'nigerian', label: 'Nigerian (NERDC)', color: '#1a6b4a', bg: '#e8f5ee' },
@@ -64,16 +61,13 @@ export default function CurriculumPage() {
   const [deliveryForm, setDeliveryForm] = useState({ deliveryStatus: 'delivered', deliveredDate: new Date().toISOString().slice(0,10), notes: '', attendanceCount: '' })
   const [savingDelivery, setSavingDelivery] = useState(false)
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (activeTab === 'subjects') loadSubjects() }, [activeTab, selectedClass])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (activeTab === 'coverage' && selectedTerm && selectedClass) loadCoverage() }, [activeTab, selectedTerm, selectedClass])
 
@@ -140,7 +134,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       await fetch(`${API}/curriculum/settings`, {
         method: 'POST',
         body: JSON.stringify({ curriculumType: settingsForm.curriculumType, secondaryCurriculum: settingsForm.secondaryCurriculum || undefined, academicYear: settingsForm.academicYear || undefined })
-      }
+      })
       setSuccess('Settings saved!'); setTimeout(() => setSuccess(''), 3000)
       loadInitial()
     } catch { setError('Failed to save settings') } finally { setSavingSettings(false) }
@@ -152,7 +146,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       const res = await fetch(`${API}/curriculum/load-defaults`, {
         method: 'POST',
         body: JSON.stringify({ curriculumType: settingsForm.curriculumType })
-      }
+      })
       const data = await res.json()
       setSuccess(`Loaded ${data.loaded} default subjects!`); setTimeout(() => setSuccess(''), 3000)
     } catch { setError('Failed to load defaults') } finally { setLoadingDefaults(false) }
@@ -165,7 +159,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       await fetch(`${API}/curriculum/subjects`, {
         method: 'POST',
         body: JSON.stringify({ name: subjectForm.name, code: subjectForm.code || undefined, classLevels: subjectForm.classLevels, category: subjectForm.category, curriculumType: subjectForm.curriculumType })
-      }
+      })
       setShowSubjectForm(false)
       setSubjectForm({ name: '', code: '', category: 'elective', classLevels: [], curriculumType: 'nigerian' })
       loadSubjects()
@@ -199,7 +193,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
           resources: schemeForm.resources || undefined,
           assessmentMethod: schemeForm.assessmentMethod || undefined,
         })
-      }
+      })
       setShowSchemeForm(false)
       setSchemeForm({ weekNumber: 1, topic: '', subTopics: '', objectives: '', resources: '', assessmentMethod: '' })
       loadScheme()
@@ -218,7 +212,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
           notes: deliveryForm.notes || undefined,
           attendanceCount: deliveryForm.attendanceCount ? Number(deliveryForm.attendanceCount) : undefined,
         })
-      }
+      })
       setDeliveryEntry(null)
       loadScheme()
     } catch { setError('Failed to save delivery') } finally { setSavingDelivery(false) }

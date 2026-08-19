@@ -31,8 +31,6 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ResultEntryPage() {
@@ -53,7 +51,6 @@ export default function ResultEntryPage() {
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSessions() }, [])
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 

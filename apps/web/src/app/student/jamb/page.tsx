@@ -6,9 +6,6 @@ import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 // ── Confetti animation ────────────────────────────────────────────────────────
 function Confetti({ show }: { show: boolean }) {
   if (!show) return null
@@ -135,13 +132,11 @@ export default function JambPrepPage() {
   useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { hydrate() }, [hydrate])
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
     if (!isLoading && user && user.classLevel !== 'SS3') router.replace('/student')
   }, [user, isLoading, router])
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (user) {
@@ -149,8 +144,6 @@ export default function JambPrepPage() {
       loadProfile()
     }
   }, [user])
-
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     // Auto-select English Language when subjects load
@@ -187,7 +180,9 @@ export default function JambPrepPage() {
   async function saveProfile() {
     if (selectedSubjects.length !== 4) { setError('Please select 3 more subjects in addition to English Language'); return }
         await apiFetch(`${API}/jamb/profile`, {
-      body: JSON.stringify({ selectedSubjects, targetScore: 280, dailyGoalQuestions: 20 })
+          method: 'POST',
+          body: JSON.stringify({ selectedSubjects, targetScore: 280, dailyGoalQuestions: 20 })
+        })
     await loadProfile()
     setScreen('home')
   }
@@ -212,7 +207,9 @@ export default function JambPrepPage() {
     setAiLoading(true); setError('')
     try {
             const res = await apiFetch(`${API}/jamb/ai/quiz`, {
-        body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
+              method: 'POST',
+              body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
+            })
       const data = await res.json()
       if (!res.ok || !data.questions?.length) throw new Error('No questions generated')
       setQuestions(data.questions.slice(0, 10).map((q: any, i: number) => ({ ...q, id: `ai-${i}` })))
@@ -227,7 +224,9 @@ export default function JambPrepPage() {
     setAiLoading(true); setSummaryContent(''); setScreen('summary')
     try {
             const res = await apiFetch(`${API}/jamb/ai/summary`, {
-        body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
+              method: 'POST',
+              body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
+            })
       const data = await res.json()
       setSummaryContent(data.summary ?? 'Could not generate summary.')
     } catch { setSummaryContent('Failed to generate summary. Please try again.') } finally { setAiLoading(false) }
@@ -269,14 +268,17 @@ export default function JambPrepPage() {
     if (!activeSubject) return
     try {
             await apiFetch(`${API}/jamb/sessions`, {
-        body: JSON.stringify({
-          subjectId: activeSubject.id,
-          topicId: activeTopic?.id,
-          sessionType,
-          questions,
-          answers: {},
-          score,
-          totalQuestions: questions.length,
+              method: 'POST',
+              body: JSON.stringify({
+                subjectId: activeSubject.id,
+                topicId: activeTopic?.id,
+                sessionType,
+                questions,
+                answers: {},
+                score,
+                totalQuestions: questions.length,
+              })
+            })
       await loadProfile()
     } catch {}
     setShowConfetti(false)

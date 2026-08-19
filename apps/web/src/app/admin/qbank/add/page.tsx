@@ -255,7 +255,7 @@ export default function NewQuestionPage() {
           </button>
           <button onClick={() => save(false)} disabled={saving}
             style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 600, borderRadius: '10px', border: 'none', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Savingâ€¦' : 'Save question â†’'}
+            {saving ? 'Savingâ€¦' : 'Save question â†`'}
           </button>
         </div>
       </div>

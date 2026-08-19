@@ -6,24 +6,19 @@ import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 export default function StudentLiveClassesPage() {
   const router = useRouter()
   const { user, isLoading, hydrate } = useAuthStore()
   const [classes, setClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-useEffect(() => { checkAuth(router, 'student') }, [])
+  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { hydrate() }, [hydrate])
-useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { if (user) loadClasses() }, [user])
 

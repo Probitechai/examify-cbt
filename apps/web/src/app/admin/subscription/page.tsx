@@ -97,8 +97,6 @@ const PLANS = [
   },
 ]
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function SubscriptionPage() {
@@ -112,7 +110,7 @@ export default function SubscriptionPage() {
   const [termName, setTermName] = useState('')
   const [error, setError] = useState('')
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadData() }, [])
 
@@ -142,7 +140,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       const res = await fetch(`${API}/paystack/subscription/initialize`, {
         method: 'POST',
         body: JSON.stringify({ tier, termName: termName.trim() })
-      }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Failed to initialize payment')
 

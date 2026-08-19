@@ -10,9 +10,6 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -27,7 +24,7 @@ export default function SettingsPage() {
   const [schoolId, setSchoolId] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSettings() }, [])
 

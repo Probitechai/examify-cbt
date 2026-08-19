@@ -7,9 +7,6 @@ const API = process.env.NEXT_PUBLIC_API_URL
 
 
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:              { label: 'Pending',            color: '#d97706', bg: '#fffbeb' },
   reviewing:            { label: 'Reviewing',          color: '#1e40af', bg: '#eff6ff' },

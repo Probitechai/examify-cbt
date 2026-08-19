@@ -131,7 +131,7 @@ export default function AdminNewExamPage() {
           {step !== 'review' ? (
             <button className={styles.nextBtn} disabled={!canNext}
               onClick={() => setStep(STEPS[stepIndex + 1].key as Step)}>
-              Next â†’
+              Next â†`
             </button>
           ) : (
             <button className={styles.publishBtn} onClick={handlePublish} disabled={publishing}>

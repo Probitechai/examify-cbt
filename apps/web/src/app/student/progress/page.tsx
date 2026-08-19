@@ -37,13 +37,9 @@ export default function StudentProgressPage() {
 
   useEffect(() => { hydrate() }, [hydrate])
 
-  useEffect(() => { checkAuth(router, 'student') }, [])
-
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!user) return
@@ -275,7 +271,7 @@ export default function StudentProgressPage() {
             <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Take your first exam to see your progress here.</p>
             <button onClick={() => router.push('/student')}
               style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', fontWeight: 600, fontSize: '0.875rem', borderRadius: 10, border: 'none', cursor: 'pointer' }}>
-              View available exams â†’
+              View available exams â†`
             </button>
           </div>
         ) : (

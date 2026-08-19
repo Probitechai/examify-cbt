@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 function formatAmount(n: number) {
   return `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
 }
@@ -53,19 +51,15 @@ export default function TransportOpsPage() {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false)
   const [maintenanceForm, setMaintenanceForm] = useState({ busId: '', date: today(), maintenanceType: 'routine', description: '', cost: 0, performedBy: '', nextMaintenanceDate: '' })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadTerms() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (termId) { loadBuses(); loadRoutes() } }, [termId])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedBus && selectedDate && termId) loadRollCalls() }, [selectedBus, selectedDate, termId])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (tab === 'incidents') loadIncidents() }, [tab])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (tab === 'maintenance') loadMaintenance() }, [tab])
 

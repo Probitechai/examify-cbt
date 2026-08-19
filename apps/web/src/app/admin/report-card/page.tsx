@@ -35,8 +35,6 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 function gradeColor(grade: string) {
@@ -76,13 +74,10 @@ export default function ReportCardPage() {
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadStudents() }, [classLevel, classArm])
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     if (selectedStudent) {
@@ -158,8 +153,7 @@ export default function ReportCardPage() {
     try {
       const ext = file.name.split('.').pop()
       const fileName = `${selectedStudent}-${Date.now()}.${ext}`
-      const uploadRes = await apiFetch(`${SUPABASE_URL}/storage/v1/object/student-photos/${fileName}`
-        {
+      const uploadRes = await apiFetch(`${SUPABASE_URL}/storage/v1/object/student-photos/${fileName}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
           body: file,

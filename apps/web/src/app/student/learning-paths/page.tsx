@@ -6,9 +6,6 @@ import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 export default function StudentLearningPathsPage() {
   const router = useRouter()
   const { user, isLoading, hydrate } = useAuthStore()
@@ -20,12 +17,10 @@ export default function StudentLearningPathsPage() {
   useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { hydrate() }, [hydrate])
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { if (user) loadPaths() }, [user])
 

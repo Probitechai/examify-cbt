@@ -42,7 +42,7 @@ export default function AdminResultsPage() {
   const [exporting, setExporting] = useState(false)
 
   
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     const token = getToken()

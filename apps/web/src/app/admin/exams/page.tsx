@@ -196,7 +196,7 @@ export default function ExamsPage() {
                   <span>â± {exam.duration_minutes} min</span>
                   <span>ðŸ“‹ {exam.question_count ?? 0} questions</span>
                   <span>ðŸ“… {formatDate(exam.scheduled_at)}</span>
-                  {exam.created_by_name && <span>ðŸ‘¤ {exam.created_by_name}</span>}
+                  {exam.created_by_name && <span>ðŸ`¤ {exam.created_by_name}</span>}
                 </div>
               </div>
               <div className={styles.examCardRight}>

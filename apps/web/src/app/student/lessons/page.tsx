@@ -8,25 +8,20 @@ const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 export default function StudentLessonsPage() {
   const router = useRouter()
   const { user, isLoading, hydrate } = useAuthStore()
   const [lessons, setLessons] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-useEffect(() => { checkAuth(router, 'student') }, [])
+  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { hydrate() }, [hydrate])
-useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
     if (!isLoading && user && user.role !== 'student') router.replace('/admin')
   }, [user, isLoading, router])
-useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { if (user) loadLessons() }, [user])
 

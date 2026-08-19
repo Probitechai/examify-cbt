@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   draft:     { label: 'Draft',     color: '#d97706', bg: '#fffbeb' },
@@ -36,16 +33,13 @@ export default function LessonsPage() {
     objectives: '', introduction: '', mainContent: '', conclusion: ''
   })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSubjects() }, [selectedClass])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadLessons() }, [selectedClass, selectedSubject, selectedTerm] )
 
@@ -106,7 +100,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
         mainContent: createForm.mainContent || undefined,
         conclusion: createForm.conclusion || undefined,
       }
-      const res = await fetch(`${API}/lessons`, { method: 'POST', body: JSON.stringify(body) }
+      const res = await fetch(`${API}/lessons`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create lesson')
       setShowCreateForm(false)

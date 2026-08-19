@@ -19,8 +19,6 @@ interface DashboardItem {
   feeSummary: { totalFees: number; totalPaid: number; balance: number } | null
 }
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 function formatAmount(n: number) {
   return `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
 }
@@ -43,7 +41,7 @@ export default function ParentDashboard() {
   const [sectionLoading, setSectionLoading] = useState(false)
   const [announcements, setAnnouncements] = useState<any[]>([])
 
-useEffect(() => { checkAuth(router, 'parent') }, [])
+  useEffect(() => { checkAuth(router, 'parent') }, [])
 
   useEffect(() => {
     // Verify role
@@ -459,7 +457,7 @@ useEffect(() => { checkAuth(router, 'parent') }, [])
                                   method: 'POST',
                                   headers: { 'Authorization': `Bearer ${token}`, 'X-School-Subdomain': subdomain, 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ feeStructureId: f.id, studentId: currentItem.student.id, amount: f.balance })
-                                }
+                                })
                                 const data = await res.json()
                                 if (data.authorizationUrl) window.location.href = data.authorizationUrl
                                 else alert('Could not initialize payment. Please try again.')

@@ -304,7 +304,7 @@ export default function ImportStudentsPage() {
               <button
                 onClick={handleImport}
                 style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 500, borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
-                Import {validCount} student{validCount > 1 ? 's' : ''} â†’
+                Import {validCount} student{validCount > 1 ? 's' : ''} â†`
               </button>
             )}
           </div>
@@ -352,7 +352,7 @@ export default function ImportStudentsPage() {
                 Import more students
               </button>
               <a href="/admin/users" style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 500, borderRadius: '8px', textDecoration: 'none', display: 'inline-block' }}>
-                View all students â†’
+                View all students â†`
               </a>
             </div>
           </div>

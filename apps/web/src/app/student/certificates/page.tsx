@@ -6,9 +6,6 @@ import { useAuthStore } from '../../../hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 function CertificateRenderer({ cert }: { cert: any }) {
   return (
     <div style={{ background: 'white', fontFamily: 'Georgia, serif', padding: '2rem', border: '3px solid #1a6b4a', borderRadius: '12px', position: 'relative', overflow: 'hidden' }}>
@@ -73,12 +70,10 @@ export default function StudentCertificatesPage() {
   useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { hydrate() }, [hydrate])
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login')
   }, [user, isLoading, router])
-  useEffect(() => { checkAuth(router, 'student') }, [])
 
   useEffect(() => { if (user) loadCertificates() }, [user])
 

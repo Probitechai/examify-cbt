@@ -60,7 +60,7 @@ export default function AnalyticsPage() {
   const [classFilter, setClassFilter] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     loadData()

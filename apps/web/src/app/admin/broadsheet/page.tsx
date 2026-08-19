@@ -34,8 +34,6 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 function gradeColor(grade: string) {
@@ -60,10 +58,9 @@ export default function BroadsheetPage() {
   const [schoolName, setSchoolName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSessions() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 

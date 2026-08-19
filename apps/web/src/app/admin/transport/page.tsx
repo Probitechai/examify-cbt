@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 type Tab = 'fleet' | 'routes' | 'assignments' | 'occupancy'
 
 export default function TransportPage() {
@@ -46,20 +43,16 @@ export default function TransportPage() {
   const [assignForm, setAssignForm] = useState({ studentId: '', busId: '', routeId: '', stopId: '' })
   const [assignStops, setAssignStops] = useState<any[]>([])
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     loadTerms()
   }, [])
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
-
   useEffect(() => {
     loadBuses()
     loadRoutes()
   }, [])
-
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     if (termId) {
@@ -68,15 +61,11 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
     }
   }, [termId])
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
-
   useEffect(() => {
     if (termId && showAssignModal) {
       loadAssignments()
     }
   }, [showAssignModal])
-
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     if (assignForm.routeId) {

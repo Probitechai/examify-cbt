@@ -3,8 +3,6 @@ import { apiFetch, checkAuth } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function SubscriptionCallbackPage() {

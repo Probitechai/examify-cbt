@@ -26,8 +26,6 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function AnnouncementsPage() {
@@ -42,7 +40,7 @@ export default function AnnouncementsPage() {
   const [success, setSuccess] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadAnnouncements() }, [])
 

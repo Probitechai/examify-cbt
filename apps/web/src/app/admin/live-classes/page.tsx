@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -53,16 +50,13 @@ export default function LiveClassesPage() {
     subjectId: '', termId: '', scheduledAt: '', durationMins: '40'
   })
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadInitial() }, [])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadSubjects() }, [createForm.classLevel])
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { loadClasses() }, [selectedClass])
 
@@ -123,7 +117,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       }
       if (createForm.subjectId) body.subjectId = createForm.subjectId
       if (createForm.termId) body.termId = createForm.termId
-      const res = await fetch(`${API}/live-classes`, { method: 'POST', body: JSON.stringify(body) }
+      const res = await fetch(`${API}/live-classes`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create class')
       setShowCreateForm(false)
@@ -136,7 +130,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
   async function updateStatus(id: string, status: string) {
     await fetch(`${API}/live-classes/${id}/status`, {
       method: 'PATCH', body: JSON.stringify({ status })
-    }
+    })
     loadClasses()
   }
 
@@ -147,7 +141,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
       await fetch(`${API}/live-classes/${showRecordingForm.id}/recording`, {
         method: 'PATCH',
         body: JSON.stringify({ recordingUrl, recordingType })
-      }
+      })
       setShowRecordingForm(null); setRecordingUrl(''); setRecordingType('youtube')
       setSuccess('Recording saved!'); setTimeout(() => setSuccess(''), 3000)
       loadClasses()

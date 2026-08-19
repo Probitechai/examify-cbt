@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
-}
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:              { label: 'Pending',            color: '#d97706', bg: '#fffbeb' },
   reviewing:            { label: 'Reviewing',          color: '#1e40af', bg: '#eff6ff' },
@@ -46,7 +43,7 @@ export default function AdmissionsPage() {
   const [settingsForm, setSettingsForm] = useState<any>({})
   const [savingSettings, setSavingSettings] = useState(false)
 
-useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
     const sub = getSubdomain()
@@ -91,7 +88,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
           parentPhone: addForm.parentPhone, parentRelationship: addForm.parentRelationship,
           stateOfOrigin: addForm.stateOfOrigin || undefined,
         })
-      }
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to add applicant')
       setShowAddForm(false)
@@ -116,7 +113,7 @@ useEffect(() => { checkAuth(router, 'school_admin') }, [])
           applyForClasses: settingsForm.apply_for_classes ?? [],
           welcomeMessage: settingsForm.welcome_message ?? '',
         })
-      }
+      })
       loadAll()
       setShowSettings(false)
     } catch {} finally { setSavingSettings(false) }
