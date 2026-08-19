@@ -1,4 +1,13 @@
-'use client'
+// new-login-page.js
+// Run from C:\Probitechai\examify:  node new-login-page.js
+// Rewrites apps/web/src/app/login/page.tsx to use subdomain detection
+
+const fs = require('fs')
+const path = require('path')
+
+const filePath = 'apps/web/src/app/login/page.tsx'
+
+const newContent = `'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -70,7 +79,7 @@ export default function LoginPage() {
     setSubmitting(true)
     localStorage.setItem('examify_school', school)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const res = await fetch(\`\${process.env.NEXT_PUBLIC_API_URL}/auth/login\`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, subdomain: school }),
@@ -81,7 +90,7 @@ export default function LoginPage() {
         return
       }
       setAuth(data.token, data.user)
-      document.cookie = `examify_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+      document.cookie = \`examify_token=\${data.token}; path=/; max-age=\${60 * 60 * 24 * 7}; SameSite=Lax\`
     } catch {
       setError('Network error. Please check your connection.')
     } finally {
@@ -164,4 +173,53 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+`
+
+const winPath = filePath.replace(/\//g, path.sep)
+
+// Backup original
+const original = fs.readFileSync(winPath, 'utf8')
+fs.writeFileSync(winPath + '.bak', original, 'utf8')
+console.log('Backup saved: ' + winPath + '.bak')
+
+// Write new file
+fs.writeFileSync(winPath, newContent, 'utf8')
+console.log('DONE: login page updated.')
+console.log('')
+console.log('What changed:')
+console.log('  - School is now auto-detected from subdomain (greensprings.examify.ng etc)')
+console.log('  - School dropdown is HIDDEN when visiting a school subdomain')
+console.log('  - School badge shows the school name instead')
+console.log('  - Dropdown still shown on localhost for your own testing')
+console.log('  - Backup of original saved as page.tsx.bak')
+
+// Also patch the CSS file to add .schoolBadge
+const cssPath = 'apps/web/src/app/login/login.module.css'.replace(/\//g, path.sep)
+const cssContent = fs.readFileSync(cssPath, 'utf8')
+
+const badgeCSS = `
+.schoolBadge {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary, #1A7A4A);
+  background: var(--color-primary-light, #E8F5EE);
+  border: 1px solid var(--color-primary, #1A7A4A);
+  border-radius: 999px;
+  padding: 0.25rem 1rem;
+  margin: 0 auto 1rem;
+  display: inline-block;
+  width: fit-content;
+  left: 0;
+  right: 0;
+  position: relative;
+}
+`
+
+if (!cssContent.includes('.schoolBadge')) {
+  fs.writeFileSync(cssPath, cssContent + badgeCSS, 'utf8')
+  console.log('CSS updated: .schoolBadge added')
+} else {
+  console.log('CSS already has .schoolBadge — skipped')
 }
