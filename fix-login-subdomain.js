@@ -1,4 +1,9 @@
-'use client'
+const fs = require('fs')
+const path = require('path')
+
+const filePath = 'apps/web/src/app/login/page.tsx'.replace(/\//g, path.sep)
+
+const newContent = `'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -65,7 +70,7 @@ export default function LoginPage() {
     setSubmitting(true)
     localStorage.setItem('examify_school', activeSchool)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const res = await fetch(\`\${process.env.NEXT_PUBLIC_API_URL}/auth/login\`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, subdomain: activeSchool }),
@@ -76,7 +81,7 @@ export default function LoginPage() {
         return
       }
       setAuth(data.token, data.user)
-      document.cookie = `examify_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+      document.cookie = \`examify_token=\${data.token}; path=/; max-age=\${60 * 60 * 24 * 7}; SameSite=Lax\`
     } catch {
       setError('Network error. Please check your connection.')
     } finally {
@@ -163,3 +168,9 @@ export default function LoginPage() {
     </div>
   )
 }
+`
+
+fs.writeFileSync(filePath, newContent, 'utf8')
+console.log('DONE: login page fixed.')
+console.log('Key fix: subdomain starts as null, page renders nothing until client detects hostname.')
+console.log('This prevents the dropdown from ever flashing on school subdomains.')
