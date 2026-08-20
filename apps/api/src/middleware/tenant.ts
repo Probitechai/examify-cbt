@@ -9,7 +9,18 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
   if (request.url.startsWith('/api/admissions/public/')) return
   if (request.url.startsWith('/api/admissions/apply/')) return
   if (request.url.startsWith('/api/admissions/pay/')) return
-  if (request.method === 'OPTIONS') return
+  if (request.method === 'OPTIONS') {
+    const origin = request.headers['origin'] ?? '*'
+    reply
+      .header('Access-Control-Allow-Origin', origin)
+      .header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+      .header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-School-Subdomain')
+      .header('Access-Control-Allow-Credentials', 'true')
+      .header('Access-Control-Max-Age', '86400')
+      .status(204)
+      .send()
+    return
+  }
   
 
   const host = request.hostname
