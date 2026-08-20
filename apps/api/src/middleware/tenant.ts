@@ -20,6 +20,14 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
 
   subdomain = headerSubdomain ?? hostSubdomain
 
+  // Fallback: read subdomain from request body (used by login form on non-subdomain URLs)
+  if (!subdomain) {
+    try {
+      const body = request.body as any
+      if (body?.subdomain) subdomain = body.subdomain
+    } catch {}
+  }
+
   // Debug log
   console.log(`[TENANT] host=${host} header=${headerSubdomain} extracted=${hostSubdomain} resolved=${subdomain}`)
 
