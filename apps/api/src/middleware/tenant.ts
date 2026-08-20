@@ -91,6 +91,7 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
 function extractSubdomain(host: string): string | null {
   const hostname = host.split(':')[0]
   const parts = hostname.split('.')
-  if (parts.length >= 3) return parts[0]
+  // Only extract subdomain from *.examify.ng — ignore Railway, Vercel, localhost
+  if (parts.length === 3 && parts[1] === 'examify' && parts[2] === 'ng') return parts[0]
   return null
 }
