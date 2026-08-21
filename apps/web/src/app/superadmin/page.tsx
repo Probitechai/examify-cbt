@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Overview {
-  schools: { total_schools: number; active_schools: number; inactive_schools: number; starter_schools: number; growth_schools: number; premium_schools: number }
+  schools: { total_schools: number; active_schools: number; inactive_schools: number; basic_schools: number; standard_schools: number; premium_schools: number; enterprise_schools: number }
   users: { total_students: number; total_teachers: number; total_parents: number; total_admins: number }
   exams: { total_exams: number; active_exams: number; exams_last_30_days: number }
   sessions: { total_sessions: number; completed_sessions: number; in_progress_sessions: number; sessions_last_30_days: number }
@@ -25,9 +25,10 @@ interface School {
 }
 
 const TIER_CONFIG: Record<string, { color: string; bg: string }> = {
-  starter: { color: '#1a6b4a', bg: '#e8f5ee' },
-  growth: { color: '#1e40af', bg: '#eff6ff' },
+ basic: { color: '#1a6b4a', bg: '#e8f5ee' },
+  standard: { color: '#1e40af', bg: '#eff6ff' },
   premium: { color: '#7e22ce', bg: '#f5f3ff' },
+  enterprise: { color: '#d97706', bg: '#fffbeb' },
 }
 
 function getToken() {
@@ -184,9 +185,10 @@ export default function SuperAdminDashboard() {
               <div style={{ background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #e5e5e0' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>Schools by subscription</p>
                 {[
-                  { tier: 'starter', count: overview.schools.starter_schools },
-                  { tier: 'growth', count: overview.schools.growth_schools },
+                  { tier: 'basic', count: overview.schools.basic_schools },
+                  { tier: 'standard', count: overview.schools.standard_schools },
                   { tier: 'premium', count: overview.schools.premium_schools },
+                  { tier: 'enterprise', count: overview.schools.enterprise_schools },
                 ].map(item => {
                   const cfg = TIER_CONFIG[item.tier]
                   const pct = overview.schools.total_schools > 0 ? Math.round((Number(item.count) / Number(overview.schools.total_schools)) * 100) : 0
@@ -279,9 +281,10 @@ export default function SuperAdminDashboard() {
                     onChange={e => handleUpdateTier(school.id, e.target.value)}
                     disabled={updatingTier === school.id}
                     style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', fontWeight: 700, border: 'none', borderRadius: '20px', background: TIER_CONFIG[school.subscription_tier]?.bg ?? '#f7f7f5', color: TIER_CONFIG[school.subscription_tier]?.color ?? '#1a1a18', cursor: 'pointer', outline: 'none' }}>
-                    <option value="starter">Starter</option>
-                    <option value="growth">Growth</option>
-                    <option value="premium">Premium</option>
+                     <option value="basic">Basic</option>
+  <option value="standard">Standard</option>
+  <option value="premium">Premium</option>
+  <option value="enterprise">Enterprise</option>
                   </select>
                 </div>
                 <div style={{ textAlign: 'center' as const }}>
