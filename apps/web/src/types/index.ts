@@ -7,6 +7,7 @@ export interface AuthUser {
   fullName: string
   classLevel?: string
   classArm?: string
+  mustChangePassword?: boolean
   school: {
     id: string
     name: string

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { db, tenantDb } from '../db/client'
+import { authenticate } from '../middleware/auth'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -21,14 +22,14 @@ export async function authRoutes(app: FastifyInstance) {
 
     // Super admins can log in from any school subdomain
     const superAdminRows = await db()`
-      SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm
+      SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm, must_change_password
       FROM users
       WHERE email = ${email.toLowerCase()}
       AND role = 'super_admin'
     ` as any[]
 
     const rows = superAdminRows.length > 0 ? superAdminRows : await tdb.query`
-      SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm
+      SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm, must_change_password
       FROM users
       WHERE email = ${email.toLowerCase()}
       AND school_id = ${request.schoolId}::uuid
@@ -58,6 +59,7 @@ export async function authRoutes(app: FastifyInstance) {
         fullName: user.full_name,
         classLevel: user.class_level,
         classArm: user.class_arm,
+        mustChangePassword: user.must_change_password,
       },
       { expiresIn: '12h' }
     )
@@ -71,6 +73,7 @@ export async function authRoutes(app: FastifyInstance) {
         fullName: user.full_name,
         classLevel: user.class_level,
         classArm: user.class_arm,
+         mustChangePassword: user.must_change_password,
         school: {
           id: request.school.id,
           name: request.school.name,
@@ -80,6 +83,22 @@ export async function authRoutes(app: FastifyInstance) {
     })
   })
 
+  app.patch('/auth/change-password', { preHandler: [authenticate] }, async (request: any, reply: any) => {
+  const { newPassword } = request.body
+  if (!newPassword || newPassword.length < 8) {
+    return reply.status(400).send({ error: 'WEAK_PASSWORD', message: 'Password must be at least 8 characters.' })
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10)
+
+  await db()`
+    UPDATE users
+    SET password_hash = ${passwordHash}, must_change_password = false
+    WHERE id = ${request.user.id}
+  `
+
+  return reply.send({ success: true })
+})
   app.get('/auth/me', {
     preHandler: [
       async (req: any, rep: any) => {
@@ -93,13 +112,14 @@ export async function authRoutes(app: FastifyInstance) {
   }, async (request: any, reply: any) => {
     const tdb = tenantDb(request.schoolId)
     const rows = await tdb.query`
-      SELECT id, role, email, full_name, phone, admission_no, class_level, class_arm
+      SELECT id, role, email, full_name, phone, admission_no, class_level, class_arm, must_change_password
       FROM users WHERE id = ${request.user.id}
       AND school_id = ${request.schoolId}::uuid
     ` as any[]
     return reply.send({
       user: {
         ...rows[0],
+        mustChangePassword: rows[0].must_change_password,
         school: {
           id: request.school.id,
           name: request.school.name,

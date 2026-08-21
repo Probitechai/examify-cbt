@@ -157,8 +157,8 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         const school = schoolRows[0]
 
         const adminRows = await tx`
-          INSERT INTO users (school_id, full_name, email, password_hash, role, is_active)
-          VALUES (${school.id}, ${admin_name}, ${admin_email}, ${passwordHash}, 'school_admin', true)
+          INSERT INTO users (school_id, full_name, email, password_hash, role, is_active,must_change_password)
+          VALUES (${school.id}, ${admin_name}, ${admin_email}, ${passwordHash}, 'school_admin', true, true)
           RETURNING id, full_name, email
         `
         return { school, admin: adminRows[0] }

@@ -62,6 +62,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
+      if (user.mustChangePassword) {
+      router.replace('/change-password')
+      return
+    }
       router.replace(
         user.role === 'student'     ? '/student'     :
         user.role === 'parent'      ? '/parent'      :
