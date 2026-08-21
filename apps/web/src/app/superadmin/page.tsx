@@ -112,9 +112,18 @@ export default function SuperAdminDashboard() {
     } catch {} finally { setUpdatingTier(null) }
   }
 
-  async function handleCreateSchool() {
-    setCreating(true)
+   async function handleCreateSchool() {
     setCreateError('')
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailPattern.test(newSchool.email)) {
+      setCreateError('School email is not a valid email address.')
+      return
+    }
+    if (!emailPattern.test(newSchool.admin_email)) {
+      setCreateError('Admin email is not a valid email address.')
+      return
+    }
+    setCreating(true)
     try {
       const res = await fetch(`${API}/superadmin/schools`, {
         method: 'POST', headers: hdrs(),

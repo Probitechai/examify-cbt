@@ -128,6 +128,13 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     if (!/^[a-z0-9-]+$/.test(subdomain)) {
       return reply.status(400).send({ error: 'INVALID_SUBDOMAIN', message: 'Subdomain can only contain lowercase letters, numbers, and hyphens.' })
     }
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailPattern.test(email)) {
+      return reply.status(400).send({ error: 'INVALID_EMAIL', message: 'School email is not a valid email address.' })
+    }
+    if (!emailPattern.test(admin_email)) {
+      return reply.status(400).send({ error: 'INVALID_EMAIL', message: 'Admin email is not a valid email address.' })
+    }
 
     const existing = await db()`
       SELECT id FROM schools WHERE subdomain = ${subdomain}
