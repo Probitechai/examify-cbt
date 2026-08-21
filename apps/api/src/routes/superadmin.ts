@@ -116,6 +116,59 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
       })
     })
 
+    // ── Create new school (onboarding) ─────────────────────────────────────────
+app.post('/superadmin/schools', { preHandler: [superAuth] },
+  async (request: any, reply: any) => {
+    const { name, subdomain, email, phone, subscription_tier, admin_name, admin_email } = request.body
+
+    if (!name || !subdomain || !email || !subscription_tier || !admin_name || !admin_email) {
+      return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'name, subdomain, email, subscription_tier, admin_name, and admin_email are required.' })
+    }
+
+    if (!/^[a-z0-9-]+$/.test(subdomain)) {
+      return reply.status(400).send({ error: 'INVALID_SUBDOMAIN', message: 'Subdomain can only contain lowercase letters, numbers, and hyphens.' })
+    }
+
+    const existing = await db()`
+      SELECT id FROM schools WHERE subdomain = ${subdomain}
+    ` as any[]
+
+    if (existing.length > 0) {
+      return reply.status(409).send({ error: 'SUBDOMAIN_TAKEN', message: 'This subdomain is already in use.' })
+    }
+
+    const tempPassword = Math.random().toString(36).slice(-10)
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
+
+    try {
+      const result = await db().begin(async (tx: any) => {
+        const schoolRows = await tx`
+          INSERT INTO schools (name, subdomain, email, phone, subscription_tier, is_active)
+          VALUES (${name}, ${subdomain}, ${email}, ${phone ?? null}, ${subscription_tier}, true)
+          RETURNING id, name, subdomain, subscription_tier
+        `
+        const school = schoolRows[0]
+
+        const adminRows = await tx`
+          INSERT INTO users (school_id, full_name, email, password_hash, role, is_active)
+          VALUES (${school.id}, ${admin_name}, ${admin_email}, ${passwordHash}, 'school_admin', true)
+          RETURNING id, full_name, email
+        `
+        return { school, admin: adminRows[0] }
+      })
+
+      // TODO: send welcome email via Resend with login URL + tempPassword
+
+      return reply.status(201).send({
+        school: result.school,
+        admin: { id: result.admin.id, name: result.admin.full_name, email: result.admin.email },
+        tempPassword, // remove from response once email sending is wired up
+      })
+    } catch (err: any) {
+      return reply.status(500).send({ error: 'CREATION_FAILED', message: 'Failed to create school and admin.', detail: err.message })
+    }
+  })
+
   // ── Per-school breakdown ──────────────────────────────────────────────────
   app.get('/superadmin/schools', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
