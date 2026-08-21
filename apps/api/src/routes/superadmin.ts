@@ -65,9 +65,10 @@ export async function superAdminRoutes(app: FastifyInstance) {
           COUNT(*) AS total_schools,
           COUNT(*) FILTER (WHERE is_active = true) AS active_schools,
           COUNT(*) FILTER (WHERE is_active = false) AS inactive_schools,
-          COUNT(*) FILTER (WHERE subscription_tier = 'starter') AS starter_schools,
-          COUNT(*) FILTER (WHERE subscription_tier = 'growth') AS growth_schools,
-          COUNT(*) FILTER (WHERE subscription_tier = 'premium') AS premium_schools
+          COUNT(*) FILTER (WHERE subscription_tier = 'basic') AS basic_schools,
+COUNT(*) FILTER (WHERE subscription_tier = 'standard') AS standard_schools,
+COUNT(*) FILTER (WHERE subscription_tier = 'premium') AS premium_schools,
+COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools,
         FROM schools
       ` as any[]
 

@@ -1,13 +1,15 @@
 const TIER_ORDER: Record<string, number> = {
-  starter: 1,
-  growth: 2,
+  basic: 1,
+  standard: 2,
   premium: 3,
+  enterprise: 4,
 }
 
 const TIER_NAMES: Record<string, string> = {
-  starter: 'Starter',
-  growth: 'Growth',
+  basic: 'Basic',
+  standard: 'Standard',
   premium: 'Premium',
+  enterprise: 'Enterprise',
 }
 
 export function requireTier(minTier: 'starter' | 'growth' | 'premium') {
@@ -28,9 +30,10 @@ export function requireTier(minTier: 'starter' | 'growth' | 'premium') {
 }
 
 export const TIER_STUDENT_LIMITS: Record<string, number> = {
-  starter: 200,
-  growth: 500,
-  premium: 999999,
+  basic: 200,
+  standard: 500,
+  premium: 800,
+  enterprise: 999999,
 }
 
 export function getStudentLimit(tier: string): number {
