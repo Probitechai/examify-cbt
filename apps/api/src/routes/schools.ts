@@ -5,6 +5,17 @@ import { authenticate, requireRole } from '../middleware/auth'
 
 export async function schoolRoutes(app: FastifyInstance) {
 
+  // ── Public: list active schools (no auth required) ─────────────────────────
+app.get('/schools/public', async (request: any, reply: any) => {
+  const rows = await db()`
+    SELECT subdomain, name
+    FROM schools
+    WHERE is_active = true
+    ORDER BY name
+  ` as any[]
+  return reply.send(rows)
+})
+
   // ── Get school settings ───────────────────────────────────────────────────
   app.get('/schools/settings', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
