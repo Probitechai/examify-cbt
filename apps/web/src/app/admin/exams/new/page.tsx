@@ -1,4 +1,4 @@
-?'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
 import SubjectSelector from '../../../../components/SubjectSelector'
 import { useState, useEffect } from 'react'

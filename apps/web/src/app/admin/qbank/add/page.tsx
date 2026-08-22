@@ -1,4 +1,4 @@
-?'use client'
+'use client'
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
