@@ -28,10 +28,10 @@ interface AttendanceSummary {
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
 const STATUS_CONFIG = {
-  present: { label: 'Present', color: '#0f4a32', bg: '#e8f5ee', icon: '?' },
-  absent:  { label: 'Absent',  color: '#dc2626', bg: '#fef2f2', icon: '?' },
-  late:    { label: 'Late',    color: '#d97706', bg: '#fffbeb', icon: '?' },
-  excused: { label: 'Excused', color: '#1e40af', bg: '#eff6ff', icon: '??' },
+  present: { label: 'Present', color: '#0f4a32', bg: '#e8f5ee', icon: '✓' },
+  absent:  { label: 'Absent',  color: '#dc2626', bg: '#fef2f2', icon: '✗' },
+  late:    { label: 'Late',    color: '#d97706', bg: '#fffbeb', icon: '⏰' },
+  excused: { label: 'Excused', color: '#1e40af', bg: '#eff6ff', icon: '📋' },
 }
 
 function getSubdomain() {
@@ -167,7 +167,7 @@ export default function AttendancePage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
-        {([{ key: 'mark', label: '?? Mark Attendance' }, { key: 'summary', label: '?? Attendance Summary' }] as const).map(tab => (
+        {([{ key: 'mark', label: '✏️ Mark Attendance' }, { key: 'summary', label: '📊 Attendance Summary' }] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', transition: 'all 0.15s' }}>
             {tab.label}
@@ -181,14 +181,14 @@ export default function AttendancePage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select�</option>
+              <option value="">Select…</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select�</option>
+              <option value="">Select…</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -216,14 +216,14 @@ export default function AttendancePage() {
               onClick={activeTab === 'mark' ? loadAttendance : loadSummary}
               disabled={loading}
               style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const, width: '100%' }}>
-              {loading ? 'Loading�' : 'Load'}
+              {loading ? 'Loading…' : 'Load'}
             </button>
           </div>
         </div>
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {saved && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? Attendance saved successfully!</div>}
+      {saved && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ Attendance saved successfully!</div>}
 
       {/* MARK ATTENDANCE TAB */}
       {activeTab === 'mark' && students.length > 0 && (
@@ -238,7 +238,7 @@ export default function AttendancePage() {
               ))}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              {alreadyMarked && <span style={{ fontSize: '0.78rem', color: '#d97706', fontWeight: 500 }}>?? Already marked � editing</span>}
+              {alreadyMarked && <span style={{ fontSize: '0.78rem', color: '#d97706', fontWeight: 500 }}>⚠️ Already marked — editing</span>}
               <span style={{ fontSize: '0.78rem', color: '#6b6b65' }}>Mark all:</span>
               {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                 <button key={key} onClick={() => markAll(key as any)}
@@ -248,7 +248,7 @@ export default function AttendancePage() {
               ))}
               <button onClick={handleSave} disabled={saving}
                 style={{ padding: '0.5rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                {saving ? 'Saving�' : '?? Save'}
+                {saving ? 'Saving…' : '💾 Save'}
               </button>
             </div>
           </div>
@@ -264,8 +264,8 @@ export default function AttendancePage() {
                 <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 300px 1fr', gap: '1rem', padding: '0.75rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.78rem', color: '#a0a09a', fontWeight: 600 }}>{i + 1}</span>
                   <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{s.full_name}</span>
-                  <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.admission_no ?? '�'}</span>
-                  <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.class_arm ?? '�'}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.admission_no ?? '—'}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.class_arm ?? '—'}</span>
                   <div style={{ display: 'flex', gap: '0.375rem' }}>
                     {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                       <button key={key} onClick={() => setLocalStatus(prev => ({ ...prev, [s.id]: { ...prev[s.id], status: key as any } }))}
@@ -278,7 +278,7 @@ export default function AttendancePage() {
                     style={{ padding: '0.375rem 0.625rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '6px', fontSize: '0.78rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const }}
                     value={current?.remark ?? ''}
                     onChange={e => setLocalStatus(prev => ({ ...prev, [s.id]: { ...prev[s.id], remark: e.target.value } }))}
-                    placeholder="Optional remark�"
+                    placeholder="Optional remark…"
                   />
                 </div>
               )
@@ -289,7 +289,7 @@ export default function AttendancePage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
             <button onClick={handleSave} disabled={saving}
               style={{ padding: '0.75rem 2rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving�' : '?? Save attendance'}
+              {saving ? 'Saving…' : '💾 Save attendance'}
             </button>
           </div>
         </>
@@ -314,7 +314,7 @@ export default function AttendancePage() {
               <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 80px 80px 80px 80px 80px 100px', gap: '0.75rem', padding: '0.75rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.78rem', color: '#a0a09a', fontWeight: 600 }}>{i + 1}</span>
                 <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{s.full_name}</span>
-                <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.admission_no ?? '�'}</span>
+                <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.admission_no ?? '—'}</span>
                 <span style={{ textAlign: 'center' as const, fontWeight: 600, color: '#0f4a32' }}>{s.present}</span>
                 <span style={{ textAlign: 'center' as const, fontWeight: 600, color: '#dc2626' }}>{s.absent}</span>
                 <span style={{ textAlign: 'center' as const, fontWeight: 600, color: '#d97706' }}>{s.late}</span>
@@ -335,7 +335,7 @@ export default function AttendancePage() {
       {/* Empty state */}
       {!loading && students.length === 0 && summary.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>
             {activeTab === 'mark' ? 'Select filters and click Load' : 'Select filters and click Load'}
           </p>

@@ -1,0 +1,22 @@
+$files = @(
+"apps\web\src\app\admin\analytics\page.tsx",
+"apps\web\src\app\admin\announcements\page.tsx",
+"apps\web\src\app\admin\approvals\page.tsx",
+"apps\web\src\app\admin\attendance\page.tsx",
+"apps\web\src\app\admin\broadsheet\page.tsx",
+"apps\web\src\app\admin\certificates\page.tsx",
+"apps\web\src\app\admin\conduct\page.tsx",
+"apps\web\src\app\admin\curriculum\page.tsx",
+"apps\web\src\app\admin\fees\page.tsx",
+"apps\web\src\app\admin\hostel-operations\page.tsx",
+"apps\web\src\app\admin\hostels\page.tsx",
+"apps\web\src\app\admin\live-classes\page.tsx",
+"apps\web\src\app\admin\questions2\page.tsx",
+"apps\web\src\app\admin\report-card\page.tsx",
+"apps\web\src\app\admin\results\page.tsx",
+"apps\web\src\app\admin\results2\page.tsx",
+"apps\web\src\app\admin\settings\page.tsx",
+"apps\web\src\app\admin\timetable\page.tsx",
+"apps\web\src\app\admin\timetable2\page.tsx",
+"apps\web\src\app\admin\transport-ops\page.tsx"
+); $utf8NoBom = New-Object System.Text.UTF8Encoding($false); foreach ($f in $files) { $fullPath = Resolve-Path $f; $lines = [System.IO.File]::ReadAllLines($fullPath, [System.Text.Encoding]::UTF8); $newLines = New-Object System.Collections.Generic.List[string]; $importAdded = $false; $routerDeclared = $false; foreach ($line in $lines) { $newLines.Add($line); if (-not $importAdded -and $line -match "from '@/lib/auth'") { $newLines.Add("import { useRouter } from 'next/navigation'"); $importAdded = $true }; if (-not $routerDeclared -and $line -match '^export default function \w+\([^)]*\)\s*\{') { $newLines.Add('  const router = useRouter()'); $routerDeclared = $true } }; if ($importAdded -and $routerDeclared) { [System.IO.File]::WriteAllLines($fullPath, $newLines, $utf8NoBom); Write-Output "FIXED: $f" } else { Write-Output "SKIPPED (check manually): $f" } }

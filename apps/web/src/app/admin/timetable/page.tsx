@@ -173,9 +173,9 @@ export default function TimetablePage() {
           <p style={{ fontSize: '0.78rem', color: '#1a1a18', marginBottom: '0.25rem', lineHeight: 1.3 }}>{exam.title}</p>
         )}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.7rem', color: '#6b6b65' }}>
-          <span>? {formatTime(exam.scheduled_at)}</span>
-          <span>? {exam.duration_minutes}min</span>
-          <span>?? {exam.class_level} {exam.class_arms?.join(', ') ?? 'All'}</span>
+          <span>⏰ {formatTime(exam.scheduled_at)}</span>
+          <span>⏱ {exam.duration_minutes}min</span>
+          <span>📚 {exam.class_level} {exam.class_arms?.join(', ') ?? 'All'}</span>
         </div>
       </div>
     )
@@ -217,7 +217,7 @@ export default function TimetablePage() {
             {(['week', 'list'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
                 style={{ padding: '0.5rem 1rem', fontSize: '0.825rem', fontWeight: 500, cursor: 'pointer', border: 'none', background: view === v ? 'var(--brand)' : 'transparent', color: view === v ? 'white' : 'var(--text-secondary)', transition: 'all 0.15s' }}>
-                {v === 'week' ? '?? Week' : '?? List'}
+                {v === 'week' ? '📅 Week' : '📋 List'}
               </button>
             ))}
           </div>
@@ -226,11 +226,11 @@ export default function TimetablePage() {
 
       {loading ? (
         <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          Loading timetable�
+          Loading timetable…
         </div>
       ) : exams.length === 0 ? (
         <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📅</div>
           <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No exams scheduled yet</p>
           <p style={{ fontSize: '0.875rem' }}>Create exams from the Exams page to see them here.</p>
           <a href="/admin/exams/new" style={{ display: 'inline-block', marginTop: '1rem', padding: '0.625rem 1.25rem', background: 'var(--brand)', color: 'white', fontSize: '0.875rem', fontWeight: 500, borderRadius: '8px', textDecoration: 'none' }}>
@@ -242,15 +242,15 @@ export default function TimetablePage() {
         <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           {/* Week navigation */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-            <button onClick={prevWeek} style={{ width: 32, height: 32, border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>�</button>
+            <button onClick={prevWeek} style={{ width: 32, height: 32, border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
             <div style={{ textAlign: 'center' }}>
               <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {weekStart.toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} � {weekEnd.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {weekStart.toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} — {weekEnd.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={goToToday} style={{ padding: '0.375rem 0.875rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Today</button>
-              <button onClick={nextWeek} style={{ width: 32, height: 32, border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>�</button>
+              <button onClick={nextWeek} style={{ width: 32, height: 32, border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
             </div>
           </div>
 
@@ -284,7 +284,7 @@ export default function TimetablePage() {
                   <div style={{ padding: '0.5rem' }}>
                     {dayExams.length === 0 ? (
                       isWeekend ? null : (
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center', padding: '0.5rem 0' }}>�</p>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center', padding: '0.5rem 0' }}>—</p>
                       )
                     ) : dayExams.map(exam => (
                       <ExamCard key={exam.id} exam={exam} compact />
@@ -340,14 +340,14 @@ export default function TimetablePage() {
                         </div>
                         <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>{exam.title}</p>
                         <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                          <span>? {formatTime(exam.scheduled_at)} � {formatTime(exam.ends_at)}</span>
-                          <span>? {exam.duration_minutes} minutes</span>
-                          <span>?? {exam.class_level} {exam.class_arms?.join(', ') ?? '(all arms)'}</span>
-                          <span>?? {exam.question_count ?? 0} questions</span>
+                          <span>⏰ {formatTime(exam.scheduled_at)} — {formatTime(exam.ends_at)}</span>
+                          <span>⏱ {exam.duration_minutes} minutes</span>
+                          <span>📚 {exam.class_level} {exam.class_arms?.join(', ') ?? '(all arms)'}</span>
+                          <span>📋 {exam.question_count ?? 0} questions</span>
                         </div>
                       </div>
                       <a href="/admin/results" style={{ padding: '0.5rem 1rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
-                        View results ?
+                        View results →
                       </a>
                     </div>
                   )

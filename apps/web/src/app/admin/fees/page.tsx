@@ -40,7 +40,7 @@ function getSubdomain() {
 const API = process.env.NEXT_PUBLIC_API_URL
 
 function formatAmount(n: number) {
-  return `?${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+  return `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
 }
 
 export default function FeesPage() {
@@ -212,9 +212,9 @@ export default function FeesPage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
         {([
-          { key: 'structures', label: '?? Fee Structures' },
-          { key: 'ledger', label: '?? Payment Ledger' },
-          { key: 'summary', label: '?? Collection Summary' },
+          { key: 'structures', label: '⚙️ Fee Structures' },
+          { key: 'ledger', label: '💳 Payment Ledger' },
+          { key: 'summary', label: '📊 Collection Summary' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
@@ -229,14 +229,14 @@ export default function FeesPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select�</option>
+              <option value="">Select…</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select�</option>
+              <option value="">Select…</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -261,7 +261,7 @@ export default function FeesPage() {
             <button onClick={activeTab === 'structures' ? loadStructures : activeTab === 'ledger' ? loadLedger : loadSummary}
               disabled={loading}
               style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const, width: '100%' }}>
-              {loading ? 'Loading�' : 'Load'}
+              {loading ? 'Loading…' : 'Load'}
             </button>
           </div>
         </div>
@@ -270,7 +270,7 @@ export default function FeesPage() {
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
       {success && (
         <div style={{ padding: '1rem 1.25rem', background: '#e8f5ee', border: '2px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem' }}>
-          <p style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 600, marginBottom: '0.375rem' }}>? Payment recorded successfully!</p>
+          <p style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 600, marginBottom: '0.375rem' }}>✅ Payment recorded successfully!</p>
           {lastReceipt && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'white', border: '1px solid #1a6b4a', borderRadius: '8px', padding: '0.625rem 1rem', marginTop: '0.5rem' }}>
               <span style={{ fontSize: '0.78rem', color: '#6b6b65', fontWeight: 500 }}>Receipt Number:</span>
@@ -285,7 +285,7 @@ export default function FeesPage() {
         </div>
       )}
 
-      {/* -- FEE STRUCTURES TAB -- */}
+      {/* ── FEE STRUCTURES TAB ── */}
       {activeTab === 'structures' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -302,10 +302,10 @@ export default function FeesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Fee name</label>
-                  <input style={inp} value={feeName} onChange={e => setFeeName(e.target.value)} placeholder="e.g. Tuition Fee, PTA Levy�" autoFocus />
+                  <input style={inp} value={feeName} onChange={e => setFeeName(e.target.value)} placeholder="e.g. Tuition Fee, PTA Levy…" autoFocus />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Amount (?)</label>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Amount (₦)</label>
                   <input style={inp} type="number" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} placeholder="e.g. 50000" min={0} />
                 </div>
                 <div>
@@ -322,7 +322,7 @@ export default function FeesPage() {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={handleCreateStructure} disabled={savingStructure}
                   style={{ padding: '0.5rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: savingStructure ? 0.6 : 1 }}>
-                  {savingStructure ? 'Saving�' : 'Save fee item'}
+                  {savingStructure ? 'Saving…' : 'Save fee item'}
                 </button>
                 <button onClick={() => { setShowStructureForm(false); setError('') }}
                   style={{ padding: '0.5rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -334,7 +334,7 @@ export default function FeesPage() {
 
           {structures.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💰</p>
               <p style={{ fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>No fee structures yet</p>
               <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Add fee items like Tuition, PTA Levy, Exam Fee, etc.</p>
             </div>
@@ -369,12 +369,12 @@ export default function FeesPage() {
         </>
       )}
 
-      {/* -- PAYMENT LEDGER TAB -- */}
+      {/* ── PAYMENT LEDGER TAB ── */}
       {activeTab === 'ledger' && (
         <>
           {ledger.length === 0 && !loading ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💳</p>
               <p style={{ fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Select filters and click Load</p>
               <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>View payment status for each student and record payments.</p>
             </div>
@@ -395,7 +395,7 @@ export default function FeesPage() {
                     setTimeout(() => setSuccess(''), 5000)
                   }}
                     style={{ padding: '0.5rem 1.25rem', background: '#7e22ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
-                    ?? Send fee reminder SMS
+                    📱 Send fee reminder SMS
                   </button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
@@ -427,11 +427,11 @@ export default function FeesPage() {
                       onClick={() => setExpandedStudent(expandedStudent === row.studentId ? null : row.studentId)}>
                       <span style={{ fontSize: '0.78rem', color: '#a0a09a', fontWeight: 600 }}>{i + 1}</span>
                       <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{row.studentName}</span>
-                      <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{row.admissionNo ?? '�'}</span>
+                      <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{row.admissionNo ?? '—'}</span>
                       <span style={{ fontSize: '0.875rem', textAlign: 'right' as const, color: '#1a1a18' }}>{formatAmount(row.totalFees)}</span>
                       <span style={{ fontSize: '0.875rem', textAlign: 'right' as const, color: '#1a6b4a', fontWeight: 600 }}>{formatAmount(row.totalPaid)}</span>
                       <span style={{ fontSize: '0.875rem', textAlign: 'right' as const, color: row.balance > 0 ? '#dc2626' : '#1a6b4a', fontWeight: 600 }}>
-                        {row.balance > 0 ? formatAmount(row.balance) : '? Paid'}
+                        {row.balance > 0 ? formatAmount(row.balance) : '✓ Paid'}
                       </span>
                       <span style={{ textAlign: 'center' as const }}>
                         <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: 20, background: row.isPaid ? '#e8f5ee' : '#fef2f2', color: row.isPaid ? '#0f4a32' : '#dc2626' }}>
@@ -452,7 +452,7 @@ export default function FeesPage() {
                               <span style={{ color: '#6b6b65' }}>Due: {formatAmount(f.amount)}</span>
                               <span style={{ color: '#1a6b4a', fontWeight: 600 }}>Paid: {formatAmount(f.paid)}</span>
                               <span style={{ color: f.balance > 0 ? '#dc2626' : '#1a6b4a', fontWeight: 600 }}>
-                                {f.balance > 0 ? `Owed: ${formatAmount(f.balance)}` : '? Cleared'}
+                                {f.balance > 0 ? `Owed: ${formatAmount(f.balance)}` : '✓ Cleared'}
                               </span>
                             </div>
                           </div>
@@ -467,12 +467,12 @@ export default function FeesPage() {
         </>
       )}
 
-      {/* -- COLLECTION SUMMARY TAB -- */}
+      {/* ── COLLECTION SUMMARY TAB ── */}
       {activeTab === 'summary' && (
         <>
           {summary.length === 0 && !loading ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📊</p>
               <p style={{ fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Select a term and click Load</p>
               <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>View fee collection totals across all classes.</p>
             </div>
@@ -541,39 +541,39 @@ export default function FeesPage() {
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Amount paid (?)</label>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Amount paid (₦)</label>
                 <input style={inp} type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="Enter amount" min={0} />
               </div>
               <div>
                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payment method</label>
                 <select style={sel} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)}>
-                  <option value="cash">?? Cash</option>
-                  <option value="bank_transfer">?? Bank Transfer</option>
-                  <option value="card">?? Card / POS</option>
-                  <option value="cheque">?? Cheque</option>
+                  <option value="cash">💵 Cash</option>
+                  <option value="bank_transfer">🏦 Bank Transfer</option>
+                  <option value="card">💳 Card / POS</option>
+                  <option value="cheque">📄 Cheque</option>
                 </select>
               </div>
               {(paymentMethod === 'bank_transfer' || paymentMethod === 'cheque' || paymentMethod === 'card') && (
                 <div style={{ background: paymentMethod === 'cheque' ? '#fefce8' : paymentMethod === 'card' ? '#f5f3ff' : '#f0f7ff', border: `1.5px solid ${paymentMethod === 'cheque' ? '#fde68a' : paymentMethod === 'card' ? '#ddd6fe' : '#bfdbfe'}`, borderRadius: '10px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {/* Header changes per method */}
                   <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e40af', marginBottom: '0.25rem' }}>
-                    {paymentMethod === 'bank_transfer' ? '?? Bank Transfer Details' : paymentMethod === 'cheque' ? '?? Cheque Details' : '?? Card / POS Details'}
+                    {paymentMethod === 'bank_transfer' ? '🏦 Bank Transfer Details' : paymentMethod === 'cheque' ? '📄 Cheque Details' : '💳 Card / POS Details'}
                   </p>
 
-                  {/* Payer name � all three methods */}
+                  {/* Payer name — all three methods */}
                   <div>
                     <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Payer's full name</label>
                     <input style={inp} value={payerName} onChange={e => setPayerName(e.target.value)} placeholder="e.g. John Adebayo" />
                   </div>
 
-                  {/* Bank name � bank transfer and cheque */}
+                  {/* Bank name — bank transfer and cheque */}
                   {(paymentMethod === 'bank_transfer' || paymentMethod === 'cheque') && (
                     <div>
                       <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>
                         {paymentMethod === 'cheque' ? 'Issuing bank' : 'Payer\'s bank'}
                       </label>
                       <select style={sel} value={payerBank} onChange={e => setPayerBank(e.target.value)}>
-                        <option value="">Select bank�</option>
+                        <option value="">Select bank…</option>
                         {['Access Bank','Citibank','Ecobank','Fidelity Bank','First Bank','First City Monument Bank','Globus Bank','Guaranty Trust Bank','Heritage Bank','Keystone Bank','Lotus Bank','Polaris Bank','Providus Bank','Stanbic IBTC Bank','Standard Chartered','Sterling Bank','Titan Trust Bank','Union Bank','United Bank for Africa','Unity Bank','Wema Bank','Zenith Bank'].map(b => (
                           <option key={b} value={b}>{b}</option>
                         ))}
@@ -616,7 +616,7 @@ export default function FeesPage() {
                         <div>
                           <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Card type</label>
                           <select style={sel} value={payerBank} onChange={e => setPayerBank(e.target.value)}>
-                            <option value="">Select�</option>
+                            <option value="">Select…</option>
                             <option value="Verve">Verve</option>
                             <option value="Mastercard">Mastercard</option>
                             <option value="Visa">Visa</option>
@@ -648,14 +648,14 @@ export default function FeesPage() {
               </div>
               <div>
                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Notes (optional)</label>
-                <input style={inp} value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="e.g. Part payment, reference number�" />
+                <input style={inp} value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="e.g. Part payment, reference number…" />
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
               <button onClick={handleRecordPayment} disabled={savingPayment}
                 style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: savingPayment ? 0.6 : 1 }}>
-                {savingPayment ? 'Saving�' : '?? Record payment'}
+                {savingPayment ? 'Saving…' : '💾 Record payment'}
               </button>
               <button onClick={() => { setShowPayment(false); setError('') }}
                 style={{ flex: 1, padding: '0.75rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>

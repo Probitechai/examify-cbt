@@ -138,14 +138,14 @@ export default function BroadsheetPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select sessionÖ</option>
+              <option value="">Select session‚Ä¶</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select termÖ</option>
+              <option value="">Select term‚Ä¶</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -165,12 +165,12 @@ export default function BroadsheetPage() {
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button onClick={loadBroadsheet} disabled={loading}
               style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-              {loading ? 'LoadingÖ' : 'Generate'}
+              {loading ? 'Loading‚Ä¶' : 'Generate'}
             </button>
             {broadsheet && (
               <button onClick={handlePrint}
                 style={{ padding: '0.625rem 1.25rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-                ??? Print
+                üñ®Ô∏è Print
               </button>
             )}
           </div>
@@ -185,7 +185,7 @@ export default function BroadsheetPage() {
 
       {!broadsheet && !loading && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>üìä</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Select filters and click Generate</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>The broadsheet shows all students and subjects in one view.</p>
         </div>
@@ -193,7 +193,7 @@ export default function BroadsheetPage() {
 
       {broadsheet && broadsheet.students.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>??</p>
+          <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>üì≠</p>
           <p style={{ fontWeight: 600, color: '#1a1a18' }}>No results found</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginTop: '0.25rem' }}>No scores have been entered for this class and term yet.</p>
         </div>
@@ -210,7 +210,7 @@ export default function BroadsheetPage() {
             )}
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.375rem' }}>{schoolName || 'School Name'}</h2>
             <p style={{ fontSize: '1rem', color: '#3a3a36', fontWeight: 500 }}>
-              {broadsheet.termInfo.session_name} ó {broadsheet.termInfo.term_name}
+              {broadsheet.termInfo.session_name} ‚Äî {broadsheet.termInfo.term_name}
             </p>
             <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginTop: '0.25rem' }}>
               Class: {broadsheet.classLevel} {broadsheet.classArm !== 'All' ? broadsheet.classArm : ''} &nbsp;|&nbsp;
@@ -229,7 +229,7 @@ export default function BroadsheetPage() {
                   <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center', fontWeight: 600, whiteSpace: 'nowrap' as const }}>Adm. No.</th>
                   {broadsheet.subjects.map(sub => (
                     <th key={sub} colSpan={2} style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 600, borderLeft: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' as const, fontSize: '0.72rem' }}>
-                      {sub.length > 10 ? sub.slice(0, 10) + 'Ö' : sub}
+                      {sub.length > 10 ? sub.slice(0, 10) + '‚Ä¶' : sub}
                     </th>
                   ))}
                   <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center', fontWeight: 600, borderLeft: '2px solid rgba(255,255,255,0.4)', whiteSpace: 'nowrap' as const }}>Total</th>
@@ -258,16 +258,16 @@ export default function BroadsheetPage() {
                     <td style={{ padding: '0.5rem 0.75rem', fontWeight: 500, color: '#1a1a18', position: 'sticky' as const, left: 32, background: i % 2 === 0 ? 'white' : '#f9f9f8', whiteSpace: 'nowrap' as const }}>
                       {student.studentName}
                     </td>
-                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center', color: '#6b6b65' }}>{student.admissionNo ?? 'ó'}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center', color: '#6b6b65' }}>{student.admissionNo ?? '‚Äî'}</td>
                     {broadsheet.subjects.map(sub => {
                       const r = student.subjects[sub]
                       return (
                         <>
                           <td key={`${student.studentId}-${sub}-score`} style={{ padding: '0.5rem 0.625rem', textAlign: 'center', color: '#1a1a18', borderLeft: '1px solid #e5e5e0', fontWeight: 500 }}>
-                            {r ? Number(r.total).toFixed(0) : 'ó'}
+                            {r ? Number(r.total).toFixed(0) : '‚Äî'}
                           </td>
                           <td key={`${student.studentId}-${sub}-grade`} style={{ padding: '0.5rem 0.625rem', textAlign: 'center', fontWeight: 700, color: r ? gradeColor(r.grade) : '#a0a09a' }}>
-                            {r?.grade ?? 'ó'}
+                            {r?.grade ?? '‚Äî'}
                           </td>
                         </>
                       )
@@ -280,7 +280,7 @@ export default function BroadsheetPage() {
                     </td>
                     {broadsheet.config.showPosition && (
                       <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center', fontWeight: 700, color: student.position === 1 ? '#d97706' : '#1a1a18' }}>
-                        {student.position ?? 'ó'}
+                        {student.position ?? '‚Äî'}
                       </td>
                     )}
                   </tr>
@@ -291,8 +291,8 @@ export default function BroadsheetPage() {
                   <td colSpan={3} style={{ padding: '0.625rem 0.75rem', fontWeight: 600, color: '#1a1a18' }}>Class statistics</td>
                   {broadsheet.subjects.map(sub => {
                     const scores = broadsheet.students.map(s => s.subjects[sub]?.total ?? 0).filter(s => s > 0)
-                    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : 'ó'
-                    const highest = scores.length > 0 ? Math.max(...scores).toFixed(0) : 'ó'
+                    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '‚Äî'
+                    const highest = scores.length > 0 ? Math.max(...scores).toFixed(0) : '‚Äî'
                     return (
                       <>
                         <td key={`stat-${sub}-avg`} colSpan={2} style={{ padding: '0.5rem 0.625rem', textAlign: 'center', fontSize: '0.72rem', color: '#6b6b65', borderLeft: '1px solid #e5e5e0' }}>
@@ -310,7 +310,7 @@ export default function BroadsheetPage() {
           </div>
 
           <p style={{ fontSize: '0.72rem', color: '#a0a09a', textAlign: 'center', marginTop: '1rem' }}>
-            Generated by Examify School Management System ∑ {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Generated by Examify School Management System ¬∑ {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
       )}

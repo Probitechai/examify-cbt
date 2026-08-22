@@ -237,7 +237,7 @@ export default function CurriculumPage() {
       {settings && (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.375rem 1rem', borderRadius: 20, background: curriculumConfig?.bg ?? '#f7f7f5', marginBottom: '1.5rem' }}>
           <span style={{ fontSize: '0.825rem', fontWeight: 700, color: curriculumConfig?.color ?? '#1a1a18' }}>
-            ?? {curriculumConfig?.label ?? 'Nigerian'} Curriculum
+            📚 {curriculumConfig?.label ?? 'Nigerian'} Curriculum
           </span>
           {settings.secondary_curriculum && (
             <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>+ {settings.secondary_curriculum}</span>
@@ -246,15 +246,15 @@ export default function CurriculumPage() {
       )}
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
         {([
-          { key: 'settings', label: '?? Settings' },
-          { key: 'subjects', label: '?? Subjects' },
-          { key: 'scheme', label: '?? Scheme of Work' },
-          { key: 'coverage', label: '?? Coverage' },
+          { key: 'settings', label: '⚙️ Settings' },
+          { key: 'subjects', label: '📚 Subjects' },
+          { key: 'scheme', label: '📋 Scheme of Work' },
+          { key: 'coverage', label: '📊 Coverage' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
@@ -310,11 +310,11 @@ export default function CurriculumPage() {
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button onClick={saveSettings} disabled={savingSettings}
               style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: savingSettings ? 0.6 : 1 }}>
-              {savingSettings ? 'Saving...' : '?? Save Settings'}
+              {savingSettings ? 'Saving...' : '💾 Save Settings'}
             </button>
             <button onClick={loadDefaults} disabled={loadingDefaults}
               style={{ padding: '0.625rem 1.5rem', background: '#eff6ff', color: '#1e40af', border: '1.5px solid #bfdbfe', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loadingDefaults ? 0.6 : 1 }}>
-              {loadingDefaults ? 'Loading...' : '?? Load Default Subjects'}
+              {loadingDefaults ? 'Loading...' : '📥 Load Default Subjects'}
             </button>
           </div>
           <p style={{ fontSize: '0.72rem', color: '#a0a09a', marginTop: '0.75rem' }}>
@@ -382,7 +382,7 @@ export default function CurriculumPage() {
             </div>
             {subjects.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center' as const }}>
-                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>??</p>
+                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📚</p>
                 <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No subjects yet. Load defaults or add manually.</p>
               </div>
             ) : subjects.map(s => {
@@ -390,7 +390,7 @@ export default function CurriculumPage() {
               return (
                 <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 1fr 120px 100px', gap: '1rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center', opacity: s.is_active ? 1 : 0.5 }}>
                   <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{s.name}</span>
-                  <span style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{s.code ?? '�'}</span>
+                  <span style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{s.code ?? '—'}</span>
                   <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{s.class_levels.join(', ')}</span>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: 20, background: catCfg.bg, color: catCfg.color, textTransform: 'capitalize' as const }}>{s.category}</span>
                   <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -473,16 +473,16 @@ export default function CurriculumPage() {
 
           {scheme.length === 0 && !loading ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>??</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📋</p>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Select filters and click Load to view the scheme of work.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {scheme.map(entry => {
-                const deliveryCfg = entry.delivery_status === 'delivered' ? { color: '#0f4a32', bg: '#e8f5ee', label: '? Delivered' }
-                  : entry.delivery_status === 'partial' ? { color: '#d97706', bg: '#fffbeb', label: '? Partial' }
-                  : entry.delivery_status === 'not_delivered' ? { color: '#dc2626', bg: '#fef2f2', label: '? Not Delivered' }
-                  : entry.delivery_status === 'rescheduled' ? { color: '#7e22ce', bg: '#f5f3ff', label: '? Rescheduled' }
+                const deliveryCfg = entry.delivery_status === 'delivered' ? { color: '#0f4a32', bg: '#e8f5ee', label: '✓ Delivered' }
+                  : entry.delivery_status === 'partial' ? { color: '#d97706', bg: '#fffbeb', label: '◑ Partial' }
+                  : entry.delivery_status === 'not_delivered' ? { color: '#dc2626', bg: '#fef2f2', label: '✗ Not Delivered' }
+                  : entry.delivery_status === 'rescheduled' ? { color: '#7e22ce', bg: '#f5f3ff', label: '↺ Rescheduled' }
                   : { color: '#a0a09a', bg: '#f7f7f5', label: 'Not recorded' }
                 return (
                   <div key={entry.id} style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
@@ -493,7 +493,7 @@ export default function CurriculumPage() {
                           <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{entry.topic}</p>
                         </div>
                         {entry.sub_topics?.length > 0 && (
-                          <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginBottom: '0.25rem' }}>Sub-topics: {entry.sub_topics.join(' � ')}</p>
+                          <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginBottom: '0.25rem' }}>Sub-topics: {entry.sub_topics.join(' · ')}</p>
                         )}
                         {entry.delivered_by && (
                           <p style={{ fontSize: '0.68rem', color: '#a0a09a' }}>Delivered by {entry.delivered_by} on {entry.delivered_date ? new Date(entry.delivered_date).toLocaleDateString('en-NG') : ''}</p>
@@ -537,7 +537,7 @@ export default function CurriculumPage() {
 
           {coverage.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>??</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📊</p>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No coverage data yet. Add scheme of work and record lessons.</p>
             </div>
           ) : (
@@ -587,10 +587,10 @@ export default function CurriculumPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div><label style={lbl}>Delivery Status</label>
                 <select style={sel} value={deliveryForm.deliveryStatus} onChange={e => setDeliveryForm(f => ({ ...f, deliveryStatus: e.target.value }))}>
-                  <option value="delivered">? Fully Delivered</option>
-                  <option value="partial">? Partially Delivered</option>
-                  <option value="not_delivered">? Not Delivered</option>
-                  <option value="rescheduled">? Rescheduled</option>
+                  <option value="delivered">✓ Fully Delivered</option>
+                  <option value="partial">◑ Partially Delivered</option>
+                  <option value="not_delivered">✗ Not Delivered</option>
+                  <option value="rescheduled">↺ Rescheduled</option>
                 </select></div>
               <div><label style={lbl}>Date</label>
                 <input style={inp} type="date" value={deliveryForm.deliveredDate} onChange={e => setDeliveryForm(f => ({ ...f, deliveredDate: e.target.value }))} /></div>
@@ -601,7 +601,7 @@ export default function CurriculumPage() {
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={saveDelivery} disabled={savingDelivery}
                   style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: savingDelivery ? 0.6 : 1 }}>
-                  {savingDelivery ? 'Saving...' : '?? Save'}
+                  {savingDelivery ? 'Saving...' : '💾 Save'}
                 </button>
                 <button onClick={() => setDeliveryEntry(null)}
                   style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>

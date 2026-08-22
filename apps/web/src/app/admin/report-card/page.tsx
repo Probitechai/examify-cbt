@@ -208,14 +208,14 @@ export default function ReportCardPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select�</option>
+              <option value="">Select…</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select�</option>
+              <option value="">Select…</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -235,19 +235,19 @@ export default function ReportCardPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Student</label>
             <select style={sel} value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}>
-              <option value="">{studentsLoading ? 'Loading�' : 'Select student�'}</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.photo_url ? ' ??' : ''}</option>)}
+              <option value="">{studentsLoading ? 'Loading…' : 'Select student…'}</option>
+              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.photo_url ? ' 📷' : ''}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
             <button onClick={loadReportCard} disabled={loading}
               style={{ flex: 1, padding: '0.625rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
-              {loading ? 'Loading�' : 'Generate'}
+              {loading ? 'Loading…' : 'Generate'}
             </button>
             {reportCard && (
               <button onClick={() => window.print()}
                 style={{ flex: 1, padding: '0.625rem 1rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-                ??? Print
+                🖨️ Print
               </button>
             )}
           </div>
@@ -260,17 +260,17 @@ export default function ReportCardPage() {
               {selectedStudentData.photo_url ? (
                 <img src={selectedStudentData.photo_url} alt={selectedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '1.5rem' }}>??</span>
+                <span style={{ fontSize: '1.5rem' }}>👤</span>
               )}
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18', marginBottom: '0.25rem' }}>{selectedStudentData.full_name}</p>
-              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{selectedStudentData.photo_url ? 'Photo uploaded ?' : 'No photo yet'}</p>
+              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{selectedStudentData.photo_url ? 'Photo uploaded ✓' : 'No photo yet'}</p>
             </div>
             <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             <button onClick={() => photoInputRef.current?.click()} disabled={photoUploading}
               style={{ padding: '0.5rem 1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#1a1a18', cursor: 'pointer', whiteSpace: 'nowrap' as const, opacity: photoUploading ? 0.6 : 1 }}>
-              {photoUploading ? '? Uploading�' : selectedStudentData.photo_url ? '?? Change photo' : '?? Upload photo'}
+              {photoUploading ? '⏳ Uploading…' : selectedStudentData.photo_url ? '🔄 Change photo' : '📷 Upload photo'}
             </button>
           </div>
         )}
@@ -284,7 +284,7 @@ export default function ReportCardPage() {
 
       {!reportCard && !loading && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Select a student and click Generate</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>You can also upload a student photo before generating.</p>
         </div>
@@ -301,7 +301,7 @@ export default function ReportCardPage() {
               </div>
             ) : (
               <div style={{ width: 72, height: 72, borderRadius: '12px', background: 'rgba(255,255,255,0.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>
-                ??
+                🏫
               </div>
             )}
             <div style={{ flex: 1, color: 'white' }}>
@@ -310,7 +310,7 @@ export default function ReportCardPage() {
               </h1>
               <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>Student Academic Report Card</p>
               <p style={{ fontSize: '0.8rem', opacity: 0.75, marginTop: '0.15rem' }}>
-                {reportCard.term.session_name} � {reportCard.term.term_name}
+                {reportCard.term.session_name} — {reportCard.term.term_name}
               </p>
             </div>
           </div>
@@ -324,7 +324,7 @@ export default function ReportCardPage() {
                   style={{ width: 72, height: 90, objectFit: 'cover', borderRadius: '6px', border: '2px solid #e5e5e0' }} />
               ) : (
                 <div style={{ width: 72, height: 90, background: '#e5e5e0', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>
-                  ??
+                  👤
                 </div>
               )}
             </div>
@@ -360,10 +360,10 @@ export default function ReportCardPage() {
                 {reportCard.results.map((r, i) => (
                   <tr key={r.subject} style={{ borderBottom: '1px solid #f0f0ee', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={{ padding: '0.75rem 1rem', fontWeight: 500, color: '#1a1a18' }}>{r.subject}</td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', color: '#3a3a36' }}>{r.ca_score ?? '�'}</td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', color: '#3a3a36' }}>{r.exam_score ?? '�'}</td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', color: '#3a3a36' }}>{r.ca_score ?? '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', color: '#3a3a36' }}>{r.exam_score ?? '—'}</td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: 700, color: '#1a1a18', fontSize: '1rem' }}>
-                      {r.total_score != null ? Number(r.total_score).toFixed(0) : '�'}
+                      {r.total_score != null ? Number(r.total_score).toFixed(0) : '—'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                       <span style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: 20, background: gradeBg(r.grade), color: gradeColor(r.grade), fontWeight: 700, fontSize: '0.875rem' }}>
@@ -394,11 +394,11 @@ export default function ReportCardPage() {
             {/* Subject summary */}
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
               <div style={{ flex: 1, background: '#e8f5ee', borderRadius: '10px', padding: '0.875rem 1rem' }}>
-                <p style={{ fontSize: '0.78rem', color: '#0f4a32', fontWeight: 600, marginBottom: '0.25rem' }}>? Subjects Passed</p>
+                <p style={{ fontSize: '0.78rem', color: '#0f4a32', fontWeight: 600, marginBottom: '0.25rem' }}>✅ Subjects Passed</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a6b4a' }}>{passedSubjects} of {reportCard.results.length}</p>
               </div>
               <div style={{ flex: 1, background: failedSubjects > 0 ? '#fef2f2' : '#f7f7f5', borderRadius: '10px', padding: '0.875rem 1rem' }}>
-                <p style={{ fontSize: '0.78rem', color: failedSubjects > 0 ? '#991b1b' : '#6b6b65', fontWeight: 600, marginBottom: '0.25rem' }}>? Subjects Failed</p>
+                <p style={{ fontSize: '0.78rem', color: failedSubjects > 0 ? '#991b1b' : '#6b6b65', fontWeight: 600, marginBottom: '0.25rem' }}>❌ Subjects Failed</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: failedSubjects > 0 ? '#dc2626' : '#6b6b65' }}>{failedSubjects}</p>
               </div>
             </div>
@@ -456,7 +456,7 @@ export default function ReportCardPage() {
             </div>
 
             <p style={{ fontSize: '0.72rem', color: '#a0a09a', textAlign: 'center', marginTop: '1.5rem' }}>
-              Generated by Examify School Management System � {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
+              Generated by Examify School Management System · {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
         </div>

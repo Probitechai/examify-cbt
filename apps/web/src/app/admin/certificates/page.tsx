@@ -149,7 +149,7 @@ export default function CertificatesPage() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => { setShowBulkForm(true); loadSubjects() }}
             style={{ padding: '0.5rem 1rem', background: '#eff6ff', color: '#1e40af', border: '1.5px solid #bfdbfe', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
-            ?? Bulk Issue
+            📋 Bulk Issue
           </button>
           <button onClick={() => { setShowIssueForm(true); loadStudents(); loadSubjects() }}
             style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -159,7 +159,7 @@ export default function CertificatesPage() {
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
 
       {/* Filters */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -185,7 +185,7 @@ export default function CertificatesPage() {
       {/* Certificates list */}
       {certificates.length === 0 ? (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
-          <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>??</p>
+          <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🏆</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No certificates yet</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Issue certificates to students who have completed lessons or excelled in a term.</p>
         </div>
@@ -198,7 +198,7 @@ export default function CertificatesPage() {
             <div key={cert.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 100px', gap: '1rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
               <div>
                 <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{cert.student_name}</p>
-                <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{cert.class_level} {cert.class_arm} � {cert.certificate_number}</p>
+                <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{cert.class_level} {cert.class_arm} · {cert.certificate_number}</p>
               </div>
               <div>
                 <p style={{ fontSize: '0.825rem', color: '#3a3a36' }}>{cert.title}</p>
@@ -212,7 +212,7 @@ export default function CertificatesPage() {
                 <button onClick={() => setViewingCert(cert)}
                   style={{ padding: '0.3rem 0.625rem', background: '#e8f5ee', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>View</button>
                 <button onClick={() => revoke(cert.id)}
-                  style={{ padding: '0.3rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#dc2626', cursor: 'pointer' }}>?</button>
+                  style={{ padding: '0.3rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#dc2626', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           ))}
@@ -229,7 +229,7 @@ export default function CertificatesPage() {
               <div><label style={lbl}>Student *</label>
                 <select style={sel} value={issueForm.studentId} onChange={e => setIssueForm(f => ({ ...f, studentId: e.target.value }))}>
                   <option value="">Select student...</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.full_name} � {s.class_level} {s.class_arm}</option>)}
+                  {students.map(s => <option key={s.id} value={s.id}>{s.full_name} — {s.class_level} {s.class_arm}</option>)}
                 </select></div>
               <div><label style={lbl}>Certificate Type</label>
                 <select style={sel} value={issueForm.certificateType} onChange={e => {
@@ -253,7 +253,7 @@ export default function CertificatesPage() {
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={issueCertificate} disabled={issuing}
                   style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: issuing ? 0.6 : 1 }}>
-                  {issuing ? 'Issuing...' : '?? Issue Certificate'}
+                  {issuing ? 'Issuing...' : '🏆 Issue Certificate'}
                 </button>
                 <button onClick={() => setShowIssueForm(false)}
                   style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -295,12 +295,12 @@ export default function CertificatesPage() {
               <div><label style={lbl}>Description</label>
                 <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={bulkForm.description} onChange={e => setBulkForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. For successfully completing all lessons in Third Term 2025/2026" /></div>
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '0.875rem', fontSize: '0.825rem', color: '#92400e' }}>
-                ? This will auto-issue to all {selectedClass} students with average lesson progress = {bulkForm.minCompletionPct}%
+                ⚡ This will auto-issue to all {selectedClass} students with average lesson progress ≥ {bulkForm.minCompletionPct}%
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={bulkIssue} disabled={issuing}
                   style={{ flex: 1, padding: '0.75rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: issuing ? 0.6 : 1 }}>
-                  {issuing ? 'Issuing...' : '?? Bulk Issue'}
+                  {issuing ? 'Issuing...' : '📋 Bulk Issue'}
                 </button>
                 <button onClick={() => setShowBulkForm(false)}
                   style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -322,7 +322,7 @@ export default function CertificatesPage() {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={() => window.print()}
                   style={{ padding: '0.375rem 0.875rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
-                  ??? Print
+                  🖨️ Print
                 </button>
                 <button onClick={() => setViewingCert(null)}
                   style={{ padding: '0.375rem 0.75rem', background: '#f7f7f5', border: '1px solid #e5e5e0', borderRadius: '6px', fontSize: '0.78rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -363,7 +363,7 @@ function CertificateRenderer({ cert }: { cert: any }) {
         {/* Gold divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right, transparent, #d4af37)' }} />
-          <span style={{ fontSize: '1.25rem' }}>??</span>
+          <span style={{ fontSize: '1.25rem' }}>🏆</span>
           <div style={{ flex: 1, height: 1, background: 'linear-gradient(to left, transparent, #d4af37)' }} />
         </div>
 
@@ -378,7 +378,7 @@ function CertificateRenderer({ cert }: { cert: any }) {
         </h2>
 
         <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1rem' }}>
-          {cert.class_level} {cert.class_arm} � Adm No: {cert.admission_no ?? 'N/A'}
+          {cert.class_level} {cert.class_arm} · Adm No: {cert.admission_no ?? 'N/A'}
         </p>
 
         {/* Gold divider */}
@@ -397,7 +397,7 @@ function CertificateRenderer({ cert }: { cert: any }) {
         ) : (
           <p style={{ fontSize: '0.925rem', color: '#3a3a36', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 1.5rem' }}>
             For successfully completing the requirements of{cert.subject_name ? ` ${cert.subject_name}` : ''} in{' '}
-            <strong>{cert.term_name}</strong> � <strong>{cert.session_name}</strong>
+            <strong>{cert.term_name}</strong> — <strong>{cert.session_name}</strong>
           </p>
         )}
 
@@ -429,7 +429,7 @@ function CertificateRenderer({ cert }: { cert: any }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#a0a09a', fontFamily: 'system-ui', borderTop: '1px solid #e5e5e0', paddingTop: '0.875rem' }}>
           <span>Certificate No: <strong>{cert.certificate_number}</strong></span>
           <span>Issued: {new Date(cert.issued_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-          <span>Examify � Probitechai</span>
+          <span>Examify · Probitechai</span>
         </div>
       </div>
     </div>

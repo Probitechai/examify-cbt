@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
                 if (!studentMap[key]) {
                   studentMap[key] = {
                     student_name: r.student_name,
-                    admission_no: r.admission_no ?? '�',
+                    admission_no: r.admission_no ?? '—',
                     class_level: r.class_level ?? '',
                     class_arm: r.class_arm ?? '',
                     total_exams: 0,
@@ -222,7 +222,7 @@ export default function AnalyticsPage() {
           {[1,2,3,4].map(i => <div key={i} style={{ height: 100, background: 'white', borderRadius: 12, border: '1px solid #e5e5e0', animation: 'pulse 1.5s infinite' }} />)}
         </div>
         <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
-        <p style={{ color: '#6b6b65', textAlign: 'center', marginTop: '2rem' }}>Loading analytics data�</p>
+        <p style={{ color: '#6b6b65', textAlign: 'center', marginTop: '2rem' }}>Loading analytics data…</p>
       </div>
     )
   }
@@ -242,11 +242,11 @@ export default function AnalyticsPage() {
       {/* Overview stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         {[
-          { label: 'Total exams', value: totalExams, icon: '??', color: '#1a6b4a', bg: '#e8f5ee' },
-          { label: 'Total submissions', value: totalSubmissions, icon: '?', color: '#1e40af', bg: '#eff6ff' },
-          { label: 'Total passed', value: totalPassed, icon: '??', color: '#1a6b4a', bg: '#e8f5ee' },
-          { label: 'Overall pass rate', value: `${overallPassRate}%`, icon: '??', color: getPassRateColor(overallPassRate), bg: getPassRateBg(overallPassRate) },
-          { label: 'Avg score', value: `${avgScore}%`, icon: '?', color: '#7e22ce', bg: '#fdf4ff' },
+          { label: 'Total exams', value: totalExams, icon: '📋', color: '#1a6b4a', bg: '#e8f5ee' },
+          { label: 'Total submissions', value: totalSubmissions, icon: '✅', color: '#1e40af', bg: '#eff6ff' },
+          { label: 'Total passed', value: totalPassed, icon: '🏆', color: '#1a6b4a', bg: '#e8f5ee' },
+          { label: 'Overall pass rate', value: `${overallPassRate}%`, icon: '📈', color: getPassRateColor(overallPassRate), bg: getPassRateBg(overallPassRate) },
+          { label: 'Avg score', value: `${avgScore}%`, icon: '⭐', color: '#7e22ce', bg: '#fdf4ff' },
         ].map(s => (
           <div key={s.label} style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 14, padding: '1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -263,10 +263,10 @@ export default function AnalyticsPage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: 12, overflow: 'hidden', marginBottom: '1.5rem' }}>
         {([
-          { key: 'overview', label: '?? Overview' },
-          { key: 'exams', label: '?? By Exam' },
-          { key: 'students', label: '?? By Student' },
-          { key: 'subjects', label: '?? By Subject' },
+          { key: 'overview', label: '📊 Overview' },
+          { key: 'exams', label: '📋 By Exam' },
+          { key: 'students', label: '👤 By Student' },
+          { key: 'subjects', label: '📚 By Subject' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ flex: 1, padding: '0.875rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', transition: 'all 0.15s' }}>
@@ -278,7 +278,7 @@ export default function AnalyticsPage() {
       {/* No data state */}
       {examStats.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 16, padding: '4rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>??</div>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No data yet</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Analytics will appear once students start taking exams.</p>
         </div>
@@ -311,12 +311,12 @@ export default function AnalyticsPage() {
           {studentStats.length > 0 && (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 14, overflow: 'hidden' }}>
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e5e0', background: '#f7f7f5' }}>
-                <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>?? Top 5 Performing Students</p>
+                <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>🏆 Top 5 Performing Students</p>
               </div>
               {studentStats.slice(0, 5).map((s, i) => (
                 <div key={s.student_name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 80px 80px', gap: '1rem', padding: '0.875rem 1.5rem', alignItems: 'center', borderTop: '1px solid #e5e5e0', fontSize: '0.875rem' }}>
                   <span style={{ width: 28, height: 28, borderRadius: '50%', background: i < 3 ? '#fffbeb' : '#f7f7f5', color: i === 0 ? '#d97706' : i === 1 ? '#6b6b65' : i === 2 ? '#92400e' : '#a0a09a', fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {i === 0 ? '??' : i === 1 ? '??' : i === 2 ? '??' : i + 1}
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                   </span>
                   <span style={{ fontWeight: 500, color: '#1a1a18' }}>{s.student_name}</span>
                   <span style={{ color: '#6b6b65', fontSize: '0.8rem' }}>{s.class_level} {s.class_arm}</span>
@@ -332,8 +332,8 @@ export default function AnalyticsPage() {
           {studentStats.length > 5 && (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 14, overflow: 'hidden' }}>
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e5e0', background: '#fef2f2' }}>
-                <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>?? Students Needing Support</p>
-                <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.2rem' }}>Lowest performing � may need additional help</p>
+                <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>⚠️ Students Needing Support</p>
+                <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.2rem' }}>Lowest performing — may need additional help</p>
               </div>
               {[...studentStats].reverse().slice(0, 5).map((s, i) => (
                 <div key={s.student_name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 80px 80px', gap: '1rem', padding: '0.875rem 1.5rem', alignItems: 'center', borderTop: '1px solid #e5e5e0', fontSize: '0.875rem' }}>
@@ -376,7 +376,7 @@ export default function AnalyticsPage() {
               <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 80px 100px', gap: '0.5rem', padding: '1rem 1.25rem', alignItems: 'center', borderTop: '1px solid #e5e5e0', fontSize: '0.825rem' }}>
                 <div>
                   <p style={{ fontWeight: 500, color: '#1a1a18', marginBottom: '0.2rem' }}>{e.title}</p>
-                  <p style={{ fontSize: '0.75rem', color: '#6b6b65' }}>{e.subject} � {e.class_level}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#6b6b65' }}>{e.subject} · {e.class_level}</p>
                 </div>
                 <span style={{ color: '#6b6b65', fontSize: '0.75rem' }}>{formatDate(e.scheduled_at)}</span>
                 <span style={{ color: '#1a1a18', fontWeight: 500, textAlign: 'center' }}>{e.submitted}</span>

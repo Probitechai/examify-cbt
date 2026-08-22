@@ -144,7 +144,7 @@ export default function SettingsPage() {
               <img src={logoUrl} alt="School logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
             ) : (
               <div style={{ textAlign: 'center', color: '#a0a09a' }}>
-                <p style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>??</p>
+                <p style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🏫</p>
                 <p style={{ fontSize: '0.72rem' }}>No logo yet</p>
               </div>
             )}
@@ -164,25 +164,25 @@ export default function SettingsPage() {
                 onClick={() => logoInputRef.current?.click()}
                 disabled={uploading}
                 style={{ padding: '0.75rem 1.25rem', background: 'white', border: '1.5px solid #1a6b4a', color: '#1a6b4a', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: uploading ? 0.6 : 1, textAlign: 'left' as const }}>
-                {uploading ? '? Uploading�' : '?? Choose logo file'}
+                {uploading ? '⏳ Uploading…' : '📁 Choose logo file'}
               </button>
               {logoUrl && (
                 <button
                   onClick={handleSaveLogo}
                   disabled={saving}
                   style={{ padding: '0.75rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                  {saving ? 'Saving�' : '?? Save logo'}
+                  {saving ? 'Saving…' : '💾 Save logo'}
                 </button>
               )}
               {saved && (
-                <p style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? Logo saved successfully!</p>
+                <p style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ Logo saved successfully!</p>
               )}
               {error && (
                 <p style={{ fontSize: '0.825rem', color: '#dc2626' }}>{error}</p>
               )}
               <p style={{ fontSize: '0.75rem', color: '#a0a09a', lineHeight: 1.5 }}>
                 Supported formats: PNG, JPG, GIF, SVG<br />
-                Recommended size: 200�200px or larger<br />
+                Recommended size: 200×200px or larger<br />
                 PNG with transparent background works best
               </p>
             </div>
@@ -192,13 +192,13 @@ export default function SettingsPage() {
 
       {/* Result Configuration link */}
       <div style={{ background: '#f0faf4', border: '1.5px solid #1a6b4a', borderRadius: '14px', padding: '1.25rem 1.5rem' }}>
-        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f4a32', marginBottom: '0.25rem' }}>?? Result Configuration</p>
+        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f4a32', marginBottom: '0.25rem' }}>⚙️ Result Configuration</p>
         <p style={{ fontSize: '0.825rem', color: '#3a3a36', marginBottom: '0.75rem' }}>
           Set CA/Exam weighting, grade boundaries and class position settings for your school.
         </p>
         <a href="/admin/result-config"
           style={{ display: 'inline-block', padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, textDecoration: 'none' }}>
-          Configure grading ?
+          Configure grading →
         </a>
       </div>
     </div>

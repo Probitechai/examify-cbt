@@ -92,7 +92,7 @@ export default function ApprovalsPage() {
     if (!selectedTerm || !classLevel) return
     if (!window.confirm(scope === 'all'
       ? `Approve ALL pending results for ${classLevel}${classArm ? ' ' + classArm : ''}? Parents will immediately see these results.`
-      : `Approve all pending results for ${subject} — ${classLevel}${classArm ? ' ' + classArm : ''}?`
+      : `Approve all pending results for ${subject} â€” ${classLevel}${classArm ? ' ' + classArm : ''}?`
     )) return
 
     setApproving(true); setError('')
@@ -144,14 +144,14 @@ export default function ApprovalsPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select…</option>
+              <option value="">Selectâ€¦</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select…</option>
+              <option value="">Selectâ€¦</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -177,13 +177,13 @@ export default function ApprovalsPage() {
           </div>
           <button onClick={loadResults} disabled={loading}
             style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-            {loading ? 'Loading…' : 'Load'}
+            {loading ? 'Loadingâ€¦' : 'Load'}
           </button>
         </div>
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>âœ… {success}</div>}
 
       {results.length > 0 && (
         <>
@@ -193,8 +193,8 @@ export default function ApprovalsPage() {
               {/* Filter tabs */}
               {[
                 { key: 'all', label: `All (${results.length})` },
-                { key: 'pending', label: `? Pending (${pendingCount})`, color: '#d97706' },
-                { key: 'approved', label: `? Approved (${approvedCount})`, color: '#1a6b4a' },
+                { key: 'pending', label: `â³ Pending (${pendingCount})`, color: '#d97706' },
+                { key: 'approved', label: `âœ… Approved (${approvedCount})`, color: '#1a6b4a' },
               ].map((f: any) => (
                 <button key={f.key} onClick={() => setFilterStatus(f.key)}
                   style={{ padding: '0.375rem 0.875rem', border: `1.5px solid ${filterStatus === f.key ? (f.color ?? '#1a6b4a') : '#e5e5e0'}`, borderRadius: '20px', background: filterStatus === f.key ? (f.color ?? '#1a6b4a') : 'white', color: filterStatus === f.key ? 'white' : '#6b6b65', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -206,13 +206,13 @@ export default function ApprovalsPage() {
               {subject && pendingCount > 0 && (
                 <button onClick={() => handleApprove('subject')} disabled={approving}
                   style={{ padding: '0.5rem 1.25rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: approving ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-                  {approving ? 'Approving…' : `? Approve ${subject}`}
+                  {approving ? 'Approvingâ€¦' : `âœ… Approve ${subject}`}
                 </button>
               )}
               {pendingCount > 0 && (
                 <button onClick={() => handleApprove('all')} disabled={approving}
                   style={{ padding: '0.5rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: approving ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-                  {approving ? 'Approving…' : `? Approve all ${pendingCount} pending`}
+                  {approving ? 'Approvingâ€¦' : `âœ… Approve all ${pendingCount} pending`}
                 </button>
               )}
             </div>
@@ -234,10 +234,10 @@ export default function ApprovalsPage() {
             {filtered.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center' }}>
                 <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>
-                  {filterStatus === 'pending' ? '??' : '??'}
+                  {filterStatus === 'pending' ? 'ðŸŽ‰' : 'ðŸ“­'}
                 </p>
                 <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>
-                  {filterStatus === 'pending' ? 'No pending results — everything is approved!' : 'No results found for this filter.'}
+                  {filterStatus === 'pending' ? 'No pending results â€” everything is approved!' : 'No results found for this filter.'}
                 </p>
               </div>
             ) : filtered.map((r, i) => (
@@ -247,9 +247,9 @@ export default function ApprovalsPage() {
                   <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{r.class_level} {r.class_arm}</p>
                 </div>
                 <span style={{ fontSize: '0.825rem', color: '#3a3a36' }}>{r.subject}</span>
-                <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>{r.ca_score ?? '—'}</span>
-                <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>{r.exam_score ?? '—'}</span>
-                <span style={{ textAlign: 'center' as const, fontSize: '0.95rem', fontWeight: 700, color: '#1a1a18' }}>{r.total_score != null ? Number(r.total_score).toFixed(0) : '—'}</span>
+                <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>{r.ca_score ?? 'â€”'}</span>
+                <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>{r.exam_score ?? 'â€”'}</span>
+                <span style={{ textAlign: 'center' as const, fontSize: '0.95rem', fontWeight: 700, color: '#1a1a18' }}>{r.total_score != null ? Number(r.total_score).toFixed(0) : 'â€”'}</span>
                 <span style={{ textAlign: 'center' as const }}>
                   <span style={{ display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: 20, background: '#f7f7f5', color: gradeColor(r.grade), fontWeight: 700, fontSize: '0.825rem' }}>
                     {r.grade}
@@ -261,7 +261,7 @@ export default function ApprovalsPage() {
                   </span>
                 </span>
                 <span style={{ textAlign: 'center' as const, fontSize: '0.72rem', color: '#6b6b65' }}>
-                  {r.approved_at ? new Date(r.approved_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : '—'}
+                  {r.approved_at ? new Date(r.approved_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : 'â€”'}
                 </span>
               </div>
             ))}
@@ -271,7 +271,7 @@ export default function ApprovalsPage() {
 
       {!loading && results.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>?</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>âœ…</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Result Approval Queue</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Select a term and class then click Load to see results pending approval.</p>
         </div>

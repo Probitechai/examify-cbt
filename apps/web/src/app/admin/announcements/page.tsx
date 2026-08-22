@@ -13,10 +13,10 @@ interface Announcement {
 }
 
 const AUDIENCE_CONFIG = {
-  all: { label: 'Everyone', icon: '??', color: '#1a6b4a', bg: '#e8f5ee' },
-  parents: { label: 'Parents only', icon: '????????', color: '#1e40af', bg: '#eff6ff' },
-  teachers: { label: 'Teachers only', icon: '?????', color: '#7e22ce', bg: '#f5f3ff' },
-  students: { label: 'Students only', icon: '??', color: '#d97706', bg: '#fffbeb' },
+  all: { label: 'Everyone', icon: '🌐', color: '#1a6b4a', bg: '#e8f5ee' },
+  parents: { label: 'Parents only', icon: '👨‍👩‍👧', color: '#1e40af', bg: '#eff6ff' },
+  teachers: { label: 'Teachers only', icon: '👩‍🏫', color: '#7e22ce', bg: '#f5f3ff' },
+  students: { label: 'Students only', icon: '🎓', color: '#d97706', bg: '#fffbeb' },
 }
 
 function getSubdomain() {
@@ -132,7 +132,7 @@ export default function AnnouncementsPage() {
               rows={5}
               value={body}
               onChange={e => setBody(e.target.value)}
-              placeholder="Type your announcement here�"
+              placeholder="Type your announcement here…"
             />
           </div>
 
@@ -141,7 +141,7 @@ export default function AnnouncementsPage() {
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button onClick={handlePost} disabled={saving}
               style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Posting�' : '?? Post announcement'}
+              {saving ? 'Posting…' : '📢 Post announcement'}
             </button>
             <button onClick={() => { setShowForm(false); setError('') }}
               style={{ padding: '0.625rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -153,18 +153,18 @@ export default function AnnouncementsPage() {
 
       {success && (
         <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>
-          ? {success}
+          ✅ {success}
         </div>
       )}
 
       {/* Announcements list */}
       {loading ? (
         <div style={{ background: 'white', borderRadius: '14px', padding: '3rem', textAlign: 'center', border: '1px solid #e5e5e0' }}>
-          <p style={{ color: '#6b6b65' }}>Loading�</p>
+          <p style={{ color: '#6b6b65' }}>Loading…</p>
         </div>
       ) : announcements.length === 0 ? (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📢</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No announcements yet</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Post your first announcement to parents, teachers or students.</p>
         </div>
@@ -186,7 +186,7 @@ export default function AnnouncementsPage() {
                       </span>
                     </div>
                     <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>
-                      Posted by {a.posted_by_name} � {timeAgo(a.created_at)}
+                      Posted by {a.posted_by_name} · {timeAgo(a.created_at)}
                     </p>
                     {!isExpanded && (
                       <p style={{ fontSize: '0.825rem', color: '#3a3a36', marginTop: '0.375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 500 }}>
@@ -199,7 +199,7 @@ export default function AnnouncementsPage() {
                       style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer' }}>
                       Delete
                     </button>
-                    <span style={{ fontSize: '0.825rem', color: '#a0a09a' }}>{isExpanded ? '?' : '?'}</span>
+                    <span style={{ fontSize: '0.825rem', color: '#a0a09a' }}>{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
 

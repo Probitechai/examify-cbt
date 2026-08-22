@@ -197,7 +197,7 @@ export default function HostelPage() {
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
 
       {/* Term selector */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -217,9 +217,9 @@ export default function HostelPage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
         {([
-          { key: 'hostels', label: '?? Hostels & Rooms' },
-          { key: 'allocations', label: '??? Bed Allocations' },
-          { key: 'occupancy', label: '?? Occupancy Report' },
+          { key: 'hostels', label: '🏠 Hostels & Rooms' },
+          { key: 'allocations', label: '🛏️ Bed Allocations' },
+          { key: 'occupancy', label: '📊 Occupancy Report' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
@@ -273,7 +273,7 @@ export default function HostelPage() {
 
             {hostels.length === 0 ? (
               <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' as const }}>
-                <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
+                <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏠</p>
                 <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No hostels yet. Add your first hostel.</p>
               </div>
             ) : hostels.map(h => (
@@ -287,7 +287,7 @@ export default function HostelPage() {
                     </div>
                     <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>{h.name}</h3>
                     <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>
-                      {h.housemaster_name ? `${h.housemaster_name} � ` : ''}{h.room_count} rooms � {h.total_beds} beds
+                      {h.housemaster_name ? `${h.housemaster_name} · ` : ''}{h.room_count} rooms · {h.total_beds} beds
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' as const }}>
@@ -354,7 +354,7 @@ export default function HostelPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
                           <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1a1a18' }}>Room {room.room_number}</p>
-                          <p style={{ fontSize: '0.68rem', color: '#6b6b65' }}>Floor {room.floor_number} � {room.room_type}</p>
+                          <p style={{ fontSize: '0.68rem', color: '#6b6b65' }}>Floor {room.floor_number} · {room.room_type}</p>
                         </div>
                         <div style={{ textAlign: 'right' as const }}>
                           <p style={{ fontSize: '0.875rem', fontWeight: 600, color: Number(room.available_beds) > 0 ? '#1a6b4a' : '#dc2626' }}>
@@ -372,7 +372,7 @@ export default function HostelPage() {
               {selectedRoom && beds.length > 0 && (
                 <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e5e5e0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
-                    <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>Room {selectedRoom.room_number} � Beds</h3>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>Room {selectedRoom.room_number} — Beds</h3>
                     <button onClick={() => {
                       setAllocForm(f => ({ ...f, hostelId: selectedHostel.id, roomId: selectedRoom.id }))
                       setShowAllocForm(true)
@@ -395,7 +395,7 @@ export default function HostelPage() {
                         <div><label style={lbl}>Student *</label>
                           <select style={sel} value={allocForm.studentId} onChange={e => setAllocForm(f => ({ ...f, studentId: e.target.value }))}>
                             <option value="">Select student...</option>
-                            {students.map(s => <option key={s.id} value={s.id}>{s.full_name} � {s.class_level} {s.class_arm}</option>)}
+                            {students.map(s => <option key={s.id} value={s.id}>{s.full_name} — {s.class_level} {s.class_arm}</option>)}
                           </select></div>
                         <div><label style={lbl}>Bed *</label>
                           <select style={sel} value={allocForm.bedId} onChange={e => setAllocForm(f => ({ ...f, bedId: e.target.value }))}>
@@ -407,7 +407,7 @@ export default function HostelPage() {
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button onClick={allocateBed} disabled={saving}
                             style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                            {saving ? 'Allocating...' : '??? Allocate'}
+                            {saving ? 'Allocating...' : '🛏️ Allocate'}
                           </button>
                           <button onClick={() => setShowAllocForm(false)}
                             style={{ padding: '0.5rem 0.875rem', background: 'transparent', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.78rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
@@ -460,7 +460,7 @@ export default function HostelPage() {
 
           {allocations.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' as const }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>???</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🛏️</p>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No allocations for this term yet. Go to Hostels & Rooms tab to allocate beds.</p>
             </div>
           ) : (
@@ -472,7 +472,7 @@ export default function HostelPage() {
                 <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 80px', gap: '1rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
                   <div>
                     <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{a.student_name}</p>
-                    <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{a.class_level} {a.class_arm} � {a.admission_no}</p>
+                    <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{a.class_level} {a.class_arm} · {a.admission_no}</p>
                   </div>
                   <span style={{ fontSize: '0.825rem', color: '#3a3a36' }}>{a.hostel_name}</span>
                   <span style={{ fontSize: '0.825rem', color: '#3a3a36' }}>Room {a.room_number}</span>
@@ -526,7 +526,7 @@ export default function HostelPage() {
                       <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{h.name}</p>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.375rem', borderRadius: 10, background: HOSTEL_TYPE_BG[h.type], color: HOSTEL_TYPE_COLORS[h.type], textTransform: 'capitalize' as const }}>{h.type}</span>
                     </div>
-                    <span style={{ fontSize: '0.825rem', color: '#6b6b65' }}>{h.housemaster_name ?? '�'}</span>
+                    <span style={{ fontSize: '0.825rem', color: '#6b6b65' }}>{h.housemaster_name ?? '—'}</span>
                     <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', textAlign: 'center' as const }}>{h.total_beds}</span>
                     <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a6b4a', textAlign: 'center' as const }}>{h.occupied_beds}</span>
                     <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1e40af', textAlign: 'center' as const }}>{h.available_beds}</span>
