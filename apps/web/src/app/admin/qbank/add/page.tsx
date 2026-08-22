@@ -79,8 +79,8 @@ export default function NewQuestionPage() {
   const types: { key: QType; icon: string; label: string; desc: string }[] = [
     { key: 'mcq', icon: '🔤', label: 'Multiple Choice', desc: 'Pick from A, B, C, D' },
     { key: 'true_false', icon: '✅', label: 'True / False', desc: 'True or False answer' },
-    { key: 'short_answer', icon: '�?�?', label: 'Short Answer', desc: 'Auto-graded typed answer' },
-    { key: 'fill_blank', icon: '�?', label: 'Fill in Blank', desc: 'Complete the sentence' },
+    { key: 'short_answer', icon: '✍️', label: 'Short Answer', desc: 'Auto-graded typed answer' },
+    { key: 'fill_blank', icon: '📝', label: 'Fill in Blank', desc: 'Complete the sentence' },
     { key: 'essay', icon: '📄', label: 'Essay', desc: 'Teacher marks manually' },
   ]
 
@@ -90,7 +90,7 @@ export default function NewQuestionPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <button onClick={() => router.push('/admin/qbank')}
           style={{ padding: '0.5rem 1rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
-          �? Back
+          ← Back
         </button>
         <div>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 600, color: '#1a1a18' }}>New Question</h1>
@@ -207,7 +207,7 @@ export default function NewQuestionPage() {
               {['True', 'False'].map(v => (
                 <button key={v} type="button" onClick={() => setCorrect(v)}
                   style={{ flex: 1, padding: '1rem', border: `2px solid ${correct === v ? '#1a6b4a' : '#e5e5e0'}`, borderRadius: '12px', background: correct === v ? '#e8f5ee' : 'white', fontSize: '1rem', fontWeight: 600, color: correct === v ? '#0f4a32' : '#6b6b65', cursor: 'pointer' }}>
-                  {v === 'True' ? '✅ True' : '�?� False'}
+                  {v === 'True' ? '✅ True' : '❌ False'}
                 </button>
               ))}
             </div>
@@ -220,7 +220,7 @@ export default function NewQuestionPage() {
             <label style={lbl}>{type === 'fill_blank' ? 'Correct word/phrase for the blank' : 'Correct answer'}</label>
             <input style={inp} value={answer} onChange={e => setAnswer(e.target.value)}
               placeholder={type === 'fill_blank' ? 'e.g. Lagos, photosynthesis, 42' : 'e.g. H₂O, osmosis, 1914'} />
-            <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>ℹ�? Not case sensitive — exact match required</p>
+            <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>ℹ️ Not case sensitive — exact match required</p>
           </div>
         )}
 
@@ -255,7 +255,7 @@ export default function NewQuestionPage() {
           </button>
           <button onClick={() => save(false)} disabled={saving}
             style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 600, borderRadius: '10px', border: 'none', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Saving…' : 'Save question �`'}
+            {saving ? 'Saving…' : 'Save question →'}
           </button>
         </div>
       </div>

@@ -110,7 +110,7 @@ export default function AdminNewExamPage() {
       {/* Step bar */}
       <div className={styles.stepBar}>
         <button className={styles.backBtn} onClick={() => router.push('/admin/exams')}>
-          �? Back
+          ← Back
         </button>
         <div className={styles.steps}>
           {STEPS.map((s, i) => (
@@ -125,13 +125,13 @@ export default function AdminNewExamPage() {
         <div className={styles.stepActions}>
           {stepIndex > 0 && (
             <button className={styles.prevBtn} onClick={() => setStep(STEPS[stepIndex - 1].key as Step)}>
-              �? Back
+              ← Back
             </button>
           )}
           {step !== 'review' ? (
             <button className={styles.nextBtn} disabled={!canNext}
               onClick={() => setStep(STEPS[stepIndex + 1].key as Step)}>
-              Next �`
+              Next →
             </button>
           ) : (
             <button className={styles.publishBtn} onClick={handlePublish} disabled={publishing}>
@@ -333,7 +333,7 @@ export default function AdminNewExamPage() {
             {error && <p className={styles.error}>{error}</p>}
 
             <div className={styles.publishNote}>
-              ℹ�? Publishing will make this exam visible to students when the scheduled time arrives.
+              ℹ️ Publishing will make this exam visible to students when the scheduled time arrives.
               The exam status will be set to <strong>active</strong> immediately.
             </div>
           </div>
