@@ -1,5 +1,5 @@
 ﻿'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 // v2 - with student profiles
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -104,7 +104,7 @@ export default function UsersPage() {
         <div>
           <h1 className={styles.title}>Students & Staff</h1>
           <p className={styles.subtitle}>
-            {loading ? 'Loading...' : `${students.length} students Â· ${teachers.length} teachers Â· ${parents.length} parents`}
+            {loading ? 'Loading...' : `${students.length} students · ${teachers.length} teachers · ${parents.length} parents`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -154,7 +154,7 @@ export default function UsersPage() {
         ) : filtered.length === 0 ? (
           <div className={styles.empty}>
             <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>
-              {tab === 'student' ? 'ðŸ`¤' : tab === 'parent' ? 'ðŸ`¨â€ðŸ`©â€ðŸ`§' : 'ðŸ`©â€ðŸ«'}
+              {tab === 'student' ? '👤' : tab === 'parent' ? '👨‍👩‍👧' : '👩‍🏫'}
             </div>
             <p>{search ? 'No results found' : `No ${tab}s yet.`}</p>
           </div>
@@ -274,7 +274,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
       <div style={{ background: 'white', borderRadius: '20px', padding: '1.75rem', width: '100%', maxWidth: '480px', border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' as const }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Add User</h2>
-          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}>âœ•</button>
+          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
@@ -397,7 +397,7 @@ function ManageLinksModal({ parent, allLinks, students, onClose, onSaved }: {
             <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Manage Student Links</h2>
             <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.2rem' }}>{parent.full_name}</p>
           </div>
-          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}>âœ•</button>
+          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
         </div>
         <div style={{ marginBottom: '1.5rem' }}>
           <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.625rem' }}>Linked Students</p>
