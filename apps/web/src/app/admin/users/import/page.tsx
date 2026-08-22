@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState } from 'react'
 
@@ -160,14 +160,14 @@ export default function ImportStudentsPage() {
         </p>
       </div>
 
-      {/* Step 1 â€” Upload */}
+      {/* Step 1 — Upload */}
       {step === 'upload' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Download template */}
           <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
             <div>
               <p style={{ fontSize: '0.9rem', fontWeight: 500, color: '#1e40af', marginBottom: '0.25rem' }}>
-                ðŸ“¥ Start with the template
+                📥 Start with the template
               </p>
               <p style={{ fontSize: '0.8rem', color: '#3b82f6' }}>
                 Download the CSV template, fill in your student details, then upload it here.
@@ -196,7 +196,7 @@ export default function ImportStudentsPage() {
             }}
             onClick={() => document.getElementById('csvInput')?.click()}
           >
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>ðŸ“‚</div>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📂</div>
             <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
               Drop your CSV file here
             </p>
@@ -237,7 +237,7 @@ export default function ImportStudentsPage() {
                 <div key={f.col} style={{ display: 'flex', gap: '0.5rem', fontSize: '0.78rem' }}>
                   <span style={{ fontFamily: 'monospace', color: '#1a6b4a', fontWeight: 600 }}>{f.col}</span>
                   <span style={{ color: f.req ? '#dc2626' : 'var(--text-tertiary)' }}>{f.req ? '(required)' : '(optional)'}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>â€” {f.desc}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>— {f.desc}</span>
                 </div>
               ))}
             </div>
@@ -245,7 +245,7 @@ export default function ImportStudentsPage() {
         </div>
       )}
 
-      {/* Step 2 â€” Preview */}
+      {/* Step 2 — Preview */}
       {step === 'preview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Summary */}
@@ -272,19 +272,19 @@ export default function ImportStudentsPage() {
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {rows.map((row, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 0.8fr 0.8fr 1.5fr', gap: '0.75rem', padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', fontSize: '0.825rem', background: !row.valid ? '#fef2f2' : 'transparent', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{row.fullName || 'â€”'}</span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{row.email || 'â€”'}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{row.admissionNo || 'â€”'}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{row.classLevel || 'â€”'}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{row.classArm || 'â€”'}</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{row.fullName || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{row.email || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{row.admissionNo || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{row.classLevel || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{row.classArm || '—'}</span>
                   <span>
                     {row.valid ? (
                       <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', background: '#e8f5ee', color: '#0f4a32' }}>
-                        âœ“ Ready
+                        ✓ Ready
                       </span>
                     ) : (
                       <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', background: '#fef2f2', color: '#dc2626' }}>
-                        âœ— {row.error}
+                        ✗ {row.error}
                       </span>
                     )}
                   </span>
@@ -298,26 +298,26 @@ export default function ImportStudentsPage() {
             <button
               onClick={() => { setRows([]); setStep('upload') }}
               style={{ padding: '0.625rem 1.25rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}>
-              â† Upload different file
+              ← Upload different file
             </button>
             {validCount > 0 && (
               <button
                 onClick={handleImport}
                 style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 500, borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
-                Import {validCount} student{validCount > 1 ? 's' : ''} â†`
+                Import {validCount} student{validCount > 1 ? 's' : ''} →`
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Step 3 â€” Importing */}
+      {/* Step 3 — Importing */}
       {step === 'importing' && (
         <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '16px', padding: '3rem', textAlign: 'center' }}>
           <div style={{ width: 48, height: 48, border: '3px solid #e5e5e0', borderTopColor: '#1a6b4a', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 1.5rem' }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-            Importing studentsâ€¦
+            Importing students…
           </p>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             {imported} of {validCount} imported
@@ -325,12 +325,12 @@ export default function ImportStudentsPage() {
         </div>
       )}
 
-      {/* Step 4 â€” Done */}
+      {/* Step 4 — Done */}
       {step === 'done' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '16px', padding: '2.5rem', textAlign: 'center' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-              {errors.length === 0 ? 'ðŸŽ‰' : 'âš ï¸'}
+              {errors.length === 0 ? '🎉' : '⚠️'}
             </div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
               {errors.length === 0 ? 'Import complete!' : 'Import finished with some errors'}
@@ -352,7 +352,7 @@ export default function ImportStudentsPage() {
                 Import more students
               </button>
               <a href="/admin/users" style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', fontSize: '0.875rem', fontWeight: 500, borderRadius: '8px', textDecoration: 'none', display: 'inline-block' }}>
-                View all students â†`
+                View all students →`
               </a>
             </div>
           </div>
