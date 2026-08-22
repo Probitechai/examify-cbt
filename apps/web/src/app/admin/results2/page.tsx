@@ -1,5 +1,6 @@
-Ôªø'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -34,6 +35,7 @@ function getSubdomain() {
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ResultEntryPage() {
+  const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedTerm, setSelectedTerm] = useState('')
@@ -142,14 +144,14 @@ export default function ResultEntryPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select session‚Ä¶</option>
+              <option value="">Select sessionÖ</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select term‚Ä¶</option>
+              <option value="">Select termÖ</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -175,7 +177,7 @@ export default function ResultEntryPage() {
           <div>
             <button onClick={loadStudents} disabled={loading}
               style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-              {loading ? 'Loading‚Ä¶' : 'Load students'}
+              {loading ? 'LoadingÖ' : 'Load students'}
             </button>
           </div>
         </div>
@@ -189,7 +191,7 @@ export default function ResultEntryPage() {
 
       {saved && (
         <div style={{ padding: '0.875rem 1.25rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>
-          ‚úÖ Results saved successfully!
+          ? Results saved successfully!
         </div>
       )}
 
@@ -199,17 +201,17 @@ export default function ResultEntryPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>
-                {subject} ‚Äî {classLevel}{classArm ? ` ${classArm}` : ''}
+                {subject} ó {classLevel}{classArm ? ` ${classArm}` : ''}
               </p>
               <p style={{ fontSize: '0.8rem', color: '#6b6b65', marginTop: '0.2rem' }}>
-                {students.length} student{students.length !== 1 ? 's' : ''} ¬∑ {terms.find(t => t.id === selectedTerm)?.name}
+                {students.length} student{students.length !== 1 ? 's' : ''} ∑ {terms.find(t => t.id === selectedTerm)?.name}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>CA + Exam = Total ‚Üí Grade</p>
+              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>CA + Exam = Total ? Grade</p>
               <button onClick={handleSaveAll} disabled={saving}
                 style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                {saving ? 'Saving‚Ä¶' : 'üíæ Save all results'}
+                {saving ? 'SavingÖ' : '?? Save all results'}
               </button>
             </div>
           </div>
@@ -235,9 +237,9 @@ export default function ResultEntryPage() {
                   <span style={{ fontSize: '0.78rem', color: '#a0a09a', fontWeight: 600 }}>{i + 1}</span>
                   <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>
                     {s.full_name}
-                    {isApproved && <span style={{ fontSize: '0.65rem', marginLeft: '0.375rem', color: '#0f4a32', fontWeight: 700 }}>‚úì Approved</span>}
+                    {isApproved && <span style={{ fontSize: '0.65rem', marginLeft: '0.375rem', color: '#0f4a32', fontWeight: 700 }}>? Approved</span>}
                   </span>
-                  <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.admission_no ?? '‚Äî'}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#6b6b65' }}>{s.admission_no ?? 'ó'}</span>
                   <input
                     style={{ ...inp, textAlign: 'center' as const, background: isApproved ? '#f0faf4' : '#f7f7f5' }}
                     type="number" min={0} max={40} step={0.5}
@@ -255,18 +257,18 @@ export default function ResultEntryPage() {
                     placeholder="0"
                   />
                   <span style={{ fontSize: '0.9rem', fontWeight: 700, color: total >= 75 ? '#1a6b4a' : total >= 45 ? '#d97706' : '#dc2626', textAlign: 'center' as const }}>
-                    {total > 0 ? total.toFixed(1) : '‚Äî'}
+                    {total > 0 ? total.toFixed(1) : 'ó'}
                   </span>
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1a1a18', textAlign: 'center' as const }}>
-                    {s.grade ?? (total > 0 ? '‚Ä¶' : '‚Äî')}
+                    {s.grade ?? (total > 0 ? 'Ö' : 'ó')}
                   </span>
-                  <span style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{s.remark ?? '‚Äî'}</span>
+                  <span style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{s.remark ?? 'ó'}</span>
                   <input
                     style={{ ...inp, fontSize: '0.78rem', background: isApproved ? '#f0faf4' : '#f7f7f5' }}
                     value={localScores[s.id]?.comment ?? ''}
                     onChange={e => setScore(s.id, 'comment', e.target.value)}
                     disabled={isApproved}
-                    placeholder="Optional comment‚Ä¶"
+                    placeholder="Optional commentÖ"
                   />
                 </div>
               )
@@ -277,7 +279,7 @@ export default function ResultEntryPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
             <button onClick={handleSaveAll} disabled={saving}
               style={{ padding: '0.75rem 2rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving‚Ä¶' : 'üíæ Save all results'}
+              {saving ? 'SavingÖ' : '?? Save all results'}
             </button>
           </div>
         </>
@@ -285,7 +287,7 @@ export default function ResultEntryPage() {
 
       {!loading && students.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>üìù</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Select filters above and click "Load students"</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Choose a term, class level, and subject to start entering results.</p>
         </div>

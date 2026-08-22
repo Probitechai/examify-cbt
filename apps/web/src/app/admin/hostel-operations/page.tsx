@@ -1,5 +1,6 @@
-﻿'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -19,6 +20,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 }
 
 export default function Hostel2Page() {
+  const router = useRouter()
   const [hostels, setHostels] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
   const [sessions, setSessions] = useState<any[]>([])
@@ -258,7 +260,7 @@ export default function Hostel2Page() {
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
 
       {/* Filters */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -283,10 +285,10 @@ export default function Hostel2Page() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
         {([
-          { key: 'exeats', label: '🚪 Exeat Management' },
-          { key: 'visitors', label: '👥 Visitor Log' },
-          { key: 'rollcall', label: '📋 Roll Call' },
-          { key: 'meals', label: '🍽️ Meal Plans' },
+          { key: 'exeats', label: '?? Exeat Management' },
+          { key: 'visitors', label: '?? Visitor Log' },
+          { key: 'rollcall', label: '?? Roll Call' },
+          { key: 'meals', label: '??? Meal Plans' },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
@@ -313,10 +315,10 @@ export default function Hostel2Page() {
                 <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Student *</label>
                   <select style={sel} value={exeatForm.studentId} onChange={e => { setExeatForm(f => ({ ...f, studentId: e.target.value })); lookupGuardian(e.target.value) }}>
                     <option value="">Select student...</option>
-                    {allocations.map(a => <option key={a.student_id} value={a.student_id}>{a.student_name} — {a.class_level} {a.class_arm}</option>)}
+                    {allocations.map(a => <option key={a.student_id} value={a.student_id}>{a.student_name} � {a.class_level} {a.class_arm}</option>)}
                   </select></div>
                 <div style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '0.625rem 0.875rem', fontSize: '0.78rem', color: '#92400e' }}>
-                  💡 Guardian details will auto-fill if the student parent is linked in the system. Otherwise fill in manually.
+                  ?? Guardian details will auto-fill if the student parent is linked in the system. Otherwise fill in manually.
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Reason *</label>
                   <input style={inp} value={exeatForm.reason} onChange={e => setExeatForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. Family event, Medical appointment" /></div>
@@ -338,7 +340,7 @@ export default function Hostel2Page() {
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                 <button onClick={submitExeat} disabled={saving}
                   style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                  {saving ? 'Submitting...' : '🚪 Submit Request'}
+                  {saving ? 'Submitting...' : '?? Submit Request'}
                 </button>
                 <button onClick={() => setShowExeatForm(false)}
                   style={{ padding: '0.625rem 1rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
@@ -348,7 +350,7 @@ export default function Hostel2Page() {
 
           {exeats.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' as const }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🚪</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No exeat requests for this term.</p>
             </div>
           ) : (
@@ -361,13 +363,13 @@ export default function Hostel2Page() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.5rem' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
-                          <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{e.student_name} · {e.class_level} {e.class_arm}</span>
+                          <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{e.student_name} � {e.class_level} {e.class_arm}</span>
                         </div>
                         <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18', marginBottom: '0.25rem' }}>{e.reason}</p>
                         <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.72rem', color: '#6b6b65' }}>
-                          <span>📍 {e.destination}</span>
-                          <span>📅 {formatDate(e.departure_date)} → {formatDate(e.return_date)}</span>
-                          <span>👤 {e.guardian_name} ({e.guardian_relationship}) · {e.guardian_phone}</span>
+                          <span>?? {e.destination}</span>
+                          <span>?? {formatDate(e.departure_date)} ? {formatDate(e.return_date)}</span>
+                          <span>?? {e.guardian_name} ({e.guardian_relationship}) � {e.guardian_phone}</span>
                         </div>
                         {e.rejection_reason && <p style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '0.375rem' }}>Rejection reason: {e.rejection_reason}</p>}
                       </div>
@@ -375,18 +377,18 @@ export default function Hostel2Page() {
                         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, marginLeft: '1rem' }}>
                           <button onClick={() => updateExeatStatus(e.id, 'approved')}
                             style={{ padding: '0.375rem 0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '8px', fontSize: '0.72rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>
-                            ✓ Approve
+                            ? Approve
                           </button>
                           <button onClick={() => setRejectingId(e.id)}
                             style={{ padding: '0.375rem 0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}>
-                            ✕ Reject
+                            ? Reject
                           </button>
                         </div>
                       )}
                       {e.status === 'approved' && (
                         <button onClick={() => updateExeatStatus(e.id, 'returned')}
                           style={{ padding: '0.375rem 0.875rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', fontSize: '0.72rem', color: '#1e40af', cursor: 'pointer', fontWeight: 600, flexShrink: 0, marginLeft: '1rem' }}>
-                          ↩ Mark Returned
+                          ? Mark Returned
                         </button>
                       )}
                     </div>
@@ -446,7 +448,7 @@ export default function Hostel2Page() {
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                 <button onClick={logVisitor} disabled={saving}
                   style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                  {saving ? 'Logging...' : '👥 Log Check-In'}
+                  {saving ? 'Logging...' : '?? Log Check-In'}
                 </button>
                 <button onClick={() => setShowVisitorForm(false)}
                   style={{ padding: '0.625rem 1rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
@@ -456,7 +458,7 @@ export default function Hostel2Page() {
 
           {visitors.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' as const }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👥</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No visitors logged for {visitorDate}.</p>
             </div>
           ) : (
@@ -506,13 +508,13 @@ export default function Hostel2Page() {
               </select></div>
             <button onClick={submitRollCall} disabled={saving || allocations.length === 0}
               style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving...' : '📋 Save Roll Call'}
+              {saving ? 'Saving...' : '?? Save Roll Call'}
             </button>
           </div>
 
           {rollCallResult && (
             <div style={{ background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', padding: '0.875rem', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
-              <span style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 600 }}>✅ Roll call saved!</span>
+              <span style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 600 }}>? Roll call saved!</span>
               <span style={{ fontSize: '0.825rem', color: '#1a6b4a' }}>Present: <strong>{rollCallResult.present}</strong></span>
               <span style={{ fontSize: '0.825rem', color: '#dc2626' }}>Absent: <strong>{rollCallResult.absent}</strong></span>
               <span style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Total: <strong>{rollCallResult.total}</strong></span>
@@ -595,7 +597,7 @@ export default function Hostel2Page() {
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={saveMealPlan} disabled={saving}
                   style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                  {saving ? 'Saving...' : '🍽️ Save Meal Plan'}
+                  {saving ? 'Saving...' : '??? Save Meal Plan'}
                 </button>
                 <button onClick={() => setShowMealForm(false)}
                   style={{ padding: '0.625rem 1rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>Cancel</button>
@@ -621,7 +623,7 @@ export default function Hostel2Page() {
 
           {mealPlans.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '3rem', textAlign: 'center' as const }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🍽️</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>???</p>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No meal plans assigned for this term.</p>
             </div>
           ) : (
@@ -636,7 +638,7 @@ export default function Hostel2Page() {
                   <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: 10, background: m.plan_type === 'full' ? '#e8f5ee' : '#f7f7f5', color: m.plan_type === 'full' ? '#0f4a32' : '#6b6b65', textTransform: 'capitalize' as const }}>
                     {m.plan_type.replace(/_/g, ' ')}
                   </span>
-                  <span style={{ fontSize: '0.825rem', color: '#6b6b65' }}>{m.dietary_requirements ?? '—'}</span>
+                  <span style={{ fontSize: '0.825rem', color: '#6b6b65' }}>{m.dietary_requirements ?? '�'}</span>
                 </div>
               ))}
             </div>

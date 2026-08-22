@@ -1,5 +1,6 @@
-﻿'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -8,7 +9,7 @@ const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   scheduled: { label: 'Scheduled', color: '#1e40af', bg: '#eff6ff' },
-  live:      { label: '🔴 Live Now', color: '#dc2626', bg: '#fef2f2' },
+  live:      { label: '?? Live Now', color: '#dc2626', bg: '#fef2f2' },
   ended:     { label: 'Ended', color: '#6b6b65', bg: '#f7f7f5' },
   cancelled: { label: 'Cancelled', color: '#a0a09a', bg: '#f7f7f5' },
 }
@@ -28,6 +29,7 @@ function isStartable(scheduledAt: string): boolean {
 }
 
 export default function LiveClassesPage() {
+  const router = useRouter()
   const [classes, setClasses] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
@@ -173,16 +175,16 @@ export default function LiveClassesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Live Classes</h1>
-          <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Schedule and manage live video classes using Jitsi Meet — free, no account needed.</p>
+          <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Schedule and manage live video classes using Jitsi Meet � free, no account needed.</p>
         </div>
         <button onClick={() => setShowCreateForm(true)}
           style={{ padding: '0.625rem 1.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-          🎥 Schedule Class
+          ?? Schedule Class
         </button>
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
 
       {/* Filter */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
@@ -198,7 +200,7 @@ export default function LiveClassesPage() {
       {/* Live Now */}
       {liveNow.length > 0 && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#dc2626', marginBottom: '0.875rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>🔴 Live Now</h2>
+          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#dc2626', marginBottom: '0.875rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>?? Live Now</h2>
           {liveNow.map(c => <ClassCard key={c.id} cls={c} onJoin={openJitsi} onEnd={() => updateStatus(c.id, 'ended')} onAddRecording={() => setShowRecordingForm(c)} onDelete={() => deleteClass(c.id)} />)}
         </div>
       )}
@@ -206,7 +208,7 @@ export default function LiveClassesPage() {
       {/* Upcoming */}
       {upcoming.length > 0 && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1e40af', marginBottom: '0.875rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>📅 Upcoming</h2>
+          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1e40af', marginBottom: '0.875rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>?? Upcoming</h2>
           {upcoming.map(c => <ClassCard key={c.id} cls={c} onJoin={openJitsi} onEnd={() => updateStatus(c.id, 'ended')} onCancel={() => updateStatus(c.id, 'cancelled')} onAddRecording={() => setShowRecordingForm(c)} onDelete={() => deleteClass(c.id)} />)}
         </div>
       )}
@@ -214,19 +216,19 @@ export default function LiveClassesPage() {
       {/* Past */}
       {past.length > 0 && (
         <div>
-          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6b6b65', marginBottom: '0.875rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>📼 Past Classes</h2>
+          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6b6b65', marginBottom: '0.875rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>?? Past Classes</h2>
           {past.map(c => <ClassCard key={c.id} cls={c} onJoin={openJitsi} onAddRecording={() => setShowRecordingForm(c)} onDelete={() => deleteClass(c.id)} />)}
         </div>
       )}
 
       {!loading && classes.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
-          <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🎥</p>
+          <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>??</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No live classes yet</p>
-          <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Schedule your first live class — powered by Jitsi Meet, completely free.</p>
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Schedule your first live class � powered by Jitsi Meet, completely free.</p>
           <button onClick={() => setShowCreateForm(true)}
             style={{ padding: '0.625rem 1.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-            🎥 Schedule First Class
+            ?? Schedule First Class
           </button>
         </div>
       )}
@@ -238,11 +240,11 @@ export default function LiveClassesPage() {
           <div style={{ background: 'white', borderRadius: '20px', padding: '1.75rem', width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' as const }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1a1a18' }}>Schedule Live Class</h2>
-              <button onClick={() => setShowCreateForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#6b6b65' }}>✕</button>
+              <button onClick={() => setShowCreateForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#6b6b65' }}>?</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div><label style={lbl}>Title *</label>
-                <input style={inp} value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Algebra — Introduction to Variables" autoFocus /></div>
+                <input style={inp} value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Algebra � Introduction to Variables" autoFocus /></div>
               <div><label style={lbl}>Description</label>
                 <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="What will be covered in this class?" /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -263,13 +265,13 @@ export default function LiveClassesPage() {
               <div><label style={lbl}>Scheduled Date & Time *</label>
                 <input style={inp} type="datetime-local" value={createForm.scheduledAt} onChange={e => setCreateForm(f => ({ ...f, scheduledAt: e.target.value }))} /></div>
               <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '0.875rem', fontSize: '0.825rem', color: '#1e40af' }}>
-                ℹ️ A unique Jitsi Meet room will be automatically created. No account or app required — works directly in the browser.
+                ?? A unique Jitsi Meet room will be automatically created. No account or app required � works directly in the browser.
               </div>
               {error && <p style={{ fontSize: '0.825rem', color: '#dc2626' }}>{error}</p>}
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={createClass} disabled={creating}
                   style={{ flex: 1, padding: '0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: creating ? 0.6 : 1 }}>
-                  {creating ? 'Scheduling...' : '🎥 Schedule Class'}
+                  {creating ? 'Scheduling...' : '?? Schedule Class'}
                 </button>
                 <button onClick={() => setShowCreateForm(false)}
                   style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -301,7 +303,7 @@ export default function LiveClassesPage() {
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={saveRecording} disabled={savingRecording}
                   style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: savingRecording ? 0.6 : 1 }}>
-                  {savingRecording ? 'Saving...' : '💾 Save Recording'}
+                  {savingRecording ? 'Saving...' : '?? Save Recording'}
                 </button>
                 <button onClick={() => setShowRecordingForm(null)}
                   style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '10px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -329,18 +331,18 @@ function ClassCard({ cls, onJoin, onEnd, onCancel, onAddRecording, onDelete }: a
             <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
             <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>
               {new Date(cls.scheduled_at).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-              {cls.duration_mins && ` · ${cls.duration_mins} min`}
+              {cls.duration_mins && ` � ${cls.duration_mins} min`}
             </span>
           </div>
           <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>{cls.title}</h3>
           <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginBottom: '0.25rem' }}>
-            {cls.subject_name && `${cls.subject_name} · `}{cls.class_level}{cls.class_arm ? ` ${cls.class_arm}` : ''} · {cls.teacher_name}
+            {cls.subject_name && `${cls.subject_name} � `}{cls.class_level}{cls.class_arm ? ` ${cls.class_arm}` : ''} � {cls.teacher_name}
           </p>
           {cls.description && <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{cls.description}</p>}
           {cls.recording_url && (
             <a href={cls.recording_url} target="_blank" rel="noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', color: '#1e40af', marginTop: '0.375rem', textDecoration: 'none' }}>
-              📼 View Recording ↗
+              ?? View Recording ?
             </a>
           )}
         </div>
@@ -348,7 +350,7 @@ function ClassCard({ cls, onJoin, onEnd, onCancel, onAddRecording, onDelete }: a
           {(isLive || canStart) && (
             <button onClick={() => onJoin(cls.jitsi_room, cls.id)}
               style={{ padding: '0.375rem 1rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>
-              {isLive ? '🔴 Join Live' : '▶ Start Class'}
+              {isLive ? '?? Join Live' : '? Start Class'}
             </button>
           )}
           {cls.status === 'live' && onEnd && (
@@ -371,7 +373,7 @@ function ClassCard({ cls, onJoin, onEnd, onCancel, onAddRecording, onDelete }: a
           )}
           <button onClick={onDelete}
             style={{ padding: '0.375rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '8px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer' }}>
-            🗑
+            ??
           </button>
         </div>
       </div>

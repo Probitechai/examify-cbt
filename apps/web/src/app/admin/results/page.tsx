@@ -1,5 +1,6 @@
-Ôªø'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 interface ExamResult {
@@ -31,6 +32,7 @@ interface Exam {
 }
 
 export default function AdminResultsPage() {
+  const router = useRouter()
   const [exams, setExams] = useState<Exam[]>([])
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null)
   const [results, setResults] = useState<ExamResult[]>([])
@@ -168,7 +170,7 @@ export default function AdminResultsPage() {
           <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Select an exam to view results</p>
         </div>
         {loadingExams ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading exams‚Ä¶</div>
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading examsÖ</div>
         ) : exams.length === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No exams found.</div>
         ) : exams.map(exam => (
@@ -176,11 +178,11 @@ export default function AdminResultsPage() {
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border)', cursor: 'pointer', background: selectedExam?.id === exam.id ? 'var(--brand-light)' : 'transparent', transition: 'background 0.15s' }}>
             <div>
               <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{exam.title}</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{exam.subject} ¬∑ {exam.class_level} ¬∑ {formatDate(exam.scheduled_at)}</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{exam.subject} ∑ {exam.class_level} ∑ {formatDate(exam.scheduled_at)}</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', textTransform: 'uppercase' as const, background: exam.status === 'active' ? 'var(--brand-light)' : 'var(--bg)', color: exam.status === 'active' ? 'var(--brand-dark)' : 'var(--text-secondary)', border: exam.status !== 'active' ? '1px solid var(--border)' : 'none' }}>{exam.status}</span>
-              {selectedExam?.id === exam.id && <span style={{ color: 'var(--brand)' }}>‚úì</span>}
+              {selectedExam?.id === exam.id && <span style={{ color: 'var(--brand)' }}>?</span>}
             </div>
           </div>
         ))}
@@ -194,7 +196,7 @@ export default function AdminResultsPage() {
               { label: 'Submitted', value: stats?.submitted ?? 0, color: 'var(--text-primary)' },
               { label: 'Passed', value: stats?.passed ?? 0, color: '#1a6b4a' },
               { label: 'Failed', value: (stats?.submitted ?? 0) - (stats?.passed ?? 0), color: '#dc2626' },
-              { label: 'Avg score', value: stats?.avgScore ? `${stats.avgScore}%` : '‚Äî', color: 'var(--text-primary)' },
+              { label: 'Avg score', value: stats?.avgScore ? `${stats.avgScore}%` : 'ó', color: 'var(--text-primary)' },
               { label: 'Pass rate', value: `${passRate}%`, color: passRate >= 50 ? '#1a6b4a' : '#dc2626' },
             ].map(s => (
               <div key={s.label} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
@@ -218,14 +220,14 @@ export default function AdminResultsPage() {
                 <option value="name">Sort by name</option>
               </select>
               <button onClick={exportToCSV} disabled={exporting || results.length === 0} style={{ padding: '0.5rem 1.25rem', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', cursor: exporting ? 'not-allowed' : 'pointer' }}>
-                {exporting ? '‚è≥ Exporting‚Ä¶' : '‚Üì Export CSV'}
+                {exporting ? '? ExportingÖ' : '? Export CSV'}
               </button>
             </div>
           </div>
 
           {results.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>üìä</div>
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>??</div>
               <p>No results yet. Students haven't submitted this exam.</p>
             </div>
           ) : (
@@ -235,12 +237,12 @@ export default function AdminResultsPage() {
               </div>
               {filteredResults.map((r, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.8fr 0.7fr 1fr', gap: '0.75rem', padding: '0.875rem 1.25rem', alignItems: 'center', borderTop: '1px solid var(--border)', fontSize: '0.875rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{r.status === 'submitted' ? i + 1 : '‚Äî'}</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{r.status === 'submitted' ? i + 1 : 'ó'}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     <span style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--brand-light)', color: 'var(--brand-dark)', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{r.student_name?.charAt(0)}</span>
                     <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{r.student_name}</span>
                   </span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.admission_no ?? '‚Äî'}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.admission_no ?? 'ó'}</span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.class_level} {r.class_arm}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     {r.status === 'submitted' ? (
@@ -250,7 +252,7 @@ export default function AdminResultsPage() {
                         </div>
                         <span style={{ fontSize: '0.825rem', fontWeight: 600, color: getScoreColor(r.percentage), minWidth: 36 }}>{Math.round(r.percentage * 10) / 10}%</span>
                       </>
-                    ) : <span style={{ color: 'var(--text-tertiary)' }}>‚Äî</span>}
+                    ) : <span style={{ color: 'var(--text-tertiary)' }}>ó</span>}
                   </span>
                   <span>
                     {r.status === 'submitted' && (
@@ -271,7 +273,7 @@ export default function AdminResultsPage() {
         </>
       )}
       {selectedExam && loadingResults && (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading results‚Ä¶</div>
+        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading resultsÖ</div>
       )}
     </div>
   )

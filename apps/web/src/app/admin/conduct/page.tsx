@@ -1,5 +1,6 @@
-Ôªø'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -41,6 +42,7 @@ function getSubdomain() {
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ConductPage() {
+  const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
@@ -165,14 +167,14 @@ export default function ConductPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select‚Ä¶</option>
+              <option value="">SelectÖ</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select‚Ä¶</option>
+              <option value="">SelectÖ</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -191,24 +193,24 @@ export default function ConductPage() {
           </div>
           <button onClick={loadStudents} disabled={loading}
             style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-            {loading ? 'Loading‚Ä¶' : 'Load students'}
+            {loading ? 'LoadingÖ' : 'Load students'}
           </button>
         </div>
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {saved && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>‚úÖ Conduct reports saved successfully!</div>}
+      {saved && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? Conduct reports saved successfully!</div>}
 
       {students.length > 0 && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
-              <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>{classLevel}{classArm ? ` ${classArm}` : ''} ‚Äî {terms.find(t => t.id === selectedTerm)?.name}</p>
+              <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18' }}>{classLevel}{classArm ? ` ${classArm}` : ''} ó {terms.find(t => t.id === selectedTerm)?.name}</p>
               <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '0.2rem' }}>{completedCount} of {students.length} remarks entered</p>
             </div>
             <button onClick={handleSaveAll} disabled={saving}
               style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving‚Ä¶' : 'üíæ Save all reports'}
+              {saving ? 'SavingÖ' : '?? Save all reports'}
             </button>
           </div>
 
@@ -221,20 +223,20 @@ export default function ConductPage() {
 
               return (
                 <div key={s.id} style={{ background: 'white', border: `1.5px solid ${hasRemark ? '#1a6b4a' : '#e5e5e0'}`, borderRadius: '12px', overflow: 'hidden' }}>
-                  {/* Student header ‚Äî always visible */}
+                  {/* Student header ó always visible */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.875rem 1.25rem', cursor: 'pointer', background: isExpanded ? '#f9f9f8' : 'white' }}
                     onClick={() => setExpandedStudent(isExpanded ? null : s.id)}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <span style={{ fontSize: '0.78rem', color: '#a0a09a', fontWeight: 600, minWidth: 20 }}>{i + 1}</span>
                       <div>
                         <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{s.full_name}</p>
-                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{s.admission_no ?? '‚Äî'} ¬∑ {s.class_arm ?? classArm}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{s.admission_no ?? 'ó'} ∑ {s.class_arm ?? classArm}</p>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      {hasRemark && <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.15rem 0.625rem', borderRadius: 20, background: '#e8f5ee', color: '#0f4a32' }}>‚úì Remark entered</span>}
-                      {hasRatings && <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.15rem 0.625rem', borderRadius: 20, background: '#eff6ff', color: '#1e40af' }}>‚úì Ratings set</span>}
-                      <span style={{ fontSize: '0.825rem', color: '#a0a09a' }}>{isExpanded ? '‚ñ≤' : '‚ñº'}</span>
+                      {hasRemark && <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.15rem 0.625rem', borderRadius: 20, background: '#e8f5ee', color: '#0f4a32' }}>? Remark entered</span>}
+                      {hasRatings && <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.15rem 0.625rem', borderRadius: 20, background: '#eff6ff', color: '#1e40af' }}>? Ratings set</span>}
+                      <span style={{ fontSize: '0.825rem', color: '#a0a09a' }}>{isExpanded ? '?' : '?'}</span>
                     </div>
                   </div>
 
@@ -258,7 +260,7 @@ export default function ConductPage() {
                       {/* Behaviour ratings */}
                       <div>
                         <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1a1a18', display: 'block', marginBottom: '0.75rem' }}>
-                          Behaviour Ratings <span style={{ fontWeight: 400, color: '#6b6b65' }}>(1 = Poor, 5 = Excellent ‚Äî optional)</span>
+                          Behaviour Ratings <span style={{ fontWeight: 400, color: '#6b6b65' }}>(1 = Poor, 5 = Excellent ó optional)</span>
                         </label>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                           {TRAITS.map(trait => (
@@ -279,7 +281,7 @@ export default function ConductPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
             <button onClick={handleSaveAll} disabled={saving}
               style={{ padding: '0.75rem 2rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving‚Ä¶' : 'üíæ Save all reports'}
+              {saving ? 'SavingÖ' : '?? Save all reports'}
             </button>
           </div>
         </>
@@ -287,7 +289,7 @@ export default function ConductPage() {
 
       {!loading && students.length === 0 && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>üìù</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Select filters and click Load students</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Enter remarks and ratings for each student. These will appear on their report card.</p>
         </div>

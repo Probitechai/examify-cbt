@@ -1,5 +1,6 @@
-﻿'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -42,6 +43,7 @@ function getSubdomain() {
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function TimetablePage() {
+  const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
@@ -163,14 +165,14 @@ export default function TimetablePage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Session</label>
             <select style={sel} value={selectedSession} onChange={e => setSelectedSession(e.target.value)}>
-              <option value="">Select…</option>
+              <option value="">Select�</option>
               {sessions.map(s => <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-              <option value="">Select…</option>
+              <option value="">Select�</option>
               {terms.map(t => <option key={t.id} value={t.id}>{t.name}{t.is_active ? ' (Active)' : ''}</option>)}
             </select>
           </div>
@@ -189,13 +191,13 @@ export default function TimetablePage() {
           </div>
           <button onClick={loadTimetable} disabled={loading}
             style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: loading ? 0.6 : 1, whiteSpace: 'nowrap' as const }}>
-            {loading ? 'Loading…' : 'Load'}
+            {loading ? 'Loading�' : 'Load'}
           </button>
         </div>
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
-      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
+      {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>? {success}</div>}
 
       {/* Add entry form */}
       {showForm && (
@@ -240,7 +242,7 @@ export default function TimetablePage() {
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button onClick={handleAddEntry} disabled={saving}
               style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving…' : '💾 Save entry'}
+              {saving ? 'Saving�' : '?? Save entry'}
             </button>
             <button onClick={() => setShowForm(false)}
               style={{ padding: '0.625rem 1.25rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', color: '#6b6b65', cursor: 'pointer' }}>
@@ -262,7 +264,7 @@ export default function TimetablePage() {
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
                 style={{ padding: '0.5rem 1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#1a1a18', cursor: 'pointer' }}>
-                {view === 'grid' ? '☰ List view' : '⊞ Grid view'}
+                {view === 'grid' ? '? List view' : '? Grid view'}
               </button>
               <button onClick={() => setShowForm(true)}
                 style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -270,11 +272,11 @@ export default function TimetablePage() {
               </button>
               <button onClick={() => window.print()}
                 style={{ padding: '0.5rem 1rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
-                🖨️ Print
+                ??? Print
               </button>
               <button onClick={handleClearAll}
                 style={{ padding: '0.5rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '0.825rem', color: '#dc2626', cursor: 'pointer' }}>
-                🗑️ Clear all
+                ??? Clear all
               </button>
             </div>
           </div>
@@ -282,7 +284,7 @@ export default function TimetablePage() {
           <div id="timetable-print">
             {/* Print header */}
             <div style={{ textAlign: 'center', marginBottom: '1rem', display: 'none' }} className="print-only">
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{classLevel} {classArm} — Weekly Timetable</h2>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{classLevel} {classArm} � Weekly Timetable</h2>
               <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>{terms.find(t => t.id === selectedTerm)?.name}</p>
             </div>
 
@@ -317,11 +319,11 @@ export default function TimetablePage() {
                                   {(entry.start_time || entry.end_time) && (
                                     <p style={{ fontSize: '0.65rem', color: '#a0a09a', marginTop: '0.1rem' }}>{entry.start_time}{entry.end_time ? ` - ${entry.end_time}` : ''}</p>
                                   )}
-                                  {entry.venue && <p style={{ fontSize: '0.65rem', color: '#a0a09a' }}>📍 {entry.venue}</p>}
+                                  {entry.venue && <p style={{ fontSize: '0.65rem', color: '#a0a09a' }}>?? {entry.venue}</p>}
                                   <button onClick={() => handleDelete(entry.id)}
                                     className="no-print"
                                     style={{ position: 'absolute' as const, top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: 'rgba(220,38,38,0.1)', border: 'none', cursor: 'pointer', fontSize: '0.6rem', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                                    ✕
+                                    ?
                                   </button>
                                 </div>
                               ) : (
@@ -359,9 +361,9 @@ export default function TimetablePage() {
                             <div>
                               <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{entry.subject}</p>
                               <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>
-                                {entry.teacher_name && `${entry.teacher_name} · `}
-                                {entry.start_time && entry.end_time && `${entry.start_time} - ${entry.end_time} · `}
-                                {entry.venue && `📍 ${entry.venue}`}
+                                {entry.teacher_name && `${entry.teacher_name} � `}
+                                {entry.start_time && entry.end_time && `${entry.start_time} - ${entry.end_time} � `}
+                                {entry.venue && `?? ${entry.venue}`}
                               </p>
                             </div>
                           </div>
@@ -381,7 +383,7 @@ export default function TimetablePage() {
         </>
       ) : !loading && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📅</p>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>??</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No timetable yet</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Select filters and click Load, or start adding entries directly.</p>
           <button onClick={() => { if (selectedTerm) setShowForm(true); else setError('Please select a session and term first') }}

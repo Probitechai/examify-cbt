@@ -1,11 +1,12 @@
-﻿'use client'
+'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
 function formatAmount(n: number) {
-  return `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+  return `?${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
 }
 function today() {
   return new Date().toISOString().split('T')[0]
@@ -19,6 +20,7 @@ const SEVERITY_COLORS: Record<string, string> = { low: '#16a34a', medium: '#d977
 const SEVERITY_BG: Record<string, string> = { low: '#f0fdf4', medium: '#fffbeb', high: '#fef2f2' }
 
 export default function TransportOpsPage() {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('rollcall')
   const [buses, setBuses] = useState<any[]>([])
   const [routes, setRoutes] = useState<any[]>([])
@@ -217,9 +219,9 @@ export default function TransportOpsPage() {
   }
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'rollcall', label: '✅ Roll Call' },
-    { key: 'incidents', label: '⚠️ Incidents' },
-    { key: 'maintenance', label: '🔧 Maintenance' },
+    { key: 'rollcall', label: '? Roll Call' },
+    { key: 'incidents', label: '?? Incidents' },
+    { key: 'maintenance', label: '?? Maintenance' },
   ]
 
   const activeBus = buses.find(b => b.id === selectedBus)
@@ -229,12 +231,12 @@ export default function TransportOpsPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a18' }}>🚌 Transport Operations</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a18' }}>?? Transport Operations</h1>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginTop: '0.2rem' }}>Roll calls, incidents and maintenance</p>
         </div>
         <select value={termId} onChange={e => setTermId(e.target.value)}
           style={{ padding: '0.5rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#1a1a18' }}>
-          {terms.map((t: any) => <option key={t.id} value={t.id}>{t.session_name} – {t.term_name}</option>)}
+          {terms.map((t: any) => <option key={t.id} value={t.id}>{t.session_name} � {t.term_name}</option>)}
         </select>
       </div>
 
@@ -251,7 +253,7 @@ export default function TransportOpsPage() {
         ))}
       </div>
 
-      {/* ── ROLL CALL TAB ── */}
+      {/* -- ROLL CALL TAB -- */}
       {tab === 'rollcall' && (
         <div>
           {/* Bus + Date selector */}
@@ -261,7 +263,7 @@ export default function TransportOpsPage() {
                 <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Select Bus</label>
                 <select value={selectedBus} onChange={e => { setSelectedBus(e.target.value); setActiveRollCall(null); setRollCallEntries([]) }}
                   style={{ width: '100%', padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none' }}>
-                  <option value="">— Select bus —</option>
+                  <option value="">� Select bus �</option>
                   {buses.map(b => <option key={b.id} value={b.id}>{b.name} ({b.plate_number})</option>)}
                 </select>
               </div>
@@ -272,7 +274,7 @@ export default function TransportOpsPage() {
               </div>
               <button onClick={() => { setShowHistory(!showHistory); if (!showHistory) loadRollCallHistory() }}
                 style={{ padding: '0.625rem 1rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 500, cursor: 'pointer', color: '#1a1a18', whiteSpace: 'nowrap' as const }}>
-                📋 History
+                ?? History
               </button>
             </div>
           </div>
@@ -281,7 +283,7 @@ export default function TransportOpsPage() {
           {showHistory && (
             <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e5e0', marginBottom: '1.5rem', overflow: 'hidden' }}>
               <div style={{ padding: '0.875rem 1.25rem', background: '#f7f7f5', borderBottom: '1px solid #e5e5e0' }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>Roll Call History — {activeBus?.name ?? 'All Buses'}</p>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>Roll Call History � {activeBus?.name ?? 'All Buses'}</p>
               </div>
               {rollCallHistory.length === 0 ? (
                 <p style={{ padding: '2rem', textAlign: 'center', color: '#6b6b65', fontSize: '0.875rem' }}>No history yet.</p>
@@ -300,7 +302,7 @@ export default function TransportOpsPage() {
                         <td style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', color: '#1a1a18' }}>{new Date(h.date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                         <td style={{ padding: '0.625rem 1rem' }}>
                           <span style={{ padding: '0.2rem 0.625rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600, background: h.trip_type === 'morning' ? '#fffbeb' : '#eff6ff', color: h.trip_type === 'morning' ? '#92400e' : '#1e40af' }}>
-                            {h.trip_type === 'morning' ? '🌅 Morning' : '🌇 Afternoon'}
+                            {h.trip_type === 'morning' ? '?? Morning' : '?? Afternoon'}
                           </span>
                         </td>
                         <td style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', color: '#16a34a', fontWeight: 600 }}>{h.present_count}</td>
@@ -323,13 +325,13 @@ export default function TransportOpsPage() {
                   <div key={tripType} style={{ background: 'white', borderRadius: '12px', border: `2px solid ${existing ? '#1a6b4a' : '#e5e5e0'}`, overflow: 'hidden' }}>
                     <div style={{ padding: '1rem 1.25rem', background: existing ? 'linear-gradient(135deg, #1a6b4a, #0f4a32)' : '#f7f7f5', borderBottom: '1px solid #e5e5e0' }}>
                       <p style={{ fontSize: '0.72rem', fontWeight: 600, color: existing ? 'rgba(255,255,255,0.75)' : '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
-                        {tripType === 'morning' ? '🌅 Morning Pickup' : '🌇 Afternoon Dropoff'}
+                        {tripType === 'morning' ? '?? Morning Pickup' : '?? Afternoon Dropoff'}
                       </p>
                       {existing ? (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ display: 'flex', gap: '1rem' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'white', fontWeight: 600 }}>✅ {existing.present_count} present</span>
-                            <span style={{ fontSize: '0.875rem', color: '#fca5a5', fontWeight: 600 }}>❌ {existing.absent_count} absent</span>
+                            <span style={{ fontSize: '0.875rem', color: 'white', fontWeight: 600 }}>? {existing.present_count} present</span>
+                            <span style={{ fontSize: '0.875rem', color: '#fca5a5', fontWeight: 600 }}>? {existing.absent_count} absent</span>
                           </div>
                         </div>
                       ) : (
@@ -340,12 +342,12 @@ export default function TransportOpsPage() {
                       {existing ? (
                         <button onClick={() => { setActiveRollCall(existing); loadRollCallEntries(existing.id) }}
                           style={{ width: '100%', padding: '0.625rem', background: activeRollCall?.id === existing.id ? '#1a6b4a' : '#f0faf4', border: '1.5px solid #1a6b4a', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, color: activeRollCall?.id === existing.id ? 'white' : '#0f4a32', cursor: 'pointer' }}>
-                          {activeRollCall?.id === existing.id ? '📋 Viewing Roll Call' : '📋 View / Edit Roll Call'}
+                          {activeRollCall?.id === existing.id ? '?? Viewing Roll Call' : '?? View / Edit Roll Call'}
                         </button>
                       ) : (
                         <button onClick={() => startRollCall(tripType)} disabled={loading}
                           style={{ width: '100%', padding: '0.625rem', background: '#1a6b4a', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, color: 'white', cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
-                          {loading ? 'Starting...' : `▶ Start ${tripType === 'morning' ? 'Morning' : 'Afternoon'} Roll Call`}
+                          {loading ? 'Starting...' : `? Start ${tripType === 'morning' ? 'Morning' : 'Afternoon'} Roll Call`}
                         </button>
                       )}
                     </div>
@@ -360,7 +362,7 @@ export default function TransportOpsPage() {
             <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e5e0', overflow: 'hidden' }}>
               <div style={{ padding: '0.875rem 1.25rem', background: '#f7f7f5', borderBottom: '1px solid #e5e5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>
-                  {activeRollCall.trip_type === 'morning' ? '🌅 Morning' : '🌇 Afternoon'} Roll Call — {activeBus?.name}
+                  {activeRollCall.trip_type === 'morning' ? '?? Morning' : '?? Afternoon'} Roll Call � {activeBus?.name}
                 </p>
                 <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Tap to toggle present/absent</p>
               </div>
@@ -371,11 +373,11 @@ export default function TransportOpsPage() {
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', borderBottom: '1px solid #f0f0ee', background: i % 2 === 0 ? 'white' : '#fafafa', cursor: 'pointer', transition: 'background 0.15s' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
                       <div style={{ width: 36, height: 36, borderRadius: '50%', background: entry.status === 'present' ? '#dcfce7' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
-                        {entry.status === 'present' ? '✅' : '❌'}
+                        {entry.status === 'present' ? '?' : '?'}
                       </div>
                       <div>
                         <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{entry.student_name}</p>
-                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{entry.class_level} {entry.class_arm}{entry.stop_name ? ` · ${entry.stop_name}` : ''}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{entry.class_level} {entry.class_arm}{entry.stop_name ? ` � ${entry.stop_name}` : ''}</p>
                       </div>
                     </div>
                     <span style={{ padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600, background: entry.status === 'present' ? '#dcfce7' : '#fee2e2', color: entry.status === 'present' ? '#16a34a' : '#dc2626' }}>
@@ -385,8 +387,8 @@ export default function TransportOpsPage() {
                 ))}
               </div>
               <div style={{ padding: '1rem 1.25rem', background: '#f7f7f5', borderTop: '1px solid #e5e5e0', display: 'flex', gap: '2rem' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#16a34a' }}>✅ Present: {rollCallEntries.filter(e => e.status === 'present').length}</span>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#dc2626' }}>❌ Absent: {rollCallEntries.filter(e => e.status === 'absent').length}</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#16a34a' }}>? Present: {rollCallEntries.filter(e => e.status === 'present').length}</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#dc2626' }}>? Absent: {rollCallEntries.filter(e => e.status === 'absent').length}</span>
                 <span style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Total: {rollCallEntries.length}</span>
               </div>
             </div>
@@ -394,26 +396,26 @@ export default function TransportOpsPage() {
 
           {!selectedBus && (
             <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e5e0', padding: '3rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🚌</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
               <p style={{ color: '#6b6b65' }}>Select a bus above to start or view roll calls.</p>
             </div>
           )}
         </div>
       )}
 
-      {/* ── INCIDENTS TAB ── */}
+      {/* -- INCIDENTS TAB -- */}
       {tab === 'incidents' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button onClick={() => setShowIncidentModal(true)}
               style={{ padding: '0.625rem 1.25rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-              ⚠️ Report Incident
+              ?? Report Incident
             </button>
           </div>
 
           {incidents.length === 0 ? (
             <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e5e0', padding: '3rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>?</p>
               <p style={{ color: '#6b6b65' }}>No incidents reported. Great!</p>
             </div>
           ) : (
@@ -427,14 +429,14 @@ export default function TransportOpsPage() {
                           {inc.severity.toUpperCase()}
                         </span>
                         <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1a1a18', textTransform: 'capitalize' as const }}>{inc.incident_type.replace('_', ' ')}</span>
-                        <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>🚌 {inc.bus_name}</span>
-                        <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>📅 {new Date(inc.date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>?? {inc.bus_name}</span>
+                        <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>?? {new Date(inc.date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                       <p style={{ fontSize: '0.875rem', color: '#1a1a18', marginBottom: '0.25rem' }}>{inc.description}</p>
                       {inc.reported_by_name && <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Reported by: {inc.reported_by_name}</p>}
                       {inc.resolved && inc.resolution_notes && (
                         <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: '6px', borderLeft: '3px solid #16a34a' }}>
-                          <p style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 600, marginBottom: '0.2rem' }}>✅ Resolved</p>
+                          <p style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 600, marginBottom: '0.2rem' }}>? Resolved</p>
                           <p style={{ fontSize: '0.78rem', color: '#1a1a18' }}>{inc.resolution_notes}</p>
                         </div>
                       )}
@@ -442,7 +444,7 @@ export default function TransportOpsPage() {
                     {!inc.resolved && (
                       <button onClick={() => { setResolveIncident(inc); setShowResolveModal(true) }}
                         style={{ marginLeft: '1rem', padding: '0.4rem 0.875rem', background: '#f0faf4', border: '1px solid #1a6b4a', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, color: '#0f4a32', cursor: 'pointer', flexShrink: 0 }}>
-                        ✅ Resolve
+                        ? Resolve
                       </button>
                     )}
                     {inc.resolved && (
@@ -456,7 +458,7 @@ export default function TransportOpsPage() {
         </div>
       )}
 
-      {/* ── MAINTENANCE TAB ── */}
+      {/* -- MAINTENANCE TAB -- */}
       {tab === 'maintenance' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
@@ -468,7 +470,7 @@ export default function TransportOpsPage() {
 
           {maintenance.length === 0 ? (
             <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e5e0', padding: '3rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔧</p>
+              <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>??</p>
               <p style={{ color: '#6b6b65' }}>No maintenance records yet.</p>
             </div>
           ) : (
@@ -491,13 +493,13 @@ export default function TransportOpsPage() {
                       </td>
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.825rem', color: '#1a1a18', maxWidth: 200 }}>{m.description}</td>
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.825rem', color: '#1a1a18', fontWeight: 500 }}>{formatAmount(m.cost)}</td>
-                      <td style={{ padding: '0.75rem 1rem', fontSize: '0.825rem', color: '#6b6b65' }}>{m.performed_by ?? '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem', fontSize: '0.825rem', color: '#6b6b65' }}>{m.performed_by ?? '�'}</td>
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.825rem', color: m.next_maintenance_date ? '#d97706' : '#6b6b65' }}>
-                        {m.next_maintenance_date ? new Date(m.next_maintenance_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        {m.next_maintenance_date ? new Date(m.next_maintenance_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '�'}
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <button onClick={() => deleteMaintenance(m.id)}
-                          style={{ padding: '0.3rem 0.625rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer' }}>🗑️</button>
+                          style={{ padding: '0.3rem 0.625rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer' }}>???</button>
                       </td>
                     </tr>
                   ))}
@@ -508,17 +510,17 @@ export default function TransportOpsPage() {
         </div>
       )}
 
-      {/* ── INCIDENT MODAL ── */}
+      {/* -- INCIDENT MODAL -- */}
       {showIncidentModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '1.75rem', width: '100%', maxWidth: 480 }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '1.25rem' }}>⚠️ Report Incident</h2>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '1.25rem' }}>?? Report Incident</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Bus *</label>
                 <select value={incidentForm.busId} onChange={e => setIncidentForm(p => ({ ...p, busId: e.target.value }))}
                   style={{ width: '100%', padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' as const }}>
-                  <option value="">— Select bus —</option>
+                  <option value="">� Select bus �</option>
                   {buses.map(b => <option key={b.id} value={b.id}>{b.name} ({b.plate_number})</option>)}
                 </select>
               </div>
@@ -564,11 +566,11 @@ export default function TransportOpsPage() {
         </div>
       )}
 
-      {/* ── RESOLVE MODAL ── */}
+      {/* -- RESOLVE MODAL -- */}
       {showResolveModal && resolveIncident && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '1.75rem', width: '100%', maxWidth: 420 }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.5rem' }}>✅ Resolve Incident</h2>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.5rem' }}>? Resolve Incident</h2>
             <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.25rem' }}>{resolveIncident.description}</p>
             <div>
               <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Resolution Notes</label>
@@ -588,17 +590,17 @@ export default function TransportOpsPage() {
         </div>
       )}
 
-      {/* ── MAINTENANCE MODAL ── */}
+      {/* -- MAINTENANCE MODAL -- */}
       {showMaintenanceModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem', overflowY: 'auto' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '1.75rem', width: '100%', maxWidth: 480, margin: 'auto' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '1.25rem' }}>🔧 Log Maintenance</h2>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '1.25rem' }}>?? Log Maintenance</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Bus *</label>
                 <select value={maintenanceForm.busId} onChange={e => setMaintenanceForm(p => ({ ...p, busId: e.target.value }))}
                   style={{ width: '100%', padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' as const }}>
-                  <option value="">— Select bus —</option>
+                  <option value="">� Select bus �</option>
                   {buses.map(b => <option key={b.id} value={b.id}>{b.name} ({b.plate_number})</option>)}
                 </select>
               </div>
@@ -624,7 +626,7 @@ export default function TransportOpsPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Cost (₦)</label>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Cost (?)</label>
                   <input type="number" min={0} value={maintenanceForm.cost} onChange={e => setMaintenanceForm(p => ({ ...p, cost: Number(e.target.value) }))}
                     style={{ width: '100%', padding: '0.625rem 0.875rem', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' as const }} />
                 </div>
