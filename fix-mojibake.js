@@ -2,7 +2,10 @@ const fs = require('fs');
 const iconv = require('iconv-lite');
 
 const files = [
-  'apps/web/src/app/admin/users/import/page.tsx',
+  'apps/web/src/app/admin/exams/new/page.tsx',
+  'apps/web/src/app/admin/exams/page.tsx',
+  'apps/web/src/app/admin/qbank/add/page.tsx',
+  'apps/web/src/app/student/progress/page.tsx',
 ];
 
 for (const file of files) {

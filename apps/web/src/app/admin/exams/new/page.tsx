@@ -1,4 +1,4 @@
-﻿'use client'
+?'use client'
 import { apiFetch, checkAuth } from '@/lib/auth'
 import SubjectSelector from '../../../../components/SubjectSelector'
 import { useState, useEffect } from 'react'
@@ -110,13 +110,13 @@ export default function AdminNewExamPage() {
       {/* Step bar */}
       <div className={styles.stepBar}>
         <button className={styles.backBtn} onClick={() => router.push('/admin/exams')}>
-          â† Back
+          �? Back
         </button>
         <div className={styles.steps}>
           {STEPS.map((s, i) => (
             <div key={s.key} className={`${styles.stepItem} ${s.key === step ? styles.stepActive : ''} ${i < stepIndex ? styles.stepDone : ''}`}>
               <div className={styles.stepDot}>
-                {i < stepIndex ? 'âœ“' : s.num}
+                {i < stepIndex ? '✓' : s.num}
               </div>
               <span className={styles.stepLabel}>{s.label}</span>
             </div>
@@ -125,17 +125,17 @@ export default function AdminNewExamPage() {
         <div className={styles.stepActions}>
           {stepIndex > 0 && (
             <button className={styles.prevBtn} onClick={() => setStep(STEPS[stepIndex - 1].key as Step)}>
-              â† Back
+              �? Back
             </button>
           )}
           {step !== 'review' ? (
             <button className={styles.nextBtn} disabled={!canNext}
               onClick={() => setStep(STEPS[stepIndex + 1].key as Step)}>
-              Next â†`
+              Next �`
             </button>
           ) : (
             <button className={styles.publishBtn} onClick={handlePublish} disabled={publishing}>
-              {publishing ? 'Publishingâ€¦' : 'Publish exam'}
+              {publishing ? 'Publishing…' : 'Publish exam'}
             </button>
           )}
         </div>
@@ -214,7 +214,7 @@ export default function AdminNewExamPage() {
                 <label className={styles.label}>Instructions <span className={styles.optional}>(optional)</span></label>
                 <textarea className={styles.textarea} rows={3} value={details.instructions}
                   onChange={e => setDetail('instructions', e.target.value)}
-                  placeholder="Instructions shown to students before the exam startsâ€¦" />
+                  placeholder="Instructions shown to students before the exam starts…" />
               </div>
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function AdminNewExamPage() {
                 </select>
               </div>
               {loadingQ ? (
-                <div className={styles.loadingQ}>Loading questionsâ€¦</div>
+                <div className={styles.loadingQ}>Loading questions…</div>
               ) : filteredQ.length === 0 ? (
                 <div className={styles.emptyQ}>
                   <p>No questions found.</p>
@@ -250,7 +250,7 @@ export default function AdminNewExamPage() {
                     <div className={styles.qMeta}>
                       <span>{q.subject}</span>
                       <span>{q.class_level}</span>
-                      <span>{q.topic ?? 'â€”'}</span>
+                      <span>{q.topic ?? '—'}</span>
                       <span>{q.marks} mk</span>
                     </div>
                   </div>
@@ -269,8 +269,8 @@ export default function AdminNewExamPage() {
                   {selectedQs.map((q, i) => (
                     <div key={q.id} className={styles.selectedItem}>
                       <span className={styles.selNum}>{i + 1}</span>
-                      <span className={styles.selText}>{q.question_text.slice(0, 60)}â€¦</span>
-                      <button className={styles.deselBtn} onClick={() => toggleQ(q.id)}>âœ•</button>
+                      <span className={styles.selText}>{q.question_text.slice(0, 60)}…</span>
+                      <button className={styles.deselBtn} onClick={() => toggleQ(q.id)}>✕</button>
                     </div>
                   ))}
                 </div>
@@ -288,11 +288,11 @@ export default function AdminNewExamPage() {
                 <p className={styles.reviewLabel}>Exam details</p>
                 <div className={styles.reviewRow}><span>Title</span><strong>{details.title}</strong></div>
                 <div className={styles.reviewRow}><span>Subject</span><strong>{details.subject}</strong></div>
-                <div className={styles.reviewRow}><span>Class</span><strong>{details.classLevel} Â· {details.classArms.join(', ')}</strong></div>
+                <div className={styles.reviewRow}><span>Class</span><strong>{details.classLevel} · {details.classArms.join(', ')}</strong></div>
                 <div className={styles.reviewRow}><span>Duration</span><strong>{details.durationMinutes} minutes</strong></div>
                 <div className={styles.reviewRow}><span>Pass mark</span><strong>{details.passMark}%</strong></div>
-                <div className={styles.reviewRow}><span>Starts</span><strong>{details.scheduledAt ? new Date(details.scheduledAt).toLocaleString('en-NG') : 'â€”'}</strong></div>
-                <div className={styles.reviewRow}><span>Ends</span><strong>{details.endsAt ? new Date(details.endsAt).toLocaleString('en-NG') : 'â€”'}</strong></div>
+                <div className={styles.reviewRow}><span>Starts</span><strong>{details.scheduledAt ? new Date(details.scheduledAt).toLocaleString('en-NG') : '—'}</strong></div>
+                <div className={styles.reviewRow}><span>Ends</span><strong>{details.endsAt ? new Date(details.endsAt).toLocaleString('en-NG') : '—'}</strong></div>
               </div>
               <div className={styles.reviewSection}>
                 <p className={styles.reviewLabel}>Questions</p>
@@ -333,7 +333,7 @@ export default function AdminNewExamPage() {
             {error && <p className={styles.error}>{error}</p>}
 
             <div className={styles.publishNote}>
-              â„¹ï¸ Publishing will make this exam visible to students when the scheduled time arrives.
+              ℹ�? Publishing will make this exam visible to students when the scheduled time arrives.
               The exam status will be set to <strong>active</strong> immediately.
             </div>
           </div>

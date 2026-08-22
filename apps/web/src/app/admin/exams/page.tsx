@@ -166,7 +166,7 @@ export default function ExamsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className={styles.empty}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>ðŸ“‹</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</div>
           <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
             {exams.length === 0 ? 'No exams yet' : 'No exams match this filter'}
           </p>
@@ -193,10 +193,10 @@ export default function ExamsPage() {
                 </div>
                 <h2 className={styles.examTitle}>{exam.title}</h2>
                 <div className={styles.examMeta}>
-                  <span>â± {exam.duration_minutes} min</span>
-                  <span>ðŸ“‹ {exam.question_count ?? 0} questions</span>
-                  <span>ðŸ“… {formatDate(exam.scheduled_at)}</span>
-                  {exam.created_by_name && <span>ðŸ`¤ {exam.created_by_name}</span>}
+                  <span>⏱ {exam.duration_minutes} min</span>
+                  <span>📋 {exam.question_count ?? 0} questions</span>
+                  <span>📅 {formatDate(exam.scheduled_at)}</span>
+                  {exam.created_by_name && <span>👤 {exam.created_by_name}</span>}
                 </div>
               </div>
               <div className={styles.examCardRight}>
@@ -212,7 +212,7 @@ export default function ExamsPage() {
                     onClick={() => handleRemind(exam.id, exam.title)}
                     disabled={reminding === exam.id}
                   >
-                    {reminding === exam.id ? 'Sendingâ€¦' : 'ðŸ“§ Remind'}
+                    {reminding === exam.id ? 'Sending…' : '📧 Remind'}
                   </button>
                 )}
                 {exam.status !== 'completed' && (
