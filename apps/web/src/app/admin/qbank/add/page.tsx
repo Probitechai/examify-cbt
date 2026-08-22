@@ -1,5 +1,5 @@
 ﻿'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
