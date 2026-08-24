@@ -179,8 +179,8 @@ export default function LoginPage() {
         </form>
 
         <p className={styles.help}>
-          Forgot your password? Contact your school administrator.
-        </p>
+  <a href="/forgot-password" style={{ color: 'inherit', textDecoration: 'underline' }}>Forgot your password?</a>
+</p>
       </div>
     </div>
   )
