@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isLoading && user && user.role === 'parent') router.replace('/parent')
   }, [user, isLoading])
 
-  useEffect(() => {
+ /* useEffect(() => {
     if (!user) return
     try {
       const token = getToken()
@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }).catch(() => {})
     } catch {}
   }, [user])
-
+*/
   if (isLoading || !user) return (
     <div className={styles.loading}>
       <div className={styles.spinner} />
