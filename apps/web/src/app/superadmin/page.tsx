@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuthStore } from '../../hooks/useAuth'
 
 interface Overview {
   schools: { total_schools: number; active_schools: number; inactive_schools: number; basic_schools: number; standard_schools: number; premium_schools: number; enterprise_schools: number }
@@ -176,10 +177,13 @@ export default function SuperAdminDashboard() {
               style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', fontSize: '0.825rem', cursor: 'pointer' }}>
               🔄 Refresh
             </button>
-            <button onClick={() => { document.cookie = 'examify_token=; Max-Age=0; path=/'; router.push('/login') }}
-              style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', fontSize: '0.825rem', cursor: 'pointer' }}>
-              Log out
-            </button>
+            <button onClick={() => {
+  useAuthStore.getState().logout()
+  window.location.href = '/login'
+}}
+  style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', fontSize: '0.825rem', cursor: 'pointer' }}>
+  Log out
+</button>
           </div>
         </div>
       </div>
