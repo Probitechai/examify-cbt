@@ -62,6 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => { hydrate() }, [hydrate])
 
   useEffect(() => {
+     console.log('[REDIRECT EFFECT FIRED]', { isLoading, user: user?.role })
     if (!isLoading && !user) router.replace('/login')
     if (!isLoading && user && user.role === 'student') router.replace('/student')
     if (!isLoading && user && user.role === 'parent') router.replace('/parent')
