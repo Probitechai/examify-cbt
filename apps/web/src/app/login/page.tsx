@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
 import styles from './login.module.css'
 
+
+
 function detectSubdomain(): string {
   if (typeof window === 'undefined') return ''
   const host = window.location.hostname // e.g. greensprings.examify.ng
