@@ -1,16 +1,20 @@
-// SMS utility using Termii API
-// Docs: https://developers.termii.com/messaging
+// SMS utility using EbulkSMS API
+// Docs: https://www.ebulksms.com/pages/json-api
 
-const TERMII_API_KEY = process.env.TERMII_API_KEY
-const TERMII_SENDER_ID = process.env.TERMII_SENDER_ID ?? 'N-Alert'
-const TERMII_BASE_URL = 'https://v3.api.termii.com'
+const EBULKSMS_USERNAME = process.env.EBULKSMS_USERNAME
+const EBULKSMS_API_KEY = process.env.EBULKSMS_API_KEY
+const EBULKSMS_SENDER_ID = process.env.EBULKSMS_SENDER_ID ?? 'Examify'
+// Only set to '1' once you've registered a NUMERIC sender ID for DND-bypass with EbulkSMS —
+// using '1' with an unregistered/alphanumeric sender ID will not reliably bypass DND.
+const EBULKSMS_DND_BYPASS = process.env.EBULKSMS_DND_BYPASS ?? '0'
+const EBULKSMS_URL = 'https://api.ebulksms.com/sendsms.json'
 
 interface SendSmsParams {
   to: string | string[]
   message: string
 }
 
-// Normalize Nigerian phone numbers to international format
+// Normalize Nigerian phone numbers to international format (unchanged — same format EbulkSMS expects)
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/\D/g, '')
   if (cleaned.startsWith('234')) return cleaned
@@ -20,8 +24,8 @@ function normalizePhone(phone: string): string {
 }
 
 export async function sendSms({ to, message }: SendSmsParams): Promise<{ success: boolean; error?: string }> {
-  if (!TERMII_API_KEY) {
-    console.warn('[SMS] TERMII_API_KEY not set — skipping SMS. Would have sent:', message.slice(0, 50))
+  if (!EBULKSMS_USERNAME || !EBULKSMS_API_KEY) {
+    console.warn('[SMS] EBULKSMS_USERNAME/EBULKSMS_API_KEY not set — skipping SMS. Would have sent:', message.slice(0, 50))
     return { success: false, error: 'SMS service not configured' }
   }
 
@@ -34,16 +38,28 @@ export async function sendSms({ to, message }: SendSmsParams): Promise<{ success
   }
 
   try {
-    const res = await fetch(`${TERMII_BASE_URL}/api/sms/send/bulk`, {
+    const res = await fetch(EBULKSMS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: TERMII_API_KEY,
-        to: normalized,
-        from: TERMII_SENDER_ID,
-        sms: message,
-        type: 'plain',
-        channel: 'generic',
+        SMS: {
+          auth: {
+            username: EBULKSMS_USERNAME,
+            apikey: EBULKSMS_API_KEY,
+          },
+          message: {
+            sender: EBULKSMS_SENDER_ID,
+            messagetext: message,
+            flash: '0',
+          },
+          recipients: {
+            gsm: normalized.map((msidn, i) => ({
+              msidn,
+              msgid: `${Date.now()}-${i}`,
+            })),
+          },
+          dndsender: EBULKSMS_DND_BYPASS,
+        },
       }),
     })
 
@@ -54,7 +70,14 @@ export async function sendSms({ to, message }: SendSmsParams): Promise<{ success
     }
 
     const data = await res.json()
-    console.log('[SMS] Sent successfully to', normalized.length, 'recipient(s)')
+    const status = data?.response?.status
+
+    if (status !== 'SUCCESS') {
+      console.error('[SMS] EbulkSMS returned non-success status:', status)
+      return { success: false, error: status ?? 'UNKNOWN_ERROR' }
+    }
+
+    console.log('[SMS] Sent successfully to', data?.response?.totalsent ?? normalized.length, 'recipient(s), cost:', data?.response?.cost)
     return { success: true }
   } catch (err: any) {
     console.error('[SMS] Exception:', err.message)
