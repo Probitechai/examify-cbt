@@ -429,7 +429,7 @@ function CertificateRenderer({ cert }: { cert: any }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#a0a09a', fontFamily: 'system-ui', borderTop: '1px solid #e5e5e0', paddingTop: '0.875rem' }}>
           <span>Certificate No: <strong>{cert.certificate_number}</strong></span>
           <span>Issued: {new Date(cert.issued_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-          <span>Examify · Probitechai</span>
+          <span>Examify by Navura</span>
         </div>
       </div>
     </div>

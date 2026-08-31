@@ -133,7 +133,7 @@ setStats({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ width: 36, height: 36, background: '#1a6b4a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '1rem' }}>E</div>
             <div>
-              <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1a1a18', letterSpacing: '-0.02em' }}>Examify</p>
+              <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1a1a18', letterSpacing: '-0.02em' }}>Examify by Navura</p>
               <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{user.school?.name}</p>
             </div>
           </div>

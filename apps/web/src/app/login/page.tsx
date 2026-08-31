@@ -117,7 +117,7 @@ export default function LoginPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <span className={styles.logoText}>Examify</span>
+          <span className={styles.logoText}>Examify by Navura</span>
         </div>
 
         {/* School subdomain detected — show badge, hide dropdown */}

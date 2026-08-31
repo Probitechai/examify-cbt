@@ -38,7 +38,7 @@ export default function SuperAdminLogin() {
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ width: 56, height: 56, background: '#0f4a32', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', color: 'white', fontWeight: 800, fontSize: '1.5rem' }}>E</div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.25rem' }}>Platform Admin</h1>
-          <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Examify Super Admin Portal</p>
+          <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Examify by Navura Super Admin Portal</p>
         </div>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -79,7 +79,7 @@ export default function SuperAdminLogin() {
         </form>
 
         <p style={{ textAlign: 'center', fontSize: '0.72rem', color: '#a0a09a', marginTop: '1.5rem' }}>
-          This portal is restricted to Examify platform administrators only.
+          This portal is restricted to Examify by Navura platform administrators only
         </p>
       </div>
     </div>

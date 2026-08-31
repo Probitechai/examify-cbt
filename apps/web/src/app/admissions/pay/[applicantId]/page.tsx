@@ -120,7 +120,7 @@ function AdmissionPayContent() {
             </>
           )}
         </div>
-        <p style={{textAlign:'center' as const,fontSize:'0.72rem',color:'#a0a09a'}}>Powered by Examify · Probitechai</p>
+        <p style={{textAlign:'center' as const,fontSize:'0.72rem',color:'#a0a09a'}}>Powered by Examify by Navura</p>
       </div>
     </div>
   )

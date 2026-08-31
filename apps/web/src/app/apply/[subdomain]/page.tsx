@@ -321,7 +321,7 @@ export default function PublicApplyPage() {
         </div>
 
         <p style={{ textAlign: 'center' as const, fontSize: '0.72rem', color: '#a0a09a', marginTop: '1.5rem' }}>
-          Powered by Examify · Probitechai
+          Powered by Examify by Navura
         </p>
       </div>
     </div>
