@@ -115,7 +115,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className={styles.brand}>
             <div className={styles.logo}>E</div>
             <div>
-              title<div className={styles.appName}>Examify by Navura</div>: 'Examify by Navura'
+              <div className={styles.appName}>Examify by Navura</div>
               <div className={styles.schoolName}>{(user as any)?.school?.name ?? ''}</div>
             </div>
           </div>
