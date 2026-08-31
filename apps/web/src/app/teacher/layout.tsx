@@ -35,7 +35,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <div className={styles.brand}>
             <span className={styles.logo}>E</span>
             <div>
-              <p className={styles.appName}>Examify</p>
+              <p className={styles.appName}>Examify By Navura</p>
               <p className={styles.schoolName}>{user.school.name}</p>
             </div>
           </div>
