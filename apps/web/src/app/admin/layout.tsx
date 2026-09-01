@@ -68,11 +68,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isLoading && user && user.role === 'parent') router.replace('/parent')
   }, [user, isLoading])
 
- /* useEffect(() => {
+   useEffect(() => {
     if (!user) return
     try {
       const token = getToken()
-      if (!token) return
+      if (!token) { console.warn('[TIER FETCH] No token found at effect run time'); return }
       const payload = JSON.parse(atob(token.split('.')[1]))
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/schools/settings`, {
         headers: {
@@ -82,10 +82,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
       }).then(r => r.json()).then(d => {
         if (d.subscription_tier) setSchoolTier(d.subscription_tier)
-      }).catch(() => {})
-    } catch {}
+      }).catch(err => console.error('[TIER FETCH] Failed:', err))
+    } catch (err) {
+      console.error('[TIER FETCH] Exception before fetch:', err)
+    }
   }, [user])
-*/
   if (isLoading || !user) return (
     <div className={styles.loading}>
       <div className={styles.spinner} />
