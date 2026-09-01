@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
-  const [schoolTier, setSchoolTier] = useState<string>('starter')
+  const [schoolTier, setSchoolTier] = useState<string>('basic')
 
   useEffect(() => { hydrate() }, [hydrate])
 
