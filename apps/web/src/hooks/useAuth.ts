@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     Cookies.remove('examify_token')
-    set({ token: null, user: null, isLoading: false })
+    set({ user: null, token: null, isLoading: false })
   },
 
   hydrate: async () => {
