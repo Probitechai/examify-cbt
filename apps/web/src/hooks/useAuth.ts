@@ -34,16 +34,19 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   hydrate: async () => {
-    const token = Cookies.get('examify_token')
-    if (!token) { set({ isLoading: false }); return }
-    try {
-      const { api } = await import('../lib/api')
-      const { user } = await api.me()
-      saveSubdomain(user?.school?.subdomain)
-      set({ token, user, isLoading: false })
-    } catch {
-      Cookies.remove('examify_token')
-      set({ isLoading: false })
-    }
-  },
+  console.log('[HYDRATE] called at', Date.now())
+  const token = Cookies.get('examify_token')
+  if (!token) { console.log('[HYDRATE] no cookie found'); set({ isLoading: false }); return }
+  try {
+    const { api } = await import('../lib/api')
+    const { user } = await api.me()
+    console.log('[HYDRATE] success, user role:', user?.role)
+    saveSubdomain(user?.school?.subdomain)
+    set({ token, user, isLoading: false })
+  } catch (err) {
+    console.log('[HYDRATE] FAILED:', err)
+    Cookies.remove('examify_token')
+    set({ user: null, token: null, isLoading: false })
+  }
+},
 }))

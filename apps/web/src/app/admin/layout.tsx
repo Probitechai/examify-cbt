@@ -54,6 +54,7 @@ function getToken() {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+ console.log('[ADMIN LAYOUT] rendering at', Date.now())
   const router = useRouter()
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
