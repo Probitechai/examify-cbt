@@ -324,9 +324,12 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
                     {['JSS1','JSS2','JSS3','SS1','SS2','SS3'].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
-                <div>
+                                <div>
                   <label style={lbl}>Class arm</label>
-                  <input style={inp} value={form.classArm} onChange={e => set('classArm', e.target.value)} placeholder="A, B, Science..." />
+                  <select style={inp} value={form.classArm} onChange={e => set('classArm', e.target.value)}>
+                    <option value="">Select arm</option>
+                    {CLASS_ARMS.map(a => <option key={a}>{a}</option>)}
+                  </select>
                 </div>
               </div>
             </>
