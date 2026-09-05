@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './new-exam.module.css'
+import { CLASS_ARMS } from '../../../../lib/classArms'
 
 const QUESTIONS_POOL = [
   { id: '1', questionText: 'Choose the sentence with the correct use of the apostrophe.', topic: 'Grammar', difficulty: 'medium', marks: 1 },
@@ -134,7 +135,7 @@ export default function NewExamPage() {
               <div className={styles.fieldFull}>
                 <label className={styles.label}>Class arms</label>
                 <div className={styles.armGrid}>
-                  {['A', 'B', 'C', 'Science', 'Arts', 'Commercial'].map(arm => (
+                  {CLASS_ARMS.map(arm => (
                     <button key={arm} type="button"
                       className={`${styles.armBtn} ${details.classArms.includes(arm) ? styles.armActive : ''}`}
                       onClick={() => toggleArm(arm)}>

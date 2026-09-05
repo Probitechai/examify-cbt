@@ -1,0 +1,1 @@
+export const CLASS_ARMS = ['A', 'B', 'C', 'D', 'E', 'Science', 'Arts', 'Commercial', 'Social Science', 'Humanities', 'Business']

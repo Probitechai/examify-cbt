@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { CLASS_ARMS } from '@/lib/classArms'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; is_active: boolean }
@@ -26,7 +27,6 @@ interface AttendanceSummary {
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
-const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
 const STATUS_CONFIG = {
   present: { label: 'Present', color: '#0f4a32', bg: '#e8f5ee', icon: '✓' },
   absent:  { label: 'Absent',  color: '#dc2626', bg: '#fef2f2', icon: '✗' },

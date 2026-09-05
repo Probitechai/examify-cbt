@@ -4,6 +4,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './users.module.css'
+import { CLASS_ARMS } from '@/lib/classArms'
 
 interface User {
   id: string

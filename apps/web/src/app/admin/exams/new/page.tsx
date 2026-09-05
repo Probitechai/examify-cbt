@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '../../../../lib/api'
 import styles from './new-exam.module.css'
+import { CLASS_ARMS } from '@/lib/classArms'
 
 type Step = 'details' | 'questions' | 'review'
 
@@ -184,7 +185,7 @@ export default function AdminNewExamPage() {
               <div className={styles.fieldFull}>
                 <label className={styles.label}>Class arms</label>
                 <div className={styles.armGrid}>
-                  {['A', 'B', 'C', 'D', 'Science', 'Arts', 'Commercial'].map(arm => (
+                  {CLASS_ARMS.map(arm => (
                     <button key={arm} type="button"
                       className={`${styles.armBtn} ${details.classArms.includes(arm) ? styles.armActive : ''}`}
                       onClick={() => toggleArm(arm)}>

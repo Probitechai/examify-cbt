@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { CLASS_ARMS } from '@/lib/classArms'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; is_active: boolean }
@@ -20,7 +21,7 @@ interface TimetableEntry {
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday']
 const PERIODS = [1,2,3,4,5,6,7,8]
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
-const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
+
 const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religious Studies','Civic Education','Commerce','Computer Science','Economics','English Language','Financial Accounting','French','Further Mathematics','Geography','Government','History','Home Economics','Islamic Religious Studies','Literature in English','Mathematics','Music','Physical Education','Physics','Technical Drawing','Assembly','Break','Lunch','Games','Library']
 
 const DAY_COLORS: Record<string, string> = {

@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import { CLASS_ARMS } from '@/lib/classArms'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -25,7 +26,7 @@ interface Broadsheet {
 }
 
 const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
-const CLASS_ARMS = ['A','B','C','D','E','Science','Arts','Commercial','Social Science']
+
 
 function getSubdomain() {
   try {
