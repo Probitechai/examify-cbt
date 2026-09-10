@@ -224,7 +224,7 @@ export async function resultRoutes(app: FastifyInstance) {
     })
 
   // ── Approve results ───────────────────────────────────────────────────────
-  app.post('/results/approve', { preHandler: [authenticate, requireRole('school_admin'), requireTier('growth')] },
+  app.post('/results/approve', { preHandler: [authenticate, requireRole('school_admin'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
