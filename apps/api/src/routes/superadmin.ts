@@ -114,7 +114,20 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
         sessions: sessionStats[0],
         results: resultStats[0],
       })
+    }   
+  )
+  // ── TEMPORARY: test SMS integration — remove once EbulkSMS is confirmed working ──
+  app.post('/superadmin/test-sms', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { to, message } = request.body
+      if (!to || !message) {
+        return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'to and message are required.' })
+      }
+      const { sendSms } = await import('../lib/sms')
+      const result = await sendSms({ to, message })
+      return reply.send(result)
     })
+
 
     
     // ── Create new school (onboarding) ─────────────────────────────────────────
