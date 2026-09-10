@@ -17,7 +17,7 @@ export async function feeRoutes(app: FastifyInstance) {
   }
 
   // ── List fee structures ───────────────────────────────────────────────────
-  app.get('/fees/structures', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('growth')] },
+  app.get('/fees/structures', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const { termId, classLevel } = request.query as any
       const tdb = tenantDb(request.schoolId)

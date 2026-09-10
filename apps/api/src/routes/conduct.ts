@@ -7,7 +7,7 @@ import { requireTier } from '../middleware/tier'
 export async function conductRoutes(app: FastifyInstance) {
 
   // ── Get conduct reports for a class/term ──────────────────────────────────
-  app.get('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('growth')] },
+  app.get('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel required' })
@@ -50,7 +50,7 @@ export async function conductRoutes(app: FastifyInstance) {
     })
 
   // ── Save conduct report for a student ────────────────────────────────────
-  app.post('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('growth')] },
+  app.post('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -95,7 +95,7 @@ export async function conductRoutes(app: FastifyInstance) {
     })
 
   // ── Bulk save conduct reports ─────────────────────────────────────────────
-  app.post('/conduct/bulk', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('growth')] },
+  app.post('/conduct/bulk', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -146,7 +146,7 @@ export async function conductRoutes(app: FastifyInstance) {
     })
 
   // ── Get conduct report for a single student (used by report card) ─────────
-  app.get('/conduct/student', { preHandler: [authenticate, requireTier('growth')] },
+  app.get('/conduct/student', { preHandler: [authenticate, requireTier('standard')] },
     async (request: any, reply: any) => {
       const { termId, studentId } = request.query as any
       if (!termId || !studentId) return reply.status(400).send({ error: 'termId and studentId required' })

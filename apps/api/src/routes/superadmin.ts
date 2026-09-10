@@ -218,7 +218,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const { tier } = request.body as any
-      if (!['starter', 'growth', 'premium'].includes(tier)) {
+      if (!['basic', 'standard', 'premium', 'enterprise'].includes(tier)) {
         return reply.status(400).send({ error: 'Invalid tier' })
       }
       const rows = await db()`
