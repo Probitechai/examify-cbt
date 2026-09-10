@@ -17,7 +17,7 @@ const PLANS = [
   {
     tier: 'basic',
     name: 'Basic Plan',
-    price: 35000,
+    price: 50000,
     color: '#1a6b4a',
     bg: '#e8f5ee',
     features: [
@@ -39,7 +39,7 @@ const PLANS = [
   {
     tier: 'standard',
     name: 'Standard Plan',
-    price: 60000,
+    price: 75000,
     color: '#1e40af',
     bg: '#eff6ff',
     popular: true,

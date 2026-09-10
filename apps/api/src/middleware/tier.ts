@@ -12,9 +12,9 @@ const TIER_NAMES: Record<string, string> = {
   enterprise: 'Enterprise',
 }
 
-export function requireTier(minTier: 'starter' | 'growth' | 'premium') {
+export function requireTier(minTier: 'basic' | 'standard' | 'premium' | 'enterprise') {
   return async function checkTier(request: any, reply: any) {
-    const schoolTier = request.school?.subscriptionTier ?? 'starter'
+    const schoolTier = request.school?.subscriptionTier ?? 'basic'
     const currentOrder = TIER_ORDER[schoolTier] ?? 1
     const requiredOrder = TIER_ORDER[minTier] ?? 1
 
