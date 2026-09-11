@@ -59,7 +59,7 @@ export default function SuperAdminDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'schools' | 'subscriptions'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'schools' | 'subscriptions' | 'settings'>('overview')
   const [toggling, setToggling] = useState<string | null>(null)
   const [updatingTier, setUpdatingTier] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -71,6 +71,41 @@ export default function SuperAdminDashboard() {
     subscription_tier: 'basic', admin_name: '', admin_email: '',
   })
 
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
+
+  async function handleChangePassword() {
+    setPwError('')
+    setPwSuccess(false)
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('New passwords do not match.')
+      return
+    }
+    if (pwForm.newPassword.length < 8) {
+      setPwError('New password must be at least 8 characters.')
+      return
+    }
+    setPwSaving(true)
+    try {
+      const res = await fetch(`${API}/superadmin/change-password`, {
+        method: 'PATCH', headers: hdrs(),
+        body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPwError(data.message ?? 'Failed to change password.')
+        return
+      }
+      setPwSuccess(true)
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch {
+      setPwError('Network error. Please try again.')
+    } finally {
+      setPwSaving(false)
+    }
+  }
   useEffect(() => {
     // Verify super_admin role
     try {
@@ -197,10 +232,11 @@ export default function SuperAdminDashboard() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
-          {([
+                    {([
             { key: 'overview', label: '📊 Platform Overview' },
             { key: 'schools', label: '🏫 Schools' },
             { key: 'subscriptions', label: '💳 Subscriptions' },
+            { key: 'settings', label: '⚙️ Settings' },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#0f4a32' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
@@ -431,6 +467,42 @@ export default function SuperAdminDashboard() {
             </>
           )
         })()}
+                {/* SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', maxWidth: 480 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '1.5rem', border: '1px solid #e5e5e0' }}>
+              <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1a1a18', marginBottom: '1.25rem' }}>Change your password</p>
+
+              {[
+                { key: 'currentPassword', label: 'Current password' },
+                { key: 'newPassword', label: 'New password' },
+                { key: 'confirmPassword', label: 'Confirm new password' },
+              ].map(f => (
+                <div key={f.key} style={{ marginBottom: '0.875rem' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>{f.label}</label>
+                  <input
+                    type="password"
+                    value={(pwForm as any)[f.key]}
+                    onChange={e => setPwForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }}
+                  />
+                </div>
+              ))}
+
+              {pwError && (
+                <p style={{ fontSize: '0.8rem', color: '#dc2626', background: '#fef2f2', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '0.875rem' }}>{pwError}</p>
+              )}
+              {pwSuccess && (
+                <p style={{ fontSize: '0.8rem', color: '#0f4a32', background: '#e8f5ee', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '0.875rem' }}>Password updated successfully.</p>
+              )}
+
+              <button onClick={handleChangePassword} disabled={pwSaving}
+                style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: pwSaving ? 0.6 : 1 }}>
+                {pwSaving ? 'Updating…' : 'Update password'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ADD SCHOOL MODAL */}
