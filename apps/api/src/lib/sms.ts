@@ -91,7 +91,7 @@ export function absenceAlertSms(params: {
   date: string
 }): string {
   const { schoolName, studentName, date } = params
-  return `${schoolName}: ${studentName} was marked ABSENT on ${date}. If this is an error, contact the school. - Examify`
+  return `${schoolName}: ${studentName} was marked ABSENT on ${date}. If this is an error, contact the school. - Examify by Navura`
 }
 
 export function feeReminderSms(params: {
@@ -101,7 +101,7 @@ export function feeReminderSms(params: {
   termName: string
 }): string {
   const { schoolName, studentName, balance, termName } = params
-  return `${schoolName}: Dear Parent, ${studentName} has an outstanding fee balance of NGN${balance.toLocaleString()} for ${termName}. Please make payment. - Examify`
+  return `${schoolName}: Dear Parent, ${studentName} has an outstanding fee balance of NGN${balance.toLocaleString()} for ${termName}. Please make payment. - Examify by Navura`
 }
 
 export function resultReleaseSms(params: {
@@ -111,5 +111,5 @@ export function resultReleaseSms(params: {
   loginUrl: string
 }): string {
   const { schoolName, studentName, termName, loginUrl } = params
-  return `${schoolName}: ${studentName}'s ${termName} results are now available. Login to view: ${loginUrl} - Examify`
+  return `${schoolName}: ${studentName}'s ${termName} results are now available. Login to view: ${loginUrl} - Examify by Navura`
 }
