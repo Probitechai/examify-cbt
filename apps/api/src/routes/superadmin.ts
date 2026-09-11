@@ -231,4 +231,26 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       ` as any[]
       return reply.send({ school: rows[0] })
     })
+      // ── Change own password (superadmin) ──────────────────────────────────────
+  app.patch('/superadmin/change-password', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { currentPassword, newPassword } = request.body as any
+      if (!currentPassword || !newPassword || newPassword.length < 8) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Current password and a new password (min 8 characters) are required.' })
+      }
+      const rows = await db()`
+        SELECT id, password_hash FROM users WHERE id = ${request.user.id}::uuid AND role = 'super_admin'
+      ` as any[]
+      if (!rows[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+
+      const bcrypt = await import('bcryptjs')
+      const valid = await bcrypt.compare(currentPassword, rows[0].password_hash)
+      if (!valid) return reply.status(401).send({ error: 'INVALID_PASSWORD', message: 'Current password is incorrect.' })
+
+      const newHash = await bcrypt.hash(newPassword, 12)
+      await db()`
+        UPDATE users SET password_hash = ${newHash} WHERE id = ${request.user.id}::uuid
+      `
+      return reply.send({ updated: true })
+    })
 }
