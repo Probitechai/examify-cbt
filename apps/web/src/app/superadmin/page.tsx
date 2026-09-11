@@ -31,7 +31,12 @@ const TIER_CONFIG: Record<string, { color: string; bg: string }> = {
   premium: { color: '#7e22ce', bg: '#f5f3ff' },
   enterprise: { color: '#d97706', bg: '#fffbeb' },
 }
-
+const TIER_PRICES: Record<string, number> = {
+  basic: 50000,
+  standard: 75000,
+  premium: 120000,
+  enterprise: 0, // custom pricing — excluded from revenue totals
+}
 function getToken() {
   if (typeof document === 'undefined') return ''
   return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
@@ -54,7 +59,7 @@ export default function SuperAdminDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'schools'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'schools' | 'subscriptions'>('overview')
   const [toggling, setToggling] = useState<string | null>(null)
   const [updatingTier, setUpdatingTier] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -195,6 +200,7 @@ export default function SuperAdminDashboard() {
           {([
             { key: 'overview', label: '📊 Platform Overview' },
             { key: 'schools', label: '🏫 Schools' },
+            { key: 'subscriptions', label: '💳 Subscriptions' },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#0f4a32' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
@@ -352,6 +358,79 @@ export default function SuperAdminDashboard() {
             </div>
           </>
         )}
+
+        {/* SUBSCRIPTIONS TAB */}
+        {activeTab === 'subscriptions' && (() => {
+          const nonEnterprise = schools.filter(s => s.subscription_tier !== 'enterprise')
+          const enterpriseSchools = schools.filter(s => s.subscription_tier === 'enterprise')
+          const totalTermly = nonEnterprise.reduce((sum, s) => sum + (TIER_PRICES[s.subscription_tier] ?? 0), 0)
+          const totalMonthly = totalTermly / 4
+
+          return (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                {[
+                  { label: 'Est. Monthly Revenue', value: `₦${Math.round(totalMonthly).toLocaleString()}`, sub: 'excludes Enterprise (custom pricing)', color: '#0f4a32', bg: '#e8f5ee' },
+                  { label: 'Est. Revenue Per Term', value: `₦${totalTermly.toLocaleString()}`, sub: `across ${nonEnterprise.length} schools`, color: '#1e40af', bg: '#eff6ff' },
+                  { label: 'Enterprise Schools', value: enterpriseSchools.length, sub: 'custom pricing, not included above', color: '#d97706', bg: '#fffbeb' },
+                ].map((item, i) => (
+                  <div key={i} style={{ background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #e5e5e0' }}>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{item.label}</p>
+                    <p style={{ fontSize: '1.75rem', fontWeight: 800, color: item.color, marginBottom: '0.25rem' }}>{item.value}</p>
+                    <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{item.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>Per-school subscriptions</p>
+              <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 120px 130px 130px 120px', gap: '0.5rem', padding: '0.75rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
+                  <span>School</span>
+                  <span style={{ textAlign: 'center' as const }}>Tier</span>
+                  <span style={{ textAlign: 'center' as const }}>Price/Term</span>
+                  <span style={{ textAlign: 'center' as const }}>Monthly Equiv.</span>
+                  <span style={{ textAlign: 'center' as const }}>Status</span>
+                </div>
+
+                {schools.map(school => {
+                  const price = TIER_PRICES[school.subscription_tier] ?? 0
+                  const isEnterprise = school.subscription_tier === 'enterprise'
+                  return (
+                    <div key={school.id} style={{ display: 'grid', gridTemplateColumns: '2fr 120px 130px 130px 120px', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Joined {new Date(school.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      </div>
+                      <div style={{ textAlign: 'center' as const }}>
+                        <select
+                          value={school.subscription_tier}
+                          onChange={e => handleUpdateTier(school.id, e.target.value)}
+                          disabled={updatingTier === school.id}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.72rem', fontWeight: 700, border: 'none', borderRadius: '20px', background: TIER_CONFIG[school.subscription_tier]?.bg ?? '#f7f7f5', color: TIER_CONFIG[school.subscription_tier]?.color ?? '#1a1a18', cursor: 'pointer', outline: 'none' }}>
+                          <option value="basic">Basic</option>
+                          <option value="standard">Standard</option>
+                          <option value="premium">Premium</option>
+                          <option value="enterprise">Enterprise</option>
+                        </select>
+                      </div>
+                      <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>
+                        {isEnterprise ? 'Custom' : `₦${price.toLocaleString()}`}
+                      </span>
+                      <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>
+                        {isEnterprise ? '—' : `₦${Math.round(price / 4).toLocaleString()}`}
+                      </span>
+                      <div style={{ textAlign: 'center' as const }}>
+                        <span style={{ padding: '0.3rem 0.75rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700, background: school.is_active ? '#e8f5ee' : '#fef2f2', color: school.is_active ? '#0f4a32' : '#dc2626' }}>
+                          {school.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )
+        })()}
       </div>
 
       {/* ADD SCHOOL MODAL */}
