@@ -76,6 +76,15 @@ export default function SuperAdminDashboard() {
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
 
+    const [admins, setAdmins] = useState<{ id: string; full_name: string; email: string; is_active: boolean; created_at: string; last_login_at: string | null }[]>([])
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false)
+  const [newAdmin, setNewAdmin] = useState({ full_name: '', email: '' })
+  const [creatingAdmin, setCreatingAdmin] = useState(false)
+  const [adminCreateError, setAdminCreateError] = useState('')
+  const [createdAdminInfo, setCreatedAdminInfo] = useState<{ email: string; tempPassword: string } | null>(null)
+  const [togglingAdmin, setTogglingAdmin] = useState<string | null>(null)
+  const [deletingAdmin, setDeletingAdmin] = useState<string | null>(null)
+
   async function handleChangePassword() {
     setPwError('')
     setPwSuccess(false)
@@ -119,14 +128,17 @@ export default function SuperAdminDashboard() {
   async function loadData() {
     setLoading(true)
     try {
-      const [overviewRes, schoolsRes] = await Promise.all([
+      const [overviewRes, schoolsRes, adminsRes] = await Promise.all([
         fetch(`${API}/superadmin/overview`, { headers: hdrs() }),
         fetch(`${API}/superadmin/schools`, { headers: hdrs() }),
+        fetch(`${API}/superadmin/admins`, { headers: hdrs() }),
       ])
       const overviewData = await overviewRes.json()
       const schoolsData = await schoolsRes.json()
+      const adminsData = await adminsRes.json()
       setOverview(overviewData)
       setSchools(schoolsData.schools ?? [])
+      setAdmins(adminsData.admins ?? [])
     } catch {} finally { setLoading(false) }
   }
 
@@ -141,6 +153,68 @@ export default function SuperAdminDashboard() {
     } catch {} finally { setToggling(null) }
   }
 
+    async function handleCreateAdmin() {
+    setAdminCreateError('')
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!newAdmin.full_name.trim()) {
+      setAdminCreateError('Full name is required.')
+      return
+    }
+    if (!emailPattern.test(newAdmin.email)) {
+      setAdminCreateError('Not a valid email address.')
+      return
+    }
+    setCreatingAdmin(true)
+    try {
+      const res = await fetch(`${API}/superadmin/admins`, {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify(newAdmin),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAdminCreateError(data.message ?? 'Failed to create admin.')
+        return
+      }
+      setCreatedAdminInfo({ email: data.admin.email, tempPassword: data.tempPassword })
+      setNewAdmin({ full_name: '', email: '' })
+      loadData()
+    } catch {
+      setAdminCreateError('Network error. Please try again.')
+    } finally {
+      setCreatingAdmin(false)
+    }
+  }
+
+  async function handleToggleAdmin(id: string) {
+    setTogglingAdmin(id)
+    try {
+      const res = await fetch(`${API}/superadmin/admins/${id}/toggle`, {
+        method: 'PATCH', headers: hdrs(), body: '{}'
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setAdmins(prev => prev.map(a => a.id === id ? { ...a, is_active: data.admin.is_active } : a))
+      } else {
+        alert(data.message ?? 'Failed to update admin.')
+      }
+    } catch {} finally { setTogglingAdmin(null) }
+  }
+
+  async function handleDeleteAdmin(id: string, name: string) {
+    if (!confirm(`Permanently delete ${name}'s superadmin account? This cannot be undone.`)) return
+    setDeletingAdmin(id)
+    try {
+      const res = await fetch(`${API}/superadmin/admins/${id}`, {
+        method: 'DELETE', headers: hdrs()
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setAdmins(prev => prev.filter(a => a.id !== id))
+      } else {
+        alert(data.message ?? 'Failed to delete admin.')
+      }
+    } catch {} finally { setDeletingAdmin(null) }
+  }
   async function handleUpdateTier(id: string, tier: string) {
     setUpdatingTier(id)
     try {
@@ -500,6 +574,91 @@ export default function SuperAdminDashboard() {
                 style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: pwSaving ? 0.6 : 1 }}>
                 {pwSaving ? 'Updating…' : 'Update password'}
               </button>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '14px', padding: '1.5rem', border: '1px solid #e5e5e0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1a1a18' }}>Superadmin accounts</p>
+                <button onClick={() => { setShowAddAdminModal(true); setCreatedAdminInfo(null); setAdminCreateError('') }}
+                  style={{ padding: '0.5rem 0.9rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                  + Add Admin
+                </button>
+              </div>
+
+              {admins.map(admin => (
+                <div key={admin.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #f0f0ee' }}>
+                  <div>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a18' }}>{admin.full_name}</p>
+                    <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{admin.email}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700, background: admin.is_active ? '#e8f5ee' : '#fef2f2', color: admin.is_active ? '#0f4a32' : '#dc2626' }}>
+                      {admin.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <button onClick={() => handleToggleAdmin(admin.id)} disabled={togglingAdmin === admin.id}
+                      style={{ padding: '0.35rem 0.7rem', border: '1px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', opacity: togglingAdmin === admin.id ? 0.6 : 1 }}>
+                      {admin.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button onClick={() => handleDeleteAdmin(admin.id, admin.full_name)} disabled={deletingAdmin === admin.id}
+                      style={{ padding: '0.35rem 0.7rem', border: '1px solid #fecaca', borderRadius: '8px', background: 'white', color: '#dc2626', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', opacity: deletingAdmin === admin.id ? 0.6 : 1 }}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ADD ADMIN MODAL */}
+        {showAddAdminModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}
+            onClick={() => setShowAddAdminModal(false)}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '1.75rem', width: 420 }}
+              onClick={e => e.stopPropagation()}>
+              {!createdAdminInfo ? (
+                <>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '1.25rem' }}>Add a superadmin</h2>
+                  <div style={{ marginBottom: '0.875rem' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Full name</label>
+                    <input value={newAdmin.full_name} onChange={e => setNewAdmin(prev => ({ ...prev, full_name: e.target.value }))}
+                      placeholder="e.g. Jane Doe"
+                      style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
+                  </div>
+                  <div style={{ marginBottom: '0.875rem' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Email</label>
+                    <input value={newAdmin.email} onChange={e => setNewAdmin(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="admin@examify.ng"
+                      style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
+                  </div>
+                  {adminCreateError && (
+                    <p style={{ fontSize: '0.8rem', color: '#dc2626', background: '#fef2f2', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '0.875rem' }}>{adminCreateError}</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.25rem' }}>
+                    <button onClick={() => setShowAddAdminModal(false)}
+                      style={{ flex: 1, padding: '0.65rem', background: '#f7f7f5', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                    <button onClick={handleCreateAdmin} disabled={creatingAdmin}
+                      style={{ flex: 1, padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: creatingAdmin ? 0.6 : 1 }}>
+                      {creatingAdmin ? 'Creating…' : 'Create admin'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f4a32', marginBottom: '0.75rem' }}>✅ Admin created</h2>
+                  <p style={{ fontSize: '0.875rem', color: '#3a3a36', marginBottom: '1rem' }}>Share these login details:</p>
+                  <div style={{ background: '#f7f7f5', borderRadius: '8px', padding: '0.875rem', marginBottom: '1.25rem', fontSize: '0.825rem' }}>
+                    <p style={{ marginBottom: '0.4rem' }}><strong>Email:</strong> {createdAdminInfo.email}</p>
+                    <p><strong>Temporary password:</strong> {createdAdminInfo.tempPassword}</p>
+                  </div>
+                  <button onClick={() => setShowAddAdminModal(false)}
+                    style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                    Done
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

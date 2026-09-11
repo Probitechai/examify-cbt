@@ -253,4 +253,76 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       `
       return reply.send({ updated: true })
     })
+      // ── List all superadmin accounts ────────────────────────────────────────
+  app.get('/superadmin/admins', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const admins = await db()`
+        SELECT id, full_name, email, is_active, created_at, last_login_at
+        FROM users WHERE role = 'super_admin'
+        ORDER BY created_at ASC
+      ` as any[]
+      return reply.send({ admins })
+    })
+
+  // ── Create a new superadmin account ─────────────────────────────────────
+  app.post('/superadmin/admins', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { full_name, email } = request.body as any
+      if (!full_name || !email) {
+        return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'full_name and email are required.' })
+      }
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailPattern.test(email)) {
+        return reply.status(400).send({ error: 'INVALID_EMAIL', message: 'Not a valid email address.' })
+      }
+      const existing = await db()`SELECT id FROM users WHERE email = ${email.toLowerCase()}` as any[]
+      if (existing.length > 0) {
+        return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
+      }
+      const tempPassword = Math.random().toString(36).slice(-10)
+      const passwordHash = await bcrypt.hash(tempPassword, 10)
+      const rows = await db()`
+        INSERT INTO users (school_id, full_name, email, password_hash, role, is_active)
+        VALUES (NULL, ${full_name}, ${email.toLowerCase()}, ${passwordHash}, 'super_admin', true)
+        RETURNING id, full_name, email
+      ` as any[]
+      return reply.status(201).send({ admin: rows[0], tempPassword })
+    })
+
+  // ── Deactivate/reactivate a superadmin account ──────────────────────────
+  app.patch('/superadmin/admins/:id/toggle', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      if (id === request.user.id) {
+        return reply.status(400).send({ error: 'CANNOT_DEACTIVATE_SELF', message: 'You cannot deactivate your own account.' })
+      }
+      const rows = await db()`
+        UPDATE users SET is_active = NOT is_active
+        WHERE id = ${id}::uuid AND role = 'super_admin'
+        RETURNING id, full_name, is_active
+      ` as any[]
+      if (!rows[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+      return reply.send({ admin: rows[0] })
+    })
+
+  // ── Permanently delete a superadmin account ─────────────────────────────
+  app.delete('/superadmin/admins/:id', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      if (id === request.user.id) {
+        return reply.status(400).send({ error: 'CANNOT_DELETE_SELF', message: 'You cannot delete your own account.' })
+      }
+      const activeCount = await db()`
+        SELECT COUNT(*) AS count FROM users WHERE role = 'super_admin' AND is_active = true
+      ` as any[]
+      if (Number(activeCount[0].count) <= 1) {
+        return reply.status(400).send({ error: 'LAST_ADMIN', message: 'Cannot delete the last remaining active superadmin.' })
+      }
+      const rows = await db()`
+        DELETE FROM users WHERE id = ${id}::uuid AND role = 'super_admin'
+        RETURNING id, full_name
+      ` as any[]
+      if (!rows[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+      return reply.send({ deleted: true, admin: rows[0] })
+    })
 }
