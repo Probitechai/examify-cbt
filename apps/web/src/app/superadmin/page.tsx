@@ -59,7 +59,7 @@ export default function SuperAdminDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'schools' | 'subscriptions' | 'settings'>('overview')
+    const [activeTab, setActiveTab] = useState<'overview' | 'schools' | 'subscriptions' | 'analytics' | 'settings'>('overview')
   const [toggling, setToggling] = useState<string | null>(null)
   const [updatingTier, setUpdatingTier] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -69,7 +69,13 @@ export default function SuperAdminDashboard() {
   const [newSchool, setNewSchool] = useState({
     name: '', subdomain: '', email: '', phone: '',
     subscription_tier: 'basic', admin_name: '', admin_email: '',
+    
   })
+  const [analytics, setAnalytics] = useState<{
+    schoolGrowth: { month: string; count: number }[]
+    activityTrend: { month: string; count: number }[]
+    schoolPerformance: { id: string; name: string; total_results: number; avg_score: number | null; pass_rate: number | null }[]
+  } | null>(null)
 
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [pwSaving, setPwSaving] = useState(false)
@@ -128,17 +134,20 @@ export default function SuperAdminDashboard() {
   async function loadData() {
     setLoading(true)
     try {
-      const [overviewRes, schoolsRes, adminsRes] = await Promise.all([
+      const [overviewRes, schoolsRes, adminsRes, analyticsRes] = await Promise.all([
         fetch(`${API}/superadmin/overview`, { headers: hdrs() }),
         fetch(`${API}/superadmin/schools`, { headers: hdrs() }),
         fetch(`${API}/superadmin/admins`, { headers: hdrs() }),
+        fetch(`${API}/superadmin/analytics`, { headers: hdrs() }),
       ])
       const overviewData = await overviewRes.json()
       const schoolsData = await schoolsRes.json()
       const adminsData = await adminsRes.json()
+      const analyticsData = await analyticsRes.json()
       setOverview(overviewData)
       setSchools(schoolsData.schools ?? [])
       setAdmins(adminsData.admins ?? [])
+      setAnalytics(analyticsData)
     } catch {} finally { setLoading(false) }
   }
 
@@ -306,10 +315,11 @@ export default function SuperAdminDashboard() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
-                    {([
+                              {([
             { key: 'overview', label: '📊 Platform Overview' },
             { key: 'schools', label: '🏫 Schools' },
             { key: 'subscriptions', label: '💳 Subscriptions' },
+            { key: 'analytics', label: '📈 Analytics' },
             { key: 'settings', label: '⚙️ Settings' },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -537,6 +547,63 @@ export default function SuperAdminDashboard() {
                     </div>
                   )
                 })}
+              </div>
+            </>
+          )
+        })()}
+                {/* ANALYTICS TAB */}
+        {activeTab === 'analytics' && analytics && (() => {
+          const maxGrowth = Math.max(...analytics.schoolGrowth.map(g => g.count), 1)
+          const maxActivity = Math.max(...analytics.activityTrend.map(a => a.count), 1)
+          function formatMonth(m: string) {
+            const [y, mo] = m.split('-')
+            const d = new Date(Number(y), Number(mo) - 1)
+            return d.toLocaleDateString('en-NG', { month: 'short', year: '2-digit' })
+          }
+          return (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #e5e5e0' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Schools added per month</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', height: 140 }}>
+                    {analytics.schoolGrowth.map(g => (
+                      <div key={g.month} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ width: '100%', height: `${Math.max((g.count / maxGrowth) * 100, 4)}%`, background: '#0f4a32', borderRadius: '4px 4px 0 0', minHeight: 4 }} title={`${g.count}`} />
+                        <span style={{ fontSize: '0.62rem', color: '#a0a09a' }}>{formatMonth(g.month)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #e5e5e0' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Exam submissions per month</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', height: 140 }}>
+                    {analytics.activityTrend.map(a => (
+                      <div key={a.month} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ width: '100%', height: `${Math.max((a.count / maxActivity) * 100, 4)}%`, background: '#1e40af', borderRadius: '4px 4px 0 0', minHeight: 4 }} title={`${a.count}`} />
+                        <span style={{ fontSize: '0.62rem', color: '#a0a09a' }}>{formatMonth(a.month)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>Academic performance by school</p>
+              <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 130px 130px 130px', gap: '0.5rem', padding: '0.75rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
+                  <span>School</span>
+                  <span style={{ textAlign: 'center' as const }}>Results Entered</span>
+                  <span style={{ textAlign: 'center' as const }}>Avg. Score</span>
+                  <span style={{ textAlign: 'center' as const }}>Pass Rate</span>
+                </div>
+                {analytics.schoolPerformance.map(s => (
+                  <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 130px 130px 130px', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{s.name}</span>
+                    <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>{s.total_results}</span>
+                    <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', fontWeight: 600, color: '#1e40af' }}>{s.avg_score != null ? `${s.avg_score}%` : 'N/A'}</span>
+                    <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', fontWeight: 600, color: s.pass_rate != null && s.pass_rate >= 60 ? '#0f4a32' : '#d97706' }}>{s.pass_rate != null ? `${s.pass_rate}%` : 'N/A'}</span>
+                  </div>
+                ))}
               </div>
             </>
           )

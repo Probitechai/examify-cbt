@@ -326,4 +326,35 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       if (!rows[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
       return reply.send({ deleted: true, admin: rows[0] })
     })
+      // ── Platform analytics: growth, activity trends, academic performance ────
+  app.get('/superadmin/analytics', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const schoolGrowth = await db()`
+        SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS count
+        FROM schools
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+        ORDER BY month ASC
+      ` as any[]
+
+      const activityTrend = await db()`
+        SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS count
+        FROM exam_sessions
+        WHERE status = 'submitted'
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+        ORDER BY month ASC
+      ` as any[]
+
+      const schoolPerformance = await db()`
+        SELECT s.id, s.name,
+          COUNT(sr.id) AS total_results,
+          ROUND(AVG(sr.total_score), 1) AS avg_score,
+          ROUND(COUNT(sr.id) FILTER (WHERE sr.grade != 'F')::numeric / NULLIF(COUNT(sr.id), 0) * 100, 1) AS pass_rate
+        FROM schools s
+        LEFT JOIN student_results sr ON sr.school_id = s.id
+        GROUP BY s.id, s.name
+        ORDER BY avg_score DESC NULLS LAST
+      ` as any[]
+
+      return reply.send({ schoolGrowth, activityTrend, schoolPerformance })
+    })
 }
