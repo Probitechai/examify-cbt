@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './new-exam.module.css'
 import { CLASS_ARMS } from '../../../../lib/classArms'
-export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+import { CLASS_LEVELS } from '@/lib/classLevels'
 
 const QUESTIONS_POOL = [
   { id: '1', questionText: 'Choose the sentence with the correct use of the apostrophe.', topic: 'Grammar', difficulty: 'medium', marks: 1 },

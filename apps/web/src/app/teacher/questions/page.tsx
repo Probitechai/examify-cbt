@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './questions.module.css'
-export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+import { CLASS_LEVELS } from '@/lib/classLevels'
 
 interface Question {
   id: string

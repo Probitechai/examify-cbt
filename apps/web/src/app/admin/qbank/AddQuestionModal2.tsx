@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import SubjectSelector from '../../../components/SubjectSelector'
-export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+import { CLASS_LEVELS } from '@/lib/classLevels'
 
 
 interface Props {

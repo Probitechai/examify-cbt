@@ -2,7 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+import { CLASS_LEVELS } from '@/lib/classLevels'
 
 
 interface Question {

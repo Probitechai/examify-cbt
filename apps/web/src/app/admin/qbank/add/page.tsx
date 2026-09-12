@@ -2,7 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+import { CLASS_LEVELS } from '@/lib/classLevels'
 
 
 type QType = 'mcq' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay'
