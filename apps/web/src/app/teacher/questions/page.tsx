@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './questions.module.css'
+export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
 
 interface Question {
   id: string
@@ -77,7 +78,7 @@ export default function QuestionsPage() {
         />
         <select className={styles.sel} value={classFilter} onChange={e => setClassFilter(e.target.value)}>
           <option value="">All classes</option>
-          <option>SS1</option><option>SS2</option><option>SS3</option>
+          {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
         </select>
         <select className={styles.sel} value={diffFilter} onChange={e => setDiffFilter(e.target.value)}>
           <option value="">All difficulties</option>

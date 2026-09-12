@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '../../../../lib/api'
 import styles from './new-exam.module.css'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { CLASS_LEVELS } from '@/lib/classLevels'
 
 type Step = 'details' | 'questions' | 'review'
 

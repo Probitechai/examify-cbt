@@ -2,6 +2,8 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+
 
 type QType = 'mcq' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay'
 
@@ -144,7 +146,7 @@ export default function NewQuestionPage() {
           <div>
             <label style={lbl}>Class level</label>
             <select style={inp} value={classLevel} onChange={e => setClassLevel(e.target.value)}>
-              <option>SS1</option><option>SS2</option><option>SS3</option>
+              {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>

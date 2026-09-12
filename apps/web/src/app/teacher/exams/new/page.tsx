@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './new-exam.module.css'
 import { CLASS_ARMS } from '../../../../lib/classArms'
+export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
 
 const QUESTIONS_POOL = [
   { id: '1', questionText: 'Choose the sentence with the correct use of the apostrophe.', topic: 'Grammar', difficulty: 'medium', marks: 1 },
@@ -129,7 +130,7 @@ export default function NewExamPage() {
               <div className={styles.field}>
                 <label className={styles.label}>Class level</label>
                 <select className={styles.sel} value={details.classLevel} onChange={e => setDetails(d => ({ ...d, classLevel: e.target.value }))}>
-                  <option>SS1</option><option>SS2</option><option>SS3</option>
+                  <option>SS{CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className={styles.fieldFull}>

@@ -2,6 +2,8 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+
 
 interface Question {
   id: string
@@ -220,7 +222,7 @@ function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void 
             <div>
               <label style={lbl}>Class</label>
               <select style={inp} value={classLevel} onChange={e => setClassLevel(e.target.value)}>
-                <option>SS1</option><option>SS2</option><option>SS3</option>
+                {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>

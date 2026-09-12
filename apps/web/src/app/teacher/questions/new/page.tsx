@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './new-question.module.css'
-
+import { CLASS_LEVELS } from '@/lib/classLevels'
 interface Option { key: string; text: string }
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E']
@@ -133,7 +133,7 @@ export default function NewQuestionPage() {
             <div className={styles.field}>
               <label className={styles.label}>Class</label>
               <select className={styles.sel} value={form.classLevel} onChange={e => set('classLevel', e.target.value)}>
-                <option>SS1</option><option>SS2</option><option>SS3</option>
+                {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
           </div>

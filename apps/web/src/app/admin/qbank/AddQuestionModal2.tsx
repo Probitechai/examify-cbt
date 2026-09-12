@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import SubjectSelector from '../../../components/SubjectSelector'
+export const CLASS_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+
 
 interface Props {
   onClose: () => void
@@ -185,7 +187,7 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
             <div>
               <label style={labelStyle}>Class</label>
               <select style={inputStyle} value={form.classLevel} onChange={e => set('classLevel', e.target.value)}>
-                <option>SS1</option><option>SS2</option><option>SS3</option>
+                {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
