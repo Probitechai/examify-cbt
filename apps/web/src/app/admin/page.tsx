@@ -175,7 +175,7 @@ export default function AdminOverview() {
               {[
                 { label: 'Add students', desc: 'Upload or create student accounts', icon: '👤', href: '/admin/users' },
                 { label: 'Create exam', desc: 'Set up a new CBT examination', icon: '📋', href: '/admin/exams/new' },
-                { label: 'Add questions', desc: 'Build your question bank', icon: '❓', href: '/admin/questions/new' },
+                { label: 'Add questions', desc: 'Build your question bank', icon: '❓', href: '/admin/qbank/add' },
                 { label: 'View results', desc: 'Analyse student performance', icon: '📊', href: '/admin/results' },
               ].map(a => (
                 <button key={a.label} className={styles.actionCard} onClick={() => router.push(a.href)}>
