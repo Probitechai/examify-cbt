@@ -7,6 +7,7 @@ import { api } from '../../../../lib/api'
 import styles from './new-exam.module.css'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { CLASS_LEVELS } from '@/lib/classLevels'
+export const dynamic = 'force-dynamic'
 
 type Step = 'details' | 'questions' | 'review'
 
@@ -168,7 +169,7 @@ export default function AdminNewExamPage() {
                 <label className={styles.label}>Class level</label>
                 <select className={styles.sel} value={details.classLevel}
                   onChange={e => setDetail('classLevel', e.target.value)}>
-                  <option>SS1</option><option>SS2</option><option>SS3</option>
+                  {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className={styles.field}>
