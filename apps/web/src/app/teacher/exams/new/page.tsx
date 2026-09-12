@@ -130,7 +130,7 @@ export default function NewExamPage() {
               <div className={styles.field}>
                 <label className={styles.label}>Class level</label>
                 <select className={styles.sel} value={details.classLevel} onChange={e => setDetails(d => ({ ...d, classLevel: e.target.value }))}>
-                  <option>SS{CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                  {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className={styles.fieldFull}>
