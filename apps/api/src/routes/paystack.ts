@@ -238,7 +238,7 @@ export async function paystackRoutes(app: FastifyInstance) {
           fee_name: fee.fee_name,
           school_name: fee.school_name,
         },
-        callback_url: `${process.env.FRONTEND_URL ?? 'https://examify-cbt-web.vercel.app'}/parent`,
+        callback_url: `https://${request.school.subdomain}.examify.ng/parent`,
       })
 
       if (!paystackRes.status) {
