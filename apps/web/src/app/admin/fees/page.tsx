@@ -4,18 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
-function getSubdomain() {
-  try {
-    const t = getToken()
-    if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.schoolSubdomain) return p.schoolSubdomain }
-    if (typeof window !== 'undefined') return window.localStorage.getItem('examify_school') ?? ''
-  } catch {}
-  return ''
-}
 function hdrs() {
   return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
