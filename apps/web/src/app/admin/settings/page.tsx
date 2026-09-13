@@ -27,7 +27,6 @@ export default function SettingsPage() {
   const [schoolName, setSchoolName] = useState('')
   const [schoolId, setSchoolId] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
-    const logoInputRef = useRef<HTMLInputElement>(null)
   const [paymentPreference, setPaymentPreference] = useState('probitechai')
   const [subaccountBank, setSubaccountBank] = useState('')
   const [subaccountAccountNumber, setSubaccountAccountNumber] = useState('')
@@ -44,8 +43,7 @@ export default function SettingsPage() {
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
-
+ 
   useEffect(() => { loadSettings(); loadPaymentSettings(); loadBanks() }, [])
 
   async function loadSettings() {
