@@ -3,19 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 
-  const [paymentPreference, setPaymentPreference] = useState('probitechai')
-  const [subaccountBank, setSubaccountBank] = useState('')
-  const [subaccountAccountNumber, setSubaccountAccountNumber] = useState('')
-  const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
-  const [selectedBankCode, setSelectedBankCode] = useState('')
-  const [newAccountNumber, setNewAccountNumber] = useState('')
-  const [resolvedAccountName, setResolvedAccountName] = useState('')
-  const [resolving, setResolving] = useState(false)
-  const [settingUpDirect, setSettingUpDirect] = useState(false)
-  const [switchingPref, setSwitchingPref] = useState(false)
-  const [showDirectSetup, setShowDirectSetup] = useState(false)
-  const [paymentError, setPaymentError] = useState('')
-  const [paymentSuccess, setPaymentSuccess] = useState('')
+ 
 
 function getSubdomain() {
   try {
@@ -39,6 +27,22 @@ export default function SettingsPage() {
   const [schoolName, setSchoolName] = useState('')
   const [schoolId, setSchoolId] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
+    const logoInputRef = useRef<HTMLInputElement>(null)
+  const [paymentPreference, setPaymentPreference] = useState('probitechai')
+  const [subaccountBank, setSubaccountBank] = useState('')
+  const [subaccountAccountNumber, setSubaccountAccountNumber] = useState('')
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
+  const [selectedBankCode, setSelectedBankCode] = useState('')
+  const [newAccountNumber, setNewAccountNumber] = useState('')
+  const [resolvedAccountName, setResolvedAccountName] = useState('')
+  const [resolving, setResolving] = useState(false)
+  const [settingUpDirect, setSettingUpDirect] = useState(false)
+  const [switchingPref, setSwitchingPref] = useState(false)
+  const [showDirectSetup, setShowDirectSetup] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+  const [paymentSuccess, setPaymentSuccess] = useState('')
+
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
@@ -382,7 +386,7 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
-      
+
       {/* Result Configuration link */}
       <div style={{ background: '#f0faf4', border: '1.5px solid #1a6b4a', borderRadius: '14px', padding: '1.25rem 1.5rem' }}>
         <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f4a32', marginBottom: '0.25rem' }}>⚙️ Result Configuration</p>
