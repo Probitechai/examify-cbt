@@ -175,7 +175,109 @@ export async function paystackRoutes(app: FastifyInstance) {
       ` as any[]
       return reply.send({ payments: rows })
     })
+  // ── DIRECT PAYMENT SETUP (subaccounts) ────────────────────────────────────
 
+  const PLATFORM_MARKUP_PERCENT = 0.004 // 0.4%
+
+  // Get list of Nigerian banks (for the bank selection dropdown)
+  app.get('/paystack/banks', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const res = await paystackRequest('GET', '/bank?country=nigeria&currency=NGN')
+      if (!res.status) return reply.status(500).send({ error: 'PAYSTACK_ERROR', message: res.message })
+      const banks = res.data.map((b: any) => ({ name: b.name, code: b.code }))
+      return reply.send({ banks })
+    })
+
+  // Verify an account number resolves to a real account before creating the subaccount
+  app.post('/paystack/resolve-account', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        accountNumber: z.string().min(10).max(10),
+        bankCode: z.string().min(1),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+
+      const d = body.data
+      const res = await paystackRequest('GET', `/bank/resolve?account_number=${d.accountNumber}&bank_code=${d.bankCode}`)
+      if (!res.status) return reply.status(400).send({ error: 'RESOLVE_FAILED', message: res.message ?? 'Could not verify this account number.' })
+
+      return reply.send({ accountName: res.data.account_name, accountNumber: res.data.account_number })
+    })
+
+  // Create the Paystack subaccount and switch this school to direct payments
+  app.post('/paystack/subaccount/create', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const schema = z.object({
+        accountNumber: z.string().min(10).max(10),
+        bankCode: z.string().min(1),
+        bankName: z.string().min(1),
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+
+      const d = body.data
+
+      const schoolRows = await db()`
+        SELECT name FROM schools WHERE id = ${request.schoolId}::uuid
+      ` as any[]
+      const school = schoolRows[0]
+      if (!school) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
+
+      const subRes = await paystackRequest('POST', '/subaccount', {
+        business_name: school.name,
+        settlement_bank: d.bankCode,
+        account_number: d.accountNumber,
+        percentage_charge: PLATFORM_MARKUP_PERCENT * 100, // Paystack expects this as a percentage number, e.g. 0.4
+      })
+
+      if (!subRes.status) {
+        return reply.status(500).send({ error: 'SUBACCOUNT_FAILED', message: subRes.message ?? 'Failed to create subaccount with Paystack.' })
+      }
+
+      await db()`
+        UPDATE schools SET
+          paystack_subaccount_code = ${subRes.data.subaccount_code},
+          paystack_subaccount_bank = ${d.bankName},
+          paystack_subaccount_account_number = ${d.accountNumber},
+          payment_preference = 'direct'
+        WHERE id = ${request.schoolId}::uuid
+      `
+
+      return reply.send({
+        success: true,
+        subaccountCode: subRes.data.subaccount_code,
+        message: 'Direct payments set up successfully. Fees will now be paid straight into your school\u2019s account, minus a small platform fee.',
+      })
+    })
+
+  // Switch back to receiving payments through Probitechai (doesn't delete the subaccount)
+  app.patch('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const schema = z.object({ preference: z.enum(['direct', 'probitechai']) })
+      const body = schema.safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+
+      if (body.data.preference === 'direct') {
+        const rows = await db()`SELECT paystack_subaccount_code FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
+        if (!rows[0]?.paystack_subaccount_code) {
+          return reply.status(400).send({ error: 'NO_SUBACCOUNT', message: 'Set up your bank account first before switching to direct payments.' })
+        }
+      }
+
+      await db()`UPDATE schools SET payment_preference = ${body.data.preference} WHERE id = ${request.schoolId}::uuid`
+      return reply.send({ success: true, preference: body.data.preference })
+    })
+
+  // Get current payment setup status (for the settings page to display)
+  app.get('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const rows = await db()`
+        SELECT payment_preference, paystack_subaccount_code, paystack_subaccount_bank, paystack_subaccount_account_number
+        FROM schools WHERE id = ${request.schoolId}::uuid
+      ` as any[]
+      return reply.send(rows[0] ?? {})
+    })
   // ── STUDENT FEE PAYMENTS ──────────────────────────────────────────────────
 
   // Initialize fee payment (called by parent portal)
@@ -205,7 +307,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const feeRows = await tdb.query`
         SELECT fs.name AS fee_name, fs.amount AS fee_amount,
                u.full_name AS student_name, u.email AS student_email,
-               s.name AS school_name
+               s.name AS school_name, s.payment_preference, s.paystack_subaccount_code
         FROM fee_structures fs
         JOIN users u ON u.id = ${d.studentId}::uuid
         JOIN schools s ON s.id = ${request.schoolId}::uuid
@@ -224,7 +326,8 @@ export async function paystackRoutes(app: FastifyInstance) {
       const amountKobo = Math.round(d.amount * 100)
       const reference = `FEE-${d.studentId.slice(0, 8)}-${Date.now()}`
 
-      const paystackRes = await paystackRequest('POST', '/transaction/initialize', {
+      const isDirect = fee.payment_preference === 'direct' && fee.paystack_subaccount_code
+      const paystackPayload: any = {
         email: parentEmail,
         amount: amountKobo,
         reference,
@@ -239,7 +342,15 @@ export async function paystackRoutes(app: FastifyInstance) {
           school_name: fee.school_name,
         },
         callback_url: `https://${request.school.subdomain}.examify.ng/parent`,
-      })
+      }
+
+      if (isDirect) {
+        paystackPayload.subaccount = fee.paystack_subaccount_code
+        paystackPayload.transaction_charge = Math.round(amountKobo * PLATFORM_MARKUP_PERCENT)
+        paystackPayload.bearer = 'subaccount'
+      }
+
+      const paystackRes = await paystackRequest('POST', '/transaction/initialize', paystackPayload)
 
       if (!paystackRes.status) {
         return reply.status(500).send({ error: 'PAYSTACK_ERROR', message: paystackRes.message })

@@ -3,6 +3,20 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 
+  const [paymentPreference, setPaymentPreference] = useState('probitechai')
+  const [subaccountBank, setSubaccountBank] = useState('')
+  const [subaccountAccountNumber, setSubaccountAccountNumber] = useState('')
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
+  const [selectedBankCode, setSelectedBankCode] = useState('')
+  const [newAccountNumber, setNewAccountNumber] = useState('')
+  const [resolvedAccountName, setResolvedAccountName] = useState('')
+  const [resolving, setResolving] = useState(false)
+  const [settingUpDirect, setSettingUpDirect] = useState(false)
+  const [switchingPref, setSwitchingPref] = useState(false)
+  const [showDirectSetup, setShowDirectSetup] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+  const [paymentSuccess, setPaymentSuccess] = useState('')
+
 function getSubdomain() {
   try {
     const t = getToken()
@@ -28,7 +42,7 @@ export default function SettingsPage() {
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
-  useEffect(() => { loadSettings() }, [])
+  useEffect(() => { loadSettings(); loadPaymentSettings(); loadBanks() }, [])
 
   async function loadSettings() {
     try {
@@ -88,7 +102,101 @@ export default function SettingsPage() {
       setUploading(false)
     }
   }
+  async function loadPaymentSettings() {
+    try {
+      const res = await apiFetch(`${API}/paystack/payment-preference`)
+      const data = await res.json()
+      setPaymentPreference(data.payment_preference ?? 'probitechai')
+      setSubaccountBank(data.paystack_subaccount_bank ?? '')
+      setSubaccountAccountNumber(data.paystack_subaccount_account_number ?? '')
+    } catch {}
+  }
 
+  async function loadBanks() {
+    try {
+      const res = await apiFetch(`${API}/paystack/banks`)
+      const data = await res.json()
+      setBanks(data.banks ?? [])
+    } catch {}
+  }
+
+  async function handleResolveAccount() {
+    if (!selectedBankCode || newAccountNumber.length !== 10) {
+      setPaymentError('Select a bank and enter a valid 10-digit account number.')
+      return
+    }
+    setResolving(true); setPaymentError(''); setResolvedAccountName('')
+    try {
+      const res = await apiFetch(`${API}/paystack/resolve-account`, {
+        method: 'POST',
+        body: JSON.stringify({ accountNumber: newAccountNumber, bankCode: selectedBankCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Could not verify this account.')
+      setResolvedAccountName(data.accountName)
+    } catch (e: any) {
+      setPaymentError(e.message)
+    } finally {
+      setResolving(false)
+    }
+  }
+
+  async function handleSetUpDirect() {
+    if (!resolvedAccountName) return
+    const bankName = banks.find(b => b.code === selectedBankCode)?.name ?? ''
+    setSettingUpDirect(true); setPaymentError('')
+    try {
+      const res = await apiFetch(`${API}/paystack/subaccount/create`, {
+        method: 'POST',
+        body: JSON.stringify({ accountNumber: newAccountNumber, bankCode: selectedBankCode, bankName }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Failed to set up direct payments.')
+      setPaymentSuccess(data.message)
+      setShowDirectSetup(false)
+      loadPaymentSettings()
+    } catch (e: any) {
+      setPaymentError(e.message)
+    } finally {
+      setSettingUpDirect(false)
+    }
+  }
+
+  async function handleSwitchToProbitechai() {
+    setSwitchingPref(true); setPaymentError('')
+    try {
+      const res = await apiFetch(`${API}/paystack/payment-preference`, {
+        method: 'PATCH',
+        body: JSON.stringify({ preference: 'probitechai' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Failed to switch.')
+      setPaymentSuccess('Switched to receiving payments through Probitechai.')
+      loadPaymentSettings()
+    } catch (e: any) {
+      setPaymentError(e.message)
+    } finally {
+      setSwitchingPref(false)
+    }
+  }
+
+  async function handleSwitchToDirect() {
+    setSwitchingPref(true); setPaymentError('')
+    try {
+      const res = await apiFetch(`${API}/paystack/payment-preference`, {
+        method: 'PATCH',
+        body: JSON.stringify({ preference: 'direct' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Failed to switch.')
+      setPaymentSuccess('Switched to direct payments.')
+      loadPaymentSettings()
+    } catch (e: any) {
+      setPaymentError(e.message)
+    } finally {
+      setSwitchingPref(false)
+    }
+  }
   async function handleSaveLogo() {
     if (!logoUrl) return
     setSaving(true); setError('')
@@ -189,7 +297,92 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+      {/* Payment Settings */}
+      <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>Fee Payment Settings</h2>
+        <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.25rem' }}>
+          Choose how online fee payments from parents reach your school.
+        </p>
 
+        {paymentSuccess && (
+          <p style={{ fontSize: '0.825rem', color: '#0f4a32', background: '#e8f5ee', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '1rem' }}>{paymentSuccess}</p>
+        )}
+        {paymentError && (
+          <p style={{ fontSize: '0.825rem', color: '#dc2626', background: '#fef2f2', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '1rem' }}>{paymentError}</p>
+        )}
+
+        {paymentPreference === 'direct' && subaccountAccountNumber ? (
+          <div>
+            <div style={{ background: '#f0faf4', border: '1.5px solid #1a6b4a', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f4a32' }}>✅ Direct payments active</p>
+              <p style={{ fontSize: '0.8rem', color: '#3a3a36', marginTop: '0.25rem' }}>
+                Fees are paid straight into: {subaccountBank} — ****{subaccountAccountNumber.slice(-4)}
+              </p>
+            </div>
+            <button onClick={handleSwitchToProbitechai} disabled={switchingPref}
+              style={{ padding: '0.6rem 1.1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+              {switchingPref ? 'Switching…' : 'Switch to receiving through Probitechai instead'}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ background: '#f7f7f5', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>Currently: payments go through Probitechai</p>
+              <p style={{ fontSize: '0.8rem', color: '#6b6b65', marginTop: '0.25rem' }}>Probitechai receives fee payments and settles with your school separately.</p>
+            </div>
+
+            {subaccountAccountNumber ? (
+              <button onClick={handleSwitchToDirect} disabled={switchingPref}
+                style={{ padding: '0.6rem 1.1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+                {switchingPref ? 'Switching…' : `Switch back to direct (${subaccountBank} — ****${subaccountAccountNumber.slice(-4)})`}
+              </button>
+            ) : !showDirectSetup ? (
+              <button onClick={() => setShowDirectSetup(true)}
+                style={{ padding: '0.6rem 1.1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+                Set up direct payments to my school's account
+              </button>
+            ) : (
+              <div style={{ border: '1.5px solid #1a6b4a', borderRadius: '10px', padding: '1.25rem' }}>
+                <div style={{ marginBottom: '0.875rem' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Bank</label>
+                  <select value={selectedBankCode} onChange={e => { setSelectedBankCode(e.target.value); setResolvedAccountName('') }}
+                    style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }}>
+                    <option value="">Select bank…</option>
+                    {banks.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: '0.875rem' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Account number</label>
+                  <input value={newAccountNumber} onChange={e => { setNewAccountNumber(e.target.value); setResolvedAccountName('') }}
+                    maxLength={10} placeholder="10-digit account number"
+                    style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
+                </div>
+                {!resolvedAccountName ? (
+                  <button onClick={handleResolveAccount} disabled={resolving}
+                    style={{ padding: '0.6rem 1.1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+                    {resolving ? 'Verifying…' : 'Verify account'}
+                  </button>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f4a32', marginBottom: '0.875rem' }}>Account name: {resolvedAccountName}</p>
+                    <div style={{ display: 'flex', gap: '0.6rem' }}>
+                      <button onClick={handleSetUpDirect} disabled={settingUpDirect}
+                        style={{ padding: '0.6rem 1.1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
+                        {settingUpDirect ? 'Setting up…' : 'Confirm & activate'}
+                      </button>
+                      <button onClick={() => { setShowDirectSetup(false); setResolvedAccountName('') }}
+                        style={{ padding: '0.6rem 1.1rem', background: 'transparent', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#6b6b65', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      
       {/* Result Configuration link */}
       <div style={{ background: '#f0faf4', border: '1.5px solid #1a6b4a', borderRadius: '14px', padding: '1.25rem 1.5rem' }}>
         <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f4a32', marginBottom: '0.25rem' }}>⚙️ Result Configuration</p>
