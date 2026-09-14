@@ -128,4 +128,45 @@ export async function userRoutes(app: FastifyInstance) {
       `
       return reply.send({ updated: true })
     })
+      app.delete('/users/:id', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const tdb = tenantDb(request.schoolId)
+
+      if (id === request.user.id) {
+        return reply.status(400).send({ error: 'CANNOT_DELETE_SELF', message: 'You cannot delete your own account.' })
+      }
+
+      const targetRows = await tdb.query`
+        SELECT role FROM users WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      const target = targetRows[0]
+      if (!target) return reply.status(404).send({ error: 'NOT_FOUND' })
+
+      if (!['teacher', 'school_admin'].includes(target.role)) {
+        return reply.status(400).send({ error: 'UNSUPPORTED_ROLE', message: 'Only teacher and admin accounts can be permanently deleted. Use deactivate for students and parents.' })
+      }
+
+      if (target.role === 'school_admin') {
+        const activeAdminCount = await tdb.query`
+          SELECT COUNT(*) AS count FROM users
+          WHERE school_id = ${request.schoolId}::uuid AND role = 'school_admin' AND is_active = true
+        ` as any[]
+        if (Number(activeAdminCount[0].count) <= 1) {
+          return reply.status(400).send({ error: 'LAST_ADMIN', message: 'Cannot delete the last remaining active admin for this school.' })
+        }
+      }
+
+      try {
+        await tdb.query`
+          DELETE FROM users WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+        `
+        return reply.send({ deleted: true })
+      } catch (err: any) {
+        return reply.status(400).send({
+          error: 'DELETE_BLOCKED',
+          message: 'This person has existing records (results entered, attendance marked, etc.) linked to their account, so they cannot be permanently deleted. Please use Deactivate instead.',
+        })
+      }
+    })
 }

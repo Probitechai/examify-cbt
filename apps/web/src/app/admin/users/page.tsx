@@ -48,6 +48,24 @@ export default function UsersPage() {
 
   useEffect(() => { if (tab === 'parent') loadLinks() }, [tab])
 
+      const [deletingUser, setDeletingUser] = useState<string | null>(null)
+
+  async function handleDeleteUser(id: string, name: string) {
+    if (!window.confirm(`Permanently delete ${name}? This cannot be undone.`)) return
+    setDeletingUser(id)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Failed to delete')
+      loadUsers()
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to delete user')
+    } finally { setDeletingUser(null) }
+  }
+
   async function loadUsers() {
     setLoading(true)
     try {
@@ -214,11 +232,17 @@ export default function UsersPage() {
               </span>
             )}
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{getLastLogin(u)}</span>
-            <span>
+            <span style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
               <button onClick={() => handleToggleUser(u.id, getActive(u))} disabled={togglingUser === u.id}
                 style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, border: 'none', cursor: 'pointer', background: getActive(u) ? '#e8f5ee' : '#fef2f2', color: getActive(u) ? '#0f4a32' : '#dc2626', opacity: togglingUser === u.id ? 0.6 : 1 }}>
                 {togglingUser === u.id ? '…' : getActive(u) ? 'Active' : 'Inactive'}
               </button>
+              {(tab === 'teacher' || tab === 'admin') && (
+                <button onClick={() => handleDeleteUser(u.id, getName(u))} disabled={deletingUser === u.id}
+                  style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', opacity: deletingUser === u.id ? 0.6 : 1 }}>
+                  {deletingUser === u.id ? '…' : 'Delete'}
+                </button>
+              )}
             </span>
           </div>
         ))}
