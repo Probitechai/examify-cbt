@@ -83,7 +83,7 @@ export default function SessionsPage() {
     if (!sessionName.trim()) { setError('Session name is required'); return }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/sessions`, {
+      const res = await apiFetch(`${API}/sessions`, {
         method: 'POST',
         body: JSON.stringify({ name: sessionName.trim(), isActive: sessionActive })
       })
@@ -94,7 +94,7 @@ export default function SessionsPage() {
   }
 
   async function handleActivateSession(id: string) {
-    await fetch(`${API}/sessions/${id}/activate`, { method: 'PATCH', body: '{}' })
+    await apiFetch(`${API}/sessions/${id}/activate`, { method: 'PATCH', body: '{}' })
     loadSessions()
     if (selectedSession?.id === id) setSelectedSession(prev => prev ? { ...prev, is_active: true } : null)
   }
@@ -111,7 +111,7 @@ export default function SessionsPage() {
     if (!selectedSession) return
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/sessions/${selectedSession.id}/terms`, {
+      const res = await apiFetch(`${API}/sessions/${selectedSession.id}/terms`, {
         method: 'POST',
         body: JSON.stringify({ name: termName.trim(), termNumber, startDate: termStart, endDate: termEnd, isActive: termActive })
       })
@@ -122,7 +122,7 @@ export default function SessionsPage() {
   }
 
   async function handleActivateTerm(id: string) {
-    await fetch(`${API}/terms/${id}/activate`, { method: 'PATCH', body: '{}' })
+    await apiFetch(`${API}/terms/${id}/activate`, { method: 'PATCH', body: '{}' })
     if (selectedSession) loadTerms(selectedSession.id)
   }
 
