@@ -66,6 +66,7 @@ export default function FeesPage() {
   const [feeClassLevel, setFeeClassLevel] = useState('SS2')
   const [feeMandatory, setFeeMandatory] = useState(true)
   const [savingStructure, setSavingStructure] = useState(false)
+    const [applyToAllClasses, setApplyToAllClasses] = useState(false)
 
   // Ledger
   const [ledger, setLedger] = useState<LedgerRow[]>([])
@@ -136,11 +137,19 @@ export default function FeesPage() {
       const res = await fetch(`${API}/fees/structures`, {
         method: 'POST',
         headers: hdrs(),
-        body: JSON.stringify({ termId: selectedTerm, classLevel: feeClassLevel, name: feeName, amount: parseFloat(feeAmount), isMandatory: feeMandatory })
+        body: JSON.stringify({
+          termId: selectedTerm,
+          classLevel: applyToAllClasses ? undefined : feeClassLevel,
+          applyToAllClasses,
+          name: feeName,
+          amount: parseFloat(feeAmount),
+          isMandatory: feeMandatory,
+        })
       })
       if (!res.ok) throw new Error('Failed')
-      setFeeName(''); setFeeAmount(''); setShowStructureForm(false)
-      setSuccess('Fee structure created!'); setTimeout(() => setSuccess(''), 3000)
+      setFeeName(''); setFeeAmount(''); setShowStructureForm(false); setApplyToAllClasses(false)
+      setSuccess(applyToAllClasses ? 'Fee added to all classes!' : 'Fee structure created!')
+      setTimeout(() => setSuccess(''), 3000)
       loadStructures()
     } catch { setError('Failed to create fee structure') } finally { setSavingStructure(false) }
   }
@@ -317,14 +326,18 @@ export default function FeesPage() {
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Class level</label>
-                  <select style={sel} value={feeClassLevel} onChange={e => setFeeClassLevel(e.target.value)}>
+                  <select style={sel} value={feeClassLevel} onChange={e => setFeeClassLevel(e.target.value)} disabled={applyToAllClasses}>
                     {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 <input type="checkbox" id="mandatory" checked={feeMandatory} onChange={e => setFeeMandatory(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#1a6b4a' }} />
                 <label htmlFor="mandatory" style={{ fontSize: '0.875rem', color: '#1a1a18', cursor: 'pointer' }}>Mandatory fee</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <input type="checkbox" id="allClasses" checked={applyToAllClasses} onChange={e => setApplyToAllClasses(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#1a6b4a' }} />
+                <label htmlFor="allClasses" style={{ fontSize: '0.875rem', color: '#1a1a18', cursor: 'pointer' }}>Apply to all classes (JSS1–SS3)</label>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={handleCreateStructure} disabled={savingStructure}

@@ -56,7 +56,8 @@ export async function feeRoutes(app: FastifyInstance) {
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
-        classLevel: z.string().min(1),
+        classLevel: z.string().min(1).optional(),
+        applyToAllClasses: z.boolean().optional().default(false),
         name: z.string().min(1),
         amount: z.number().positive(),
         isMandatory: z.boolean().default(true),
@@ -66,6 +67,25 @@ export async function feeRoutes(app: FastifyInstance) {
 
       const d = body.data
       const tdb = tenantDb(request.schoolId)
+
+      if (d.applyToAllClasses) {
+        const ALL_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+        const created: any[] = []
+        for (const level of ALL_LEVELS) {
+          const rows = await tdb.query`
+            INSERT INTO fee_structures (school_id, term_id, class_level, name, amount, is_mandatory)
+            VALUES (${request.schoolId}::uuid, ${d.termId}::uuid, ${level}, ${d.name}, ${d.amount}, ${d.isMandatory})
+            RETURNING id, name, amount, class_level, is_mandatory
+          ` as any[]
+          created.push(rows[0])
+        }
+        return reply.status(201).send({ structures: created })
+      }
+
+      if (!d.classLevel) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'classLevel is required unless applyToAllClasses is true.' })
+      }
+
       const rows = await tdb.query`
         INSERT INTO fee_structures (school_id, term_id, class_level, name, amount, is_mandatory)
         VALUES (${request.schoolId}::uuid, ${d.termId}::uuid, ${d.classLevel}, ${d.name}, ${d.amount}, ${d.isMandatory})
