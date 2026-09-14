@@ -141,7 +141,7 @@ export default function AttendancePage() {
         status: localStatus[s.id]?.status ?? 'present',
         remark: localStatus[s.id]?.remark || undefined,
       }))
-      const res = await fetch(`${API}/attendance`, {
+      const res = await apiFetch(`${API}/attendance`, {
         method: 'POST',
         body: JSON.stringify({ termId: selectedTerm, date, classLevel, classArm: classArm || undefined, records })
       })
