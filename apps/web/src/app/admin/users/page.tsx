@@ -34,7 +34,8 @@ export default function UsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'student' | 'teacher' | 'parent'>('student')
+  const [tab, setTab] = useState<'student' | 'teacher' | 'parent' | 'admin'>('student')
+  const [togglingUser, setTogglingUser] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -85,9 +86,31 @@ export default function UsersPage() {
     if (!d) return 'Never'
     return new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
+  function getCurrentUserId() {
+    try {
+      const p = JSON.parse(atob(getToken().split('.')[1]))
+      return p.id
+    } catch { return null }
+  }
 
+  async function handleToggleUser(id: string, currentlyActive: boolean) {
+    if (id === getCurrentUserId()) {
+      alert("You can't deactivate your own account from here.")
+      return
+    }
+    setTogglingUser(id)
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentlyActive })
+      })
+      loadUsers()
+    } catch {} finally { setTogglingUser(null) }
+  }
   const filtered = users.filter(u => {
-    if (u.role !== tab) return false
+    const roleForTab = tab === 'admin' ? 'school_admin' : tab
+    if (u.role !== roleForTab) return false
     if (search && !getName(u).toLowerCase().includes(search.toLowerCase()) &&
         !u.email.toLowerCase().includes(search.toLowerCase())) return false
     if (classFilter && getClass(u) !== classFilter) return false
@@ -98,6 +121,7 @@ export default function UsersPage() {
   const students = users.filter(u => u.role === 'student')
   const teachers = users.filter(u => u.role === 'teacher')
   const parents = users.filter(u => u.role === 'parent')
+  const admins = users.filter(u => u.role === 'school_admin')
 
   return (
     <div className={styles.page}>
@@ -119,9 +143,9 @@ export default function UsersPage() {
       </div>
 
       <div className={styles.tabs}>
-        {(['student', 'teacher', 'parent'] as const).map(t => (
+        {(['student', 'teacher', 'parent', 'admin'] as const).map(t => (
           <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
-            {t === 'student' ? `Students (${students.length})` : t === 'teacher' ? `Teachers (${teachers.length})` : `Parents (${parents.length})`}
+            {t === 'student' ? `Students (${students.length})` : t === 'teacher' ? `Teachers (${teachers.length})` : t === 'parent' ? `Parents (${parents.length})` : `Admins (${admins.length})`}
           </button>
         ))}
       </div>
@@ -191,9 +215,10 @@ export default function UsersPage() {
             )}
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{getLastLogin(u)}</span>
             <span>
-              <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, background: getActive(u) ? '#e8f5ee' : '#fef2f2', color: getActive(u) ? '#0f4a32' : '#dc2626' }}>
-                {getActive(u) ? 'Active' : 'Inactive'}
-              </span>
+              <button onClick={() => handleToggleUser(u.id, getActive(u))} disabled={togglingUser === u.id}
+                style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, border: 'none', cursor: 'pointer', background: getActive(u) ? '#e8f5ee' : '#fef2f2', color: getActive(u) ? '#0f4a32' : '#dc2626', opacity: togglingUser === u.id ? 0.6 : 1 }}>
+                {togglingUser === u.id ? '…' : getActive(u) ? 'Active' : 'Inactive'}
+              </button>
             </span>
           </div>
         ))}
