@@ -36,8 +36,11 @@ export default function ResultConfigPage() {
       setCaWeight(c.caWeight)
       setExamWeight(c.examWeight)
       setShowPosition(c.showPosition)
-      setBoundaries(c.gradeBoundaries ?? [])
-    } catch {
+      let gb = c.gradeBoundaries
+if (typeof gb === 'string') {
+  try { gb = JSON.parse(gb) } catch { gb = [] }
+}
+setBoundaries(Array.isArray(gb) ? gb : [])    } catch {
       setError('Failed to load grading configuration')
     } finally {
       setLoading(false)
