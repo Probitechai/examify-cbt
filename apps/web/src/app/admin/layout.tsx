@@ -18,35 +18,45 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/admin',               icon: '◦',  label: 'Overview' },
   { href: '/admin/settings',      icon: '⚙️', label: 'School Settings' },
-  { href: '/admin/subscription',  icon: '💳', label: 'Subscription' },
-  { href: '/admin/sessions',      icon: '📆', label: 'Academic Sessions' },
-  { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
-  { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
-  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'standard' },
-  { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet' },
-  { href: '/admin/report-card',   icon: '🎓', label: 'Report Card' },
-  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',   tier: 'standard' },
-  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard' },
-  { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',   tier: 'standard' },
-  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard' },
-  { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium' },
-  { href: '/admin/curriculum',    icon: '📚', label: 'Curriculum',        tier: 'standard' },
-  { href: '/admin/lessons',       icon: '📖', label: 'Lesson Plans',      tier: 'standard' },
-  { href: '/admin/gradebook',     icon: '📊', label: 'Gradebook',         tier: 'standard' },
-  { href: '/admin/live-classes',  icon: '🎥', label: 'Live Classes',      tier: 'standard' },
-  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'standard' },
-  { href: '/admin/hostels', icon: '🏠', label: 'Hostel Management', tier: 'standard' },
-  { href: '/admin/transport', icon: '🚌', label: 'Transport', tier: 'standard' },
-{ href: '/admin/transport-ops', icon: '📋', label: 'Transport Operations', tier: 'premium' },
-  { href: '/admin/hostel-operations', icon: '📋', label: 'Hostel Operations', tier: 'premium' },
-  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'standard' },
-  { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
-  { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
+
+  { href: '/admin/sessions',       icon: '📆', label: 'Academic Sessions' },
+  { href: '/admin/curriculum',     icon: '📚', label: 'Curriculum',       tier: 'standard' },
+  { href: '/admin/lessons',        icon: '📖', label: 'Lesson Plans',     tier: 'standard' },
+  { href: '/admin/timetable2',     icon: '📅', label: 'Class Timetable',  tier: 'standard' },
+  { href: '/admin/gradebook',      icon: '📊', label: 'Gradebook',        tier: 'standard' },
+  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',  tier: 'standard' },
+  { href: '/admin/live-classes',   icon: '🎥', label: 'Live Classes',     tier: 'standard' },
+
   { href: '/admin/qbank',         icon: '❓', label: 'Question Bank',    group: 'cbt' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams Management', group: 'cbt' },
   { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable',   group: 'cbt' },
   { href: '/admin/results',       icon: '📈', label: 'Exam Results',     group: 'cbt' },
-  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium' },
+
+  { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
+  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',  tier: 'standard' },
+  { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet' },
+  { href: '/admin/report-card',   icon: '🎓', label: 'Report Card' },
+
+  { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
+  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',  tier: 'standard' },
+
+  { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
+  { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
+  { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',       tier: 'premium' },
+
+  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',   tier: 'standard' },
+  { href: '/admin/subscription',  icon: '💳', label: 'Subscription' },
+
+  { href: '/admin/announcements', icon: '📢', label: 'Announcements',    tier: 'standard' },
+
+  { href: '/admin/hostels',           icon: '🏠', label: 'Hostel Management',    tier: 'standard' },
+  { href: '/admin/hostel-operations', icon: '📋', label: 'Hostel Operations',    tier: 'premium' },
+  { href: '/admin/transport',         icon: '🚌', label: 'Transport',            tier: 'standard' },
+  { href: '/admin/transport-ops',     icon: '📋', label: 'Transport Operations', tier: 'premium' },
+
+  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',     tier: 'standard' },
+
+  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',        tier: 'premium' },
 ]
 
 function getToken() {
