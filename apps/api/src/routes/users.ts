@@ -12,7 +12,7 @@ export async function userRoutes(app: FastifyInstance) {
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const users = await tdb.query`
-        SELECT id, role, email, full_name, phone, admission_no,
+        SELECT id, role, email, full_name, phone, date_of_birth, admission_no,
                class_level, class_arm, is_active, last_login_at, created_at
         FROM users
         WHERE school_id = ${request.schoolId}::uuid
@@ -31,6 +31,11 @@ export async function userRoutes(app: FastifyInstance) {
         admissionNo: z.string().optional(),
         classLevel: z.string().optional(),
         classArm: z.string().optional(),
+        phone: z.string().optional(),
+        dateOfBirth: z.string().optional(),
+      }).refine(data => data.role !== 'student' || !!data.dateOfBirth, {
+        message: 'Date of birth is required for students',
+        path: ['dateOfBirth'],
       })
 
       const body = schema.safeParse(request.body)
@@ -57,9 +62,10 @@ export async function userRoutes(app: FastifyInstance) {
       }
 
       const rows = await tdb.query`
-        INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm)
+        INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm, phone, date_of_birth)
         VALUES (${request.schoolId}::uuid, ${d.role}::user_role, ${d.email.toLowerCase()}, ${d.fullName},
-                ${passwordHash}, ${d.admissionNo ?? null}, ${d.classLevel ?? null}, ${d.classArm ?? null})
+                ${passwordHash}, ${d.admissionNo ?? null}, ${d.classLevel ?? null}, ${d.classArm ?? null},
+                ${d.phone ?? null}, ${d.dateOfBirth ?? null})
         RETURNING id
       ` as any[]
 
