@@ -33,6 +33,24 @@ export async function resultRoutes(app: FastifyInstance) {
     return { grade: 'F', remark: 'Fail' }
   }
 
+  // Returns this teacher's scope for a given class level + subject:
+  // blanket = true means "all arms" (class_arm was left blank when assigned).
+  async function getTeacherScope(tdb: any, schoolId: string, teacherId: string, classLevel: string, subject: string) {
+    const rows = await tdb.query`
+      SELECT class_arm FROM teacher_subject_assignments
+      WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+      AND class_level = ${classLevel} AND subject = ${subject}
+    ` as any[]
+    return {
+      blanket: rows.some((r: any) => !r.class_arm),
+      arms: rows.map((r: any) => r.class_arm).filter(Boolean) as string[],
+    }
+  }
+
+  function armAllowed(scope: { blanket: boolean; arms: string[] }, classArm: string) {
+    return scope.blanket || scope.arms.includes(classArm)
+  }
+
   // ── List results ──────────────────────────────────────────────────────────
   app.get('/results', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
@@ -103,6 +121,20 @@ export async function resultRoutes(app: FastifyInstance) {
       }
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        const scope = await getTeacherScope(tdb, request.schoolId, request.user.id, classLevel, subject)
+        if (!scope.blanket && scope.arms.length === 0) {
+          return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+        }
+        if (classArm) {
+          if (!armAllowed(scope, classArm)) {
+            return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to this class arm for this subject.' })
+          }
+        } else if (!scope.blanket) {
+          return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Select a specific class arm you are assigned to teach.' })
+        }
+      }
+
       let students: any[]
       if (classArm) {
         students = await tdb.query`
@@ -150,6 +182,20 @@ export async function resultRoutes(app: FastifyInstance) {
 
       const d = body.data
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const studentRows = await tdb.query`
+          SELECT class_level, class_arm FROM users
+          WHERE id = ${d.studentId}::uuid AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+        const student = studentRows[0]
+        if (!student) return reply.status(404).send({ error: 'STUDENT_NOT_FOUND' })
+        const scope = await getTeacherScope(tdb, request.schoolId, request.user.id, student.class_level, d.subject)
+        if (!armAllowed(scope, student.class_arm)) {
+          return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this student\'s class.' })
+        }
+      }
+
       const config = await getConfig(tdb, request.schoolId)
       const caScore = d.caScore ?? null
       const examScore = d.examScore ?? null
@@ -194,6 +240,32 @@ export async function resultRoutes(app: FastifyInstance) {
 
       const d = body.data
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const studentIds = d.results.map(r => r.studentId)
+        const studentRows = await tdb.query`
+          SELECT id, class_level, class_arm FROM users
+          WHERE id = ANY(${studentIds}::uuid[]) AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+
+        const scopeCache: Record<string, { blanket: boolean; arms: string[] }> = {}
+        const unauthorized: string[] = []
+        for (const s of studentRows) {
+          if (!scopeCache[s.class_level]) {
+            scopeCache[s.class_level] = await getTeacherScope(tdb, request.schoolId, request.user.id, s.class_level, d.subject)
+          }
+          if (!armAllowed(scopeCache[s.class_level], s.class_arm)) {
+            unauthorized.push(s.id)
+          }
+        }
+        if (unauthorized.length > 0) {
+          return reply.status(403).send({
+            error: 'NOT_ASSIGNED',
+            message: `You are not assigned to teach ${d.subject} for ${unauthorized.length} of these students' classes. No results were saved.`,
+          })
+        }
+      }
+
       const config = await getConfig(tdb, request.schoolId)
       let saved = 0
 
