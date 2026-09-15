@@ -99,7 +99,7 @@ export async function apiFetch(
 // Usage:  useEffect(() => { checkAuth(router) }, [])
 export function checkAuth(
   router: { replace: (path: string) => void },
-  expectedRole?: string
+  expectedRole?: string | string[]
 ): void {
   const token = getToken()
   if (!token || isTokenExpired(token)) {
@@ -110,8 +110,9 @@ export function checkAuth(
     return
   }
   if (expectedRole) {
+    const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole]
     const p = parseJWT(token)
-    if (p?.role && p.role !== expectedRole) {
+    if (p?.role && !allowed.includes(p.role)) {
       const map: Record<string, string> = {
         student: '/student', parent: '/parent',
         school_admin: '/admin', teacher: '/admin',
