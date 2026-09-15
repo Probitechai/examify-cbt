@@ -7,10 +7,18 @@ export async function teacherAssignmentRoutes(app: FastifyInstance) {
 
   // List assignments — optionally filtered by teacherId (for the modal) or
   // by classLevel (for the management page's "view by class" mode)
-  app.get('/teacher-assignments', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/teacher-assignments', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const { teacherId, classLevel } = request.query as any
       const tdb = tenantDb(request.schoolId)
+
+      // Teachers may only ever fetch their own assignments — never another
+      // teacher's, and never the "by class" view (which lists everyone).
+      if (request.user.role === 'teacher') {
+        if (classLevel || !teacherId || teacherId !== request.user.id) {
+          return reply.status(403).send({ error: 'FORBIDDEN', message: 'Teachers can only view their own assignments.' })
+        }
+      }
 
       let rows
       if (teacherId) {
