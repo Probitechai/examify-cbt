@@ -27,7 +27,7 @@ export default function AdminOverview() {
   const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
 
   useEffect(() => {
   const token = document.cookie.split(';')
