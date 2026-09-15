@@ -141,7 +141,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div key="cbt-header"
                   onClick={() => setCbtOpen(!cbtOpen)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  <span>CBT Exams</span>
+                  <span>📝 ASSESSMENT</span>
                   <span style={{ fontSize: '0.7rem' }}>{cbtOpen ? '▾' : '▸'}</span>
                 </div>
               ) : null
