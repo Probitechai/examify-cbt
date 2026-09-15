@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './users.module.css'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { CLASS_LEVELS } from '@/lib/classLevels'
+import { getSubjects } from '@/lib/subjects'
 
 interface User {
   id: string
@@ -273,6 +275,10 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const [error, setError] = useState('')
   const [linkedStudentId, setLinkedStudentId] = useState('')
   const [students, setStudents] = useState<any[]>([])
+  const [assignClassLevel, setAssignClassLevel] = useState('SS2')
+  const [assignClassArm, setAssignClassArm] = useState('')
+  const [assignSubject, setAssignSubject] = useState('')
+  const subjects = getSubjects()
   const [form, setForm] = useState({
     role: 'student', fullName: '', email: '', password: 'Student@1234',
     admissionNo: '', classLevel: 'SS2', classArm: 'A', phone: '', dateOfBirth: '',
@@ -310,6 +316,13 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           method: 'POST',
           headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ parentId: data.userId, studentId: linkedStudentId, relationship: 'parent' })
+        })
+      }
+      if (form.role === 'teacher' && assignSubject && data.userId) {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher-assignments`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacherId: data.userId, classLevel: assignClassLevel, classArm: assignClassArm || undefined, subject: assignSubject })
         })
       }
       onSaved()
@@ -365,6 +378,25 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
                 ))}
               </select>
               <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.375rem' }}>You can link additional students later.</p>
+            </div>
+          )}
+          {form.role === 'teacher' && (
+            <div>
+              <label style={lbl}>First subject assignment <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional)</span></label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                <select style={inp} value={assignClassLevel} onChange={e => setAssignClassLevel(e.target.value)}>
+                  {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                </select>
+                <select style={inp} value={assignClassArm} onChange={e => setAssignClassArm(e.target.value)}>
+                  <option value="">All arms</option>
+                  {CLASS_ARMS.map(a => <option key={a}>{a}</option>)}
+                </select>
+                <select style={inp} value={assignSubject} onChange={e => setAssignSubject(e.target.value)}>
+                  <option value="">No subject</option>
+                  {subjects.map((s: string) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.375rem' }}>You can add more class/subject assignments later from Teacher Assignments.</p>
             </div>
           )}
           {form.role === 'student' && (
