@@ -2,14 +2,10 @@ import type { FastifyReply } from 'fastify'
 import { db } from '../db/client'
 
 export async function resolveTenant(request: any, reply: FastifyReply) {
-  if (request.url === '/health') return
-  if (request.url.startsWith('/api/cron/')) return
-  if (request.url.startsWith('/api/superadmin/')) return
-  if (request.url.startsWith('/api/webhooks/')) return
-  if (request.url.startsWith('/api/admissions/public/')) return
-  if (request.url.startsWith('/api/admissions/apply/')) return
-  if (request.url.startsWith('/api/admissions/pay/')) return
-  if (request.url.startsWith('/api/schools/public')) return   
+  // OPTIONS preflight must ALWAYS get CORS headers, regardless of which
+  // route it's for — this must run before any path-based exemption below,
+  // or exempted routes (like /schools/public) never get a valid preflight
+  // response and every browser blocks the real request as "CORS error".
   if (request.method === 'OPTIONS') {
     const origin = request.headers['origin'] ?? '*'
     reply
@@ -22,6 +18,15 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
       .send()
     return
   }
+
+  if (request.url === '/health') return
+  if (request.url.startsWith('/api/cron/')) return
+  if (request.url.startsWith('/api/superadmin/')) return
+  if (request.url.startsWith('/api/webhooks/')) return
+  if (request.url.startsWith('/api/admissions/public/')) return
+  if (request.url.startsWith('/api/admissions/apply/')) return
+  if (request.url.startsWith('/api/admissions/pay/')) return
+  if (request.url.startsWith('/api/schools/public')) return
   
 
   const host = request.hostname
