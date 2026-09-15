@@ -1,179 +1,195 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { useAuthStore } from '../../hooks/useAuth'
-import styles from './admin.layout.module.css'
+import { apiFetch, checkAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
-const TIER_ORDER: Record<string, number> = { basic: 1, standard: 2, premium: 3, enterprise: 4 }
-
-interface NavItem {
-  href: string
-  icon: string
-  label: string
-  tier?: 'basic' | 'standard' | 'premium' | 'enterprise'
+interface GradeBoundary {
+  grade: string
+  min: number
+  max: number
+  remark: string
 }
 
-const NAV: NavItem[] = [
-  { href: '/admin',               icon: '◦',  label: 'Overview' },
-  { href: '/admin/settings',      icon: '⚙️', label: 'School Settings' },
-  { href: '/admin/subscription',  icon: '💳', label: 'Subscription' },
-  { href: '/admin/sessions',      icon: '📆', label: 'Academic Sessions' },
-  { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
-  { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
-  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'standard' },
-  { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet' },
-  { href: '/admin/report-card',   icon: '🎓', label: 'Report Card' },
-  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',   tier: 'standard' },
-  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard' },
-  { href: '/admin/timetable2',    icon: '📅', label: 'Class Timetable',   tier: 'standard' },
-  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard' },
-  { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium' },
-  { href: '/admin/curriculum',    icon: '📚', label: 'Curriculum',        tier: 'standard' },
-  { href: '/admin/lessons',       icon: '📖', label: 'Lesson Plans',      tier: 'standard' },
-  { href: '/admin/gradebook',     icon: '📊', label: 'Gradebook',         tier: 'standard' },
-  { href: '/admin/live-classes',  icon: '🎥', label: 'Live Classes',      tier: 'standard' },
-  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'standard' },
-  { href: '/admin/hostels', icon: '🏠', label: 'Hostel Management', tier: 'standard' },
-  { href: '/admin/transport', icon: '🚌', label: 'Transport', tier: 'standard' },
-{ href: '/admin/transport-ops', icon: '📋', label: 'Transport Operations', tier: 'premium' },
-  { href: '/admin/hostel-operations', icon: '📋', label: 'Hostel Operations', tier: 'premium' },
-  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'standard' },
-  { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
-  { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
-  { href: '/admin/exams',         icon: '📋', label: 'Exams' },
-  { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable' },
-  { href: '/admin/qbank',         icon: '❓', label: 'Question Bank' },
-  { href: '/admin/results',       icon: '📈', label: 'CBT Results' },
-  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium' },
-]
+const API = process.env.NEXT_PUBLIC_API_URL
 
-function getToken() {
-  if (typeof document === 'undefined') return ''
-  return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
-}
+export default function ResultConfigPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-   const router = useRouter()
-  const pathname = usePathname()
-  const { hydrate, user, isLoading } = useAuthStore()
-  const [schoolTier, setSchoolTier] = useState<string>('basic')
+  const [caWeight, setCaWeight] = useState(40)
+  const [examWeight, setExamWeight] = useState(60)
+  const [showPosition, setShowPosition] = useState(true)
+  const [boundaries, setBoundaries] = useState<GradeBoundary[]>([])
 
-  useEffect(() => { hydrate() }, [hydrate])
+  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { loadConfig() }, [])
 
-  useEffect(() => {
-   
-    if (!isLoading && !user) router.replace('/login')
-    if (!isLoading && user && user.role === 'student') router.replace('/student')
-    if (!isLoading && user && user.role === 'parent') router.replace('/parent')
-  }, [user, isLoading])
-
-   useEffect(() => {
-    if (!user) return
+  async function loadConfig() {
+    setLoading(true)
     try {
-      const token = getToken()
-      if (!token) { console.warn('[TIER FETCH] No token found at effect run time'); return }
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/schools/settings`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-School-Subdomain': payload.schoolSubdomain ?? '',
-          'Content-Type': 'application/json',
-        }
-      }).then(r => r.json()).then(d => {
-        if (d.subscription_tier) setSchoolTier(d.subscription_tier)
-      }).catch(err => console.error('[TIER FETCH] Failed:', err))
-    } catch (err) {
-      console.error('[TIER FETCH] Exception before fetch:', err)
+      const res = await apiFetch(`${API}/result-config`)
+      const data = await res.json()
+      const c = data.config
+      setCaWeight(c.caWeight)
+      setExamWeight(c.examWeight)
+      setShowPosition(c.showPosition)
+      setBoundaries(c.gradeBoundaries ?? [])
+    } catch {
+      setError('Failed to load grading configuration')
+    } finally {
+      setLoading(false)
     }
-  }, [user])
-  if (isLoading || !user) return (
-    <div className={styles.loading}>
-      <div className={styles.spinner} />
-    </div>
-  )
-
-  function isLocked(item: NavItem): boolean {
-    if (!item.tier) return false
-    return (TIER_ORDER[schoolTier] ?? 1) < (TIER_ORDER[item.tier] ?? 1)
   }
 
-  function tierLabel(tier: string) {
-    if (tier === 'enterprise') return 'Enterprise'
-    if (tier === 'premium') return 'Premium'
-    if (tier === 'standard') return 'Standard'
-    return 'Basic'
+  function updateBoundary(index: number, field: keyof GradeBoundary, value: string | number) {
+    setBoundaries(prev => prev.map((b, i) => i === index ? { ...b, [field]: value } : b))
   }
 
-  const tierColor = schoolTier === 'enterprise' ? '#b45309' : schoolTier === 'premium' ? '#7e22ce' : schoolTier === 'standard' ? '#1e40af' : '#0f4a32'
-  const tierBg = schoolTier === 'enterprise' ? '#fffbeb' : schoolTier === 'premium' ? '#f5f3ff' : schoolTier === 'standard' ? '#eff6ff' : '#e8f5ee'
+  function addBoundary() {
+    setBoundaries(prev => [...prev, { grade: '', min: 0, max: 0, remark: '' }])
+  }
+
+  function removeBoundary(index: number) {
+    setBoundaries(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleSave() {
+    setError('')
+    if (caWeight + examWeight !== 100) {
+      setError('CA weight and Exam weight must add up to 100')
+      return
+    }
+    if (boundaries.some(b => !b.grade.trim() || !b.remark.trim())) {
+      setError('Every grade boundary needs a grade letter and a remark')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await apiFetch(`${API}/result-config`, {
+        method: 'POST',
+        body: JSON.stringify({
+          caWeight,
+          examWeight,
+          showPosition,
+          gradeBoundaries: boundaries.map(b => ({
+            grade: b.grade.trim(),
+            min: Number(b.min),
+            max: Number(b.max),
+            remark: b.remark.trim(),
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Failed to save grading configuration')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inp = { padding: '0.625rem 0.875rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', width: '100%', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const lbl = { fontSize: '0.825rem', fontWeight: 500 as const, color: '#1a1a18', display: 'block' as const, marginBottom: '0.4rem' }
+
+  if (loading) {
+    return (
+      <div style={{ padding: '1.5rem', fontFamily: 'system-ui' }}>
+        <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Loading grading configuration…</p>
+      </div>
+    )
+  }
 
   return (
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <div className={styles.sideTop}>
-          {/* Brand */}
-          <div className={styles.brand}>
-            <div className={styles.logo}>E</div>
-            <div>
-              <div className={styles.appName}>Examify by Navura</div>
-              <div className={styles.schoolName}>{(user as any)?.school?.name ?? ''}</div>
-            </div>
+    <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 800 }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Result Configuration</h1>
+        <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Set CA/Exam weighting, grade boundaries and class position settings for your school.</p>
+      </div>
+
+      {/* CA / Exam weighting */}
+      <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>CA / Exam Weighting</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.5rem' }}>
+          <div>
+            <label style={lbl}>Continuous Assessment (CA) weight (%)</label>
+            <input style={inp} type="number" min={0} max={100} value={caWeight}
+              onChange={e => setCaWeight(Number(e.target.value))} />
           </div>
-          {/* Tier badge */}
-          <div style={{ marginTop: '-1rem' }}>
-            <span style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: 20, fontSize: '0.68rem', fontWeight: 700, background: tierBg, color: tierColor, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
-              {schoolTier} plan
-            </span>
+          <div>
+            <label style={lbl}>Exam weight (%)</label>
+            <input style={inp} type="number" min={0} max={100} value={examWeight}
+              onChange={e => setExamWeight(Number(e.target.value))} />
           </div>
-          {/* Nav */}
-          <nav className={styles.nav}>
-            {NAV.map(item => {
-              const locked = isLocked(item)
-              const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-              if (locked) {
-                return (
-                  <div key={item.href}
-                    onClick={() => alert(`${item.label} requires the ${tierLabel(item.tier!)} plan.\n\nPlease contact support to upgrade your subscription.`)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', borderRadius: '8px', cursor: 'pointer', opacity: 0.5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span className={styles.navIcon}>{item.icon}</span>
-                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
-                    </div>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
-                      {tierLabel(item.tier!)}
-                    </span>
-                  </div>
-                )
-              }
-              return (
-                <Link key={item.href} href={item.href}
-                  className={`${styles.navItem} ${active ? styles.navActive : ''}`}>
-                  <span className={styles.navIcon}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
-          </nav>
         </div>
-        {/* Bottom user info + logout */}
-        <div className={styles.sideBottom}>
-          <div className={styles.userRow}>
-            <div className={styles.avatar}>{user?.fullName?.[0] ?? 'A'}</div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>{user?.fullName ?? 'Admin'}</div>
-              <div className={styles.userRole}>{user?.role}</div>
-            </div>
-          </div>
-          <button className={styles.logoutBtn} onClick={() => {
-            useAuthStore.getState().logout()
-            window.location.href = '/login'
-          }}>
-            Log out
+        <p style={{ fontSize: '0.78rem', color: caWeight + examWeight === 100 ? '#6b6b65' : '#dc2626' }}>
+          Total: {caWeight + examWeight}% {caWeight + examWeight !== 100 && '— must equal 100%'}
+        </p>
+      </div>
+
+      {/* Class position */}
+      <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.75rem' }}>Class Position</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input type="checkbox" id="showPosition" checked={showPosition}
+            onChange={e => setShowPosition(e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: '#1a6b4a' }} />
+          <label htmlFor="showPosition" style={{ fontSize: '0.875rem', color: '#1a1a18', cursor: 'pointer' }}>
+            Show class position on report cards
+          </label>
+        </div>
+      </div>
+
+      {/* Grade boundaries */}
+      <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18' }}>Grade Boundaries</h2>
+          <button onClick={addBoundary}
+            style={{ padding: '0.4rem 0.85rem', background: '#e8f5ee', border: 'none', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#0f4a32', cursor: 'pointer' }}>
+            + Add grade
           </button>
         </div>
-      </aside>
-      <main className={styles.main}>{children}</main>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1fr 1fr 2fr 0.5fr', gap: '0.5rem', marginBottom: '0.5rem', padding: '0 0.25rem' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a' }}>GRADE</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a' }}>MIN %</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a' }}>MAX %</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a' }}>REMARK</span>
+          <span></span>
+        </div>
+
+        {boundaries.map((b, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '0.8fr 1fr 1fr 2fr 0.5fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <input style={inp} value={b.grade} onChange={e => updateBoundary(i, 'grade', e.target.value)} placeholder="A" />
+            <input style={inp} type="number" value={b.min} onChange={e => updateBoundary(i, 'min', Number(e.target.value))} />
+            <input style={inp} type="number" value={b.max} onChange={e => updateBoundary(i, 'max', Number(e.target.value))} />
+            <input style={inp} value={b.remark} onChange={e => updateBoundary(i, 'remark', e.target.value)} placeholder="Excellent" />
+            <button onClick={() => removeBoundary(i)}
+              style={{ padding: '0.4rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.75rem', color: '#dc2626', cursor: 'pointer' }}>
+              ✕
+            </button>
+          </div>
+        ))}
+
+        {boundaries.length === 0 && (
+          <p style={{ fontSize: '0.825rem', color: '#6b6b65', textAlign: 'center', padding: '1rem 0' }}>
+            No grade boundaries yet. Click "+ Add grade" to create one.
+          </p>
+        )}
+      </div>
+
+      {error && <p style={{ fontSize: '0.825rem', color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
+      {saved && <p style={{ fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500, marginBottom: '1rem' }}>✅ Grading configuration saved successfully!</p>}
+
+      <button onClick={handleSave} disabled={saving}
+        style={{ padding: '0.75rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+        {saving ? 'Saving…' : 'Save grading configuration'}
+      </button>
     </div>
   )
 }
