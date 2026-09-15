@@ -12,6 +12,7 @@ interface NavItem {
   icon: string
   label: string
   tier?: 'basic' | 'standard' | 'premium' | 'enterprise'
+  group?: 'cbt'
 }
 
 const NAV: NavItem[] = [
@@ -41,10 +42,10 @@ const NAV: NavItem[] = [
   { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'standard' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
-  { href: '/admin/exams',         icon: '📋', label: 'Exams Management' },
-  { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable' },
-  { href: '/admin/qbank',         icon: '❓', label: 'Question Bank' },
-  { href: '/admin/results',       icon: '📈', label: 'Exam Results' },
+  { href: '/admin/qbank',         icon: '❓', label: 'Question Bank',    group: 'cbt' },
+  { href: '/admin/exams',         icon: '📋', label: 'Exams Management', group: 'cbt' },
+  { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable',   group: 'cbt' },
+  { href: '/admin/results',       icon: '📈', label: 'Exam Results',     group: 'cbt' },
   { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium' },
 ]
 
@@ -58,6 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
   const [schoolTier, setSchoolTier] = useState<string>('basic')
+  const [cbtOpen, setCbtOpen] = useState(true)
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -129,30 +131,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Nav */}
           <nav className={styles.nav}>
             {NAV.map(item => {
+              if (item.group === 'cbt' && item.href !== '/admin/qbank' && !cbtOpen) return null
+
               const locked = isLocked(item)
               const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-              if (locked) {
-                return (
-                  <div key={item.href}
-                    onClick={() => alert(`${item.label} requires the ${tierLabel(item.tier!)} plan.\n\nPlease contact support to upgrade your subscription.`)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', borderRadius: '8px', cursor: 'pointer', opacity: 0.5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span className={styles.navIcon}>{item.icon}</span>
-                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
-                    </div>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
-                      {tierLabel(item.tier!)}
-                    </span>
+              const indent = item.group ? { paddingLeft: '1.75rem' } : {}
+
+              const groupHeader = item.group === 'cbt' && item.href === '/admin/qbank' ? (
+                <div key="cbt-header"
+                  onClick={() => setCbtOpen(!cbtOpen)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  <span>CBT Exams</span>
+                  <span style={{ fontSize: '0.7rem' }}>{cbtOpen ? '▾' : '▸'}</span>
+                </div>
+              ) : null
+
+              const navElement = locked ? (
+                <div key={item.href}
+                  onClick={() => alert(`${item.label} requires the ${tierLabel(item.tier!)} plan.\n\nPlease contact support to upgrade your subscription.`)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', borderRadius: '8px', cursor: 'pointer', opacity: 0.5, ...indent }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span className={styles.navIcon}>{item.icon}</span>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
                   </div>
-                )
-              }
-              return (
-                <Link key={item.href} href={item.href}
+                  <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
+                    {tierLabel(item.tier!)}
+                  </span>
+                </div>
+              ) : (
+                <Link key={item.href} href={item.href} style={indent}
                   className={`${styles.navItem} ${active ? styles.navActive : ''}`}>
                   <span className={styles.navIcon}>{item.icon}</span>
                   <span>{item.label}</span>
                 </Link>
               )
+
+              return groupHeader ? <div key={`wrap-${item.href}`}>{groupHeader}{navElement}</div> : navElement
             })}
           </nav>
         </div>
