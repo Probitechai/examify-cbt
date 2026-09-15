@@ -41,10 +41,10 @@ const NAV: NavItem[] = [
   { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',   tier: 'standard' },
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
-  { href: '/admin/exams',         icon: '📋', label: 'Exams' },
+  { href: '/admin/exams',         icon: '📋', label: 'Exams Management' },
   { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable' },
   { href: '/admin/qbank',         icon: '❓', label: 'Question Bank' },
-  { href: '/admin/results',       icon: '📈', label: 'CBT Results' },
+  { href: '/admin/results',       icon: '📈', label: 'Exam Results' },
   { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium' },
 ]
 
