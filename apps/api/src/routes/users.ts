@@ -95,6 +95,8 @@ export async function userRoutes(app: FastifyInstance) {
           classLevel: z.string(),
           classArm: z.string(),
           password: z.string().default('Student@1234'),
+          phone: z.string().optional(),
+          dateOfBirth: z.string().optional(),
         }))
       })
 
@@ -109,9 +111,10 @@ export async function userRoutes(app: FastifyInstance) {
         try {
           const passwordHash = await bcrypt.hash(s.password, 12)
           await tdb.query`
-            INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm)
+            INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm, phone, date_of_birth)
             VALUES (${request.schoolId}::uuid, 'student'::user_role, ${s.email.toLowerCase()}, ${s.fullName},
-                    ${passwordHash}, ${s.admissionNo ?? null}, ${s.classLevel}, ${s.classArm})
+                    ${passwordHash}, ${s.admissionNo ?? null}, ${s.classLevel}, ${s.classArm},
+                    ${s.phone ?? null}, ${s.dateOfBirth ?? null})
             ON CONFLICT (school_id, email) DO NOTHING
           `
           imported++

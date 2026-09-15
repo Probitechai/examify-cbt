@@ -9,6 +9,8 @@ interface StudentRow {
   classLevel: string
   classArm: string
   password: string
+  phone: string
+  dateOfBirth: string
   valid: boolean
   error: string
 }
@@ -22,10 +24,10 @@ export default function ImportStudentsPage() {
 
   function downloadTemplate() {
     const csv = [
-      'fullName,email,admissionNo,classLevel,classArm,password',
-      'Amara Obi,amara.obi@school.examify.ng,SCH/2024/001,SS2,A,Student@1234',
-      'Tunde Adeyemi,tunde.adeyemi@school.examify.ng,SCH/2024/002,SS2,B,Student@1234',
-      'Ngozi Eze,ngozi.eze@school.examify.ng,SCH/2024/003,SS3,Science,Student@1234',
+      'fullName,email,admissionNo,classLevel,classArm,password,phone,dateOfBirth',
+      'Amara Obi,amara.obi@school.examify.ng,SCH/2024/001,SS2,A,Student@1234,08012345678,2009-04-12',
+      'Tunde Adeyemi,tunde.adeyemi@school.examify.ng,SCH/2024/002,SS2,B,Student@1234,08023456789,2009-07-30',
+      'Ngozi Eze,ngozi.eze@school.examify.ng,SCH/2024/003,SS3,Science,Student@1234,,2008-11-05',
     ].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -43,16 +45,20 @@ export default function ImportStudentsPage() {
     // Skip header row
     const dataLines = lines.slice(1)
     
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
     return dataLines.map((line, i) => {
       // Handle quoted CSV values
       const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
-      const [fullName, email, admissionNo, classLevel, classArm, password] = cols
+      const [fullName, email, admissionNo, classLevel, classArm, password, phone, dateOfBirth] = cols
       
       let error = ''
       if (!fullName) error = 'Full name is required'
       else if (!email || !email.includes('@')) error = 'Valid email is required'
       else if (!classLevel) error = 'Class level is required'
       else if (!classArm) error = 'Class arm is required'
+      else if (!dateOfBirth) error = 'Date of birth is required'
+      else if (!DATE_RE.test(dateOfBirth)) error = 'Date of birth must be YYYY-MM-DD'
 
       return {
         fullName: fullName ?? '',
@@ -61,6 +67,8 @@ export default function ImportStudentsPage() {
         classLevel: classLevel ?? '',
         classArm: classArm ?? '',
         password: password || 'Student@1234',
+        phone: phone ?? '',
+        dateOfBirth: dateOfBirth ?? '',
         valid: !error,
         error,
       }
@@ -126,6 +134,8 @@ export default function ImportStudentsPage() {
               classLevel: r.classLevel,
               classArm: r.classArm,
               password: r.password,
+              phone: r.phone || undefined,
+              dateOfBirth: r.dateOfBirth || undefined,
             }))
           })
         })
@@ -222,8 +232,8 @@ export default function ImportStudentsPage() {
               CSV format
             </p>
             <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.875rem 1rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)', overflowX: 'auto' }}>
-              fullName,email,admissionNo,classLevel,classArm,password<br/>
-              Amara Obi,amara@school.ng,SCH/001,SS2,A,Student@1234
+              fullName,email,admissionNo,classLevel,classArm,password,phone,dateOfBirth<br/>
+              Amara Obi,amara@school.ng,SCH/001,SS2,A,Student@1234,08012345678,2009-04-12
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.875rem' }}>
               {[
@@ -233,6 +243,8 @@ export default function ImportStudentsPage() {
                 { col: 'classLevel', req: true, desc: 'SS1, SS2, or SS3' },
                 { col: 'classArm', req: true, desc: 'A, B, Science, Arts, etc.' },
                 { col: 'password', req: false, desc: 'Default: Student@1234' },
+                { col: 'phone', req: false, desc: "Student's phone number" },
+                { col: 'dateOfBirth', req: true, desc: 'Format: YYYY-MM-DD' },
               ].map(f => (
                 <div key={f.col} style={{ display: 'flex', gap: '0.5rem', fontSize: '0.78rem' }}>
                   <span style={{ fontFamily: 'monospace', color: '#1a6b4a', fontWeight: 600 }}>{f.col}</span>
@@ -266,17 +278,19 @@ export default function ImportStudentsPage() {
 
           {/* Preview table */}
           <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 0.8fr 0.8fr 1.5fr', gap: '0.75rem', padding: '0.625rem 1.25rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-              <span>Name</span><span>Email</span><span>Adm. No.</span><span>Class</span><span>Arm</span><span>Status</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.8fr 1fr 0.7fr 0.7fr 1fr 1fr 1.4fr', gap: '0.75rem', padding: '0.625rem 1.25rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+              <span>Name</span><span>Email</span><span>Adm. No.</span><span>Class</span><span>Arm</span><span>Phone</span><span>DOB</span><span>Status</span>
             </div>
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {rows.map((row, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 0.8fr 0.8fr 1.5fr', gap: '0.75rem', padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', fontSize: '0.825rem', background: !row.valid ? '#fef2f2' : 'transparent', alignItems: 'center' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.8fr 1fr 0.7fr 0.7fr 1fr 1fr 1.4fr', gap: '0.75rem', padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', fontSize: '0.825rem', background: !row.valid ? '#fef2f2' : 'transparent', alignItems: 'center' }}>
                   <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{row.fullName || '—'}</span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{row.email || '—'}</span>
                   <span style={{ color: 'var(--text-secondary)' }}>{row.admissionNo || '—'}</span>
                   <span style={{ color: 'var(--text-secondary)' }}>{row.classLevel || '—'}</span>
                   <span style={{ color: 'var(--text-secondary)' }}>{row.classArm || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{row.phone || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{row.dateOfBirth || '—'}</span>
                   <span>
                     {row.valid ? (
                       <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', background: '#e8f5ee', color: '#0f4a32' }}>
