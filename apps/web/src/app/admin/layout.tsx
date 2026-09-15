@@ -12,51 +12,64 @@ interface NavItem {
   icon: string
   label: string
   tier?: 'basic' | 'standard' | 'premium' | 'enterprise'
-  group?: 'cbt'
+  group?: string
+}
+
+const GROUP_LABELS: Record<string, string> = {
+  academics: '🗓️ ACADEMICS',
+  cbt: '📝 ASSESSMENT',
+  results: '📊 RESULTS',
+  attendance: '📋 ATTENDANCE & CONDUCT',
+  people: '👥 PEOPLE',
+  finance: '💰 FINANCE',
+  communication: '📢 COMMUNICATION',
+  operations: '🚌 OPERATIONS',
+  recognition: '🏆 RECOGNITION',
+  analytics: '📈 ANALYTICS',
 }
 
 const NAV: NavItem[] = [
   { href: '/admin',               icon: '◦',  label: 'Overview' },
   { href: '/admin/settings',      icon: '⚙️', label: 'School Settings' },
 
-  { href: '/admin/sessions',       icon: '📆', label: 'Academic Sessions' },
-  { href: '/admin/curriculum',     icon: '📚', label: 'Curriculum',       tier: 'standard' },
-  { href: '/admin/lessons',        icon: '📖', label: 'Lesson Plans',     tier: 'standard' },
-  { href: '/admin/timetable2',     icon: '📅', label: 'Class Timetable',  tier: 'standard' },
-  { href: '/admin/gradebook',      icon: '📊', label: 'Gradebook',        tier: 'standard' },
-  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',  tier: 'standard' },
-  { href: '/admin/live-classes',   icon: '🎥', label: 'Live Classes',     tier: 'standard' },
+  { href: '/admin/sessions',       icon: '📆', label: 'Academic Sessions',  group: 'academics' },
+  { href: '/admin/curriculum',     icon: '📚', label: 'Curriculum',         tier: 'standard', group: 'academics' },
+  { href: '/admin/lessons',        icon: '📖', label: 'Lesson Plans',       tier: 'standard', group: 'academics' },
+  { href: '/admin/timetable2',     icon: '📅', label: 'Class Timetable',    tier: 'standard', group: 'academics' },
+  { href: '/admin/gradebook',      icon: '📊', label: 'Gradebook',          tier: 'standard', group: 'academics' },
+  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',    tier: 'standard', group: 'academics' },
+  { href: '/admin/live-classes',   icon: '🎥', label: 'Live Classes',       tier: 'standard', group: 'academics' },
 
   { href: '/admin/qbank',         icon: '❓', label: 'Question Bank',    group: 'cbt' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams Management', group: 'cbt' },
   { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable',   group: 'cbt' },
   { href: '/admin/results',       icon: '📈', label: 'Exam Results',     group: 'cbt' },
 
-  { href: '/admin/results2',      icon: '📝', label: 'Result Entry' },
-  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',  tier: 'standard' },
-  { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet' },
-  { href: '/admin/report-card',   icon: '🎓', label: 'Report Card' },
+  { href: '/admin/results2',      icon: '📝', label: 'Result Entry',      group: 'results' },
+  { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'standard', group: 'results' },
+  { href: '/admin/broadsheet',    icon: '📊', label: 'Broadsheet',        group: 'results' },
+  { href: '/admin/report-card',   icon: '🎓', label: 'Report Card',       group: 'results' },
 
-  { href: '/admin/attendance',    icon: '📋', label: 'Attendance' },
-  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',  tier: 'standard' },
+  { href: '/admin/attendance',    icon: '📋', label: 'Attendance',        group: 'attendance' },
+  { href: '/admin/conduct',       icon: '📝', label: 'Conduct Reports',   tier: 'standard', group: 'attendance' },
 
-  { href: '/admin/users',         icon: '👥', label: 'Students & Staff' },
-  { href: '/admin/users/import',  icon: '📥', label: 'Import Students' },
-  { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',       tier: 'premium' },
+  { href: '/admin/users',         icon: '👥', label: 'Students & Staff',  group: 'people' },
+  { href: '/admin/users/import',  icon: '📥', label: 'Import Students',   group: 'people' },
+  { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium', group: 'people' },
 
-  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',   tier: 'standard' },
-  { href: '/admin/subscription',  icon: '💳', label: 'Subscription' },
+  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard', group: 'finance' },
+  { href: '/admin/subscription',  icon: '💳', label: 'Subscription',      group: 'finance' },
 
-  { href: '/admin/announcements', icon: '📢', label: 'Announcements',    tier: 'standard' },
+  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard', group: 'communication' },
 
-  { href: '/admin/hostels',           icon: '🏠', label: 'Hostel Management',    tier: 'standard' },
-  { href: '/admin/hostel-operations', icon: '📋', label: 'Hostel Operations',    tier: 'premium' },
-  { href: '/admin/transport',         icon: '🚌', label: 'Transport',            tier: 'standard' },
-  { href: '/admin/transport-ops',     icon: '📋', label: 'Transport Operations', tier: 'premium' },
+  { href: '/admin/hostels',           icon: '🏠', label: 'Hostel Management',    tier: 'standard', group: 'operations' },
+  { href: '/admin/hostel-operations', icon: '📋', label: 'Hostel Operations',    tier: 'premium', group: 'operations' },
+  { href: '/admin/transport',         icon: '🚌', label: 'Transport',            tier: 'standard', group: 'operations' },
+  { href: '/admin/transport-ops',     icon: '📋', label: 'Transport Operations', tier: 'premium', group: 'operations' },
 
-  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',     tier: 'standard' },
+  { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'standard', group: 'recognition' },
 
-  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',        tier: 'premium' },
+  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium', group: 'analytics' },
 ]
 
 function getToken() {
@@ -69,7 +82,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
   const [schoolTier, setSchoolTier] = useState<string>('basic')
-  const [cbtOpen, setCbtOpen] = useState(true)
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -140,44 +153,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           {/* Nav */}
           <nav className={styles.nav}>
-            {NAV.map(item => {
-              if (item.group === 'cbt' && item.href !== '/admin/qbank' && !cbtOpen) return null
+            {(() => {
+              let lastGroup: string | undefined
+              return NAV.map(item => {
+                const isGroupStart = !!item.group && item.group !== lastGroup
+                lastGroup = item.group
+                const open = item.group ? (openGroups[item.group] ?? true) : true
 
-              const locked = isLocked(item)
-              const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-              const indent = item.group ? { paddingLeft: '1.75rem' } : {}
+                if (item.group && !isGroupStart && !open) return null
 
-              const groupHeader = item.group === 'cbt' && item.href === '/admin/qbank' ? (
-                <div key="cbt-header"
-                  onClick={() => setCbtOpen(!cbtOpen)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  <span>📝 ASSESSMENT</span>
-                  <span style={{ fontSize: '0.7rem' }}>{cbtOpen ? '▾' : '▸'}</span>
-                </div>
-              ) : null
+                const indent = item.group ? { paddingLeft: '1.75rem' } : {}
+                const groupKey = item.group as string
 
-              const navElement = locked ? (
-                <div key={item.href}
-                  onClick={() => alert(`${item.label} requires the ${tierLabel(item.tier!)} plan.\n\nPlease contact support to upgrade your subscription.`)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', borderRadius: '8px', cursor: 'pointer', opacity: 0.5, ...indent }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span className={styles.navIcon}>{item.icon}</span>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
+                const header = isGroupStart ? (
+                  <div key={`group-${groupKey}`}
+                    onClick={() => setOpenGroups(prev => ({ ...prev, [groupKey]: !open }))}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    <span>{GROUP_LABELS[groupKey]}</span>
+                    <span style={{ fontSize: '0.7rem' }}>{open ? '▾' : '▸'}</span>
                   </div>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
-                    {tierLabel(item.tier!)}
-                  </span>
-                </div>
-              ) : (
-                <Link key={item.href} href={item.href} style={indent}
-                  className={`${styles.navItem} ${active ? styles.navActive : ''}`}>
-                  <span className={styles.navIcon}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              )
+                ) : null
 
-              return groupHeader ? <div key={`wrap-${item.href}`}>{groupHeader}{navElement}</div> : navElement
-            })}
+                if (item.group && !open) {
+                  return <div key={`wrap-${item.href}`}>{header}</div>
+                }
+
+                const locked = isLocked(item)
+                const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+
+                const navElement = locked ? (
+                  <div key={item.href}
+                    onClick={() => alert(`${item.label} requires the ${tierLabel(item.tier!)} plan.\n\nPlease contact support to upgrade your subscription.`)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', borderRadius: '8px', cursor: 'pointer', opacity: 0.5, ...indent }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span className={styles.navIcon}>{item.icon}</span>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
+                    </div>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
+                      {tierLabel(item.tier!)}
+                    </span>
+                  </div>
+                ) : (
+                  <Link key={item.href} href={item.href} style={indent}
+                    className={`${styles.navItem} ${active ? styles.navActive : ''}`}>
+                    <span className={styles.navIcon}>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                )
+
+                return header ? <div key={`wrap-${item.href}`}>{header}{navElement}</div> : navElement
+              })
+            })()}
           </nav>
         </div>
         {/* Bottom user info + logout */}
