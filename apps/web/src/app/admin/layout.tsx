@@ -56,6 +56,7 @@ const NAV: NavItem[] = [
   { href: '/admin/users',         icon: '👥', label: 'Students & Staff',  group: 'people' },
   { href: '/admin/users/import',  icon: '📥', label: 'Import Students',   group: 'people' },
   { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium', group: 'people' },
+  { href: '/admin/teacher-assignments', icon: '📌', label: 'Teacher Assignments', group: 'people' },
 
   { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard', group: 'finance' },
   { href: '/admin/subscription',  icon: '💳', label: 'Subscription',      group: 'finance' },
