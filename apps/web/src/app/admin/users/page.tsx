@@ -275,7 +275,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const [students, setStudents] = useState<any[]>([])
   const [form, setForm] = useState({
     role: 'student', fullName: '', email: '', password: 'Student@1234',
-    admissionNo: '', classLevel: 'SS2', classArm: 'A',
+    admissionNo: '', classLevel: 'SS2', classArm: 'A', phone: '', dateOfBirth: '',
   })
 
   function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
@@ -288,6 +288,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 
   async function handleSave() {
     if (!form.fullName.trim() || !form.email.trim()) { setError('Full name and email are required'); return }
+    if (form.role === 'student' && !form.dateOfBirth) { setError('Date of birth is required for students'); return }
     setSaving(true); setError('')
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
@@ -298,6 +299,8 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           admissionNo: form.admissionNo || undefined,
           classLevel: form.role === 'student' ? form.classLevel : undefined,
           classArm: form.role === 'student' ? form.classArm : undefined,
+          phone: form.phone || undefined,
+          dateOfBirth: form.role === 'student' ? (form.dateOfBirth || undefined) : undefined,
         })
       })
       const data = await res.json()
@@ -348,6 +351,10 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <label style={lbl}>Password</label>
             <input style={inp} value={form.password} onChange={e => set('password', e.target.value)} />
           </div>
+          <div>
+            <label style={lbl}>Phone number (optional)</label>
+            <input style={inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="e.g. 08012345678" />
+          </div>
           {form.role === 'parent' && (
             <div>
               <label style={lbl}>Link to student (ward)</label>
@@ -365,6 +372,10 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               <div>
                 <label style={lbl}>Admission No. (optional)</label>
                 <input style={inp} value={form.admissionNo} onChange={e => set('admissionNo', e.target.value)} placeholder="e.g. SCH/2024/001" />
+              </div>
+              <div>
+                <label style={lbl}>Date of birth</label>
+                <input style={inp} type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
                 <div>
