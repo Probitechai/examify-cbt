@@ -94,6 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isLoading && user && user.role === 'parent') router.replace('/parent')
   }, [user, isLoading])
 
+  /* TEMP DEBUG - commenting out to isolate flicker
    useEffect(() => {
     if (!user) return
     try {
@@ -113,6 +114,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       console.error('[TIER FETCH] Exception before fetch:', err)
     }
   }, [user])
+  */
+
   if (isLoading || !user) return (
     <div className={styles.loading}>
       <div className={styles.spinner} />
