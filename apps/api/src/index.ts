@@ -22,6 +22,8 @@ import { parentRoutes } from './routes/parents'
 import { conductRoutes } from './routes/conduct'
 import { announcementRoutes } from './routes/announcements'
 import { timetableRoutes } from './routes/timetable'
+import { timetableRoutes } from './routes/timetable'
+import { teacherAssignmentRoutes } from './routes/teacher-assignments'
 import { superAdminRoutes } from './routes/superadmin'
 import { paystackRoutes } from './routes/paystack'
 import { studentInfoRoutes } from './routes/student-info'
@@ -83,6 +85,8 @@ async function start() {
   await app.register(conductRoutes, { prefix: '/api' })
   await app.register(announcementRoutes, { prefix: '/api' })
   await app.register(timetableRoutes, { prefix: '/api' })
+    await app.register(timetableRoutes, { prefix: '/api' })
+  await app.register(teacherAssignmentRoutes, { prefix: '/api' })
   await app.register(superAdminRoutes, { prefix: '/api' })
   await app.register(paystackRoutes, { prefix: '/api' })
   await app.register(studentInfoRoutes, { prefix: '/api' })
