@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
@@ -50,8 +50,33 @@ export default function ResultEntryPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [localScores, setLocalScores] = useState<Record<string, { ca: string; exam: string; comment: string }>>({})
+  const [role, setRole] = useState('school_admin')
+  const [myAssignments, setMyAssignments] = useState<{ class_level: string; class_arm: string; subject: string }[]>([])
+  const [assignmentsLoaded, setAssignmentsLoaded] = useState(false)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${API}/teacher-assignments?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.assignments ?? []).map((a: any) => ({ class_level: a.class_level, class_arm: a.class_arm, subject: a.subject }))
+          setMyAssignments(list)
+          if (list.length > 0) {
+            setClassLevel(list[0].class_level)
+            setSubject(list[0].subject)
+          }
+        })
+        .catch(console.error)
+        .finally(() => setAssignmentsLoaded(true))
+    } else {
+      setAssignmentsLoaded(true)
+    }
+  }, [])
 
   useEffect(() => { loadSessions() }, [])
 
@@ -86,6 +111,7 @@ export default function ResultEntryPage() {
       if (classArm) params.append('classArm', classArm)
       const res = await apiFetch(`${API}/results/entry?${params}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load students'); setLoading(false); return }
       const list = data.students ?? []
       setStudents(list)
       const scores: Record<string, { ca: string; exam: string; comment: string }> = {}
@@ -123,14 +149,38 @@ export default function ResultEntryPage() {
             const res = await apiFetch(`${API}/results/bulk`, {
         body: JSON.stringify({ termId: selectedTerm, subject, results })
       })
-      if (!res.ok) throw new Error('Failed to save')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Failed to save')
       setSaved(true); setTimeout(() => setSaved(false), 3000)
       loadStudents()
-    } catch (e: any) { setError('Failed to save results') } finally { setSaving(false) }
+    } catch (e: any) { setError(e.message ?? 'Failed to save results') } finally { setSaving(false) }
   }
+
+  const isTeacher = role === 'teacher'
+  const allowedClassLevels = isTeacher
+    ? [...new Set(myAssignments.map(a => a.class_level))]
+    : CLASS_LEVELS
+  const allowedSubjects = isTeacher
+    ? [...new Set(myAssignments.filter(a => a.class_level === classLevel).map(a => a.subject))]
+    : SUBJECTS
+  const armsForSelection = myAssignments.filter(a => a.class_level === classLevel && a.subject === subject)
+  const hasBlanketArm = !isTeacher || armsForSelection.some(a => !a.class_arm)
+  const specificArms = armsForSelection.map(a => a.class_arm).filter(Boolean)
 
   const inp = { padding: '0.5rem 0.625rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '6px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, width: '100%' }
   const sel = { ...inp, cursor: 'pointer' }
+
+  if (isTeacher && assignmentsLoaded && myAssignments.length === 0) {
+    return (
+      <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 1100 }}>
+        <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</p>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No class or subject assignments yet</p>
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Ask your school admin to assign you under Teacher Assignments.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 1100 }}>
@@ -158,21 +208,21 @@ export default function ResultEntryPage() {
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Class</label>
-            <select style={sel} value={classLevel} onChange={e => setClassLevel(e.target.value)}>
-              {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+            <select style={sel} value={classLevel} onChange={e => { setClassLevel(e.target.value); setClassArm('') }}>
+              {allowedClassLevels.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Arm</label>
             <select style={sel} value={classArm} onChange={e => setClassArm(e.target.value)}>
-              <option value="">All arms</option>
-              {CLASS_ARMS.map(a => <option key={a}>{a}</option>)}
+              {hasBlanketArm && <option value="">All arms</option>}
+              {(isTeacher ? specificArms : CLASS_ARMS).map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Subject</label>
-            <select style={sel} value={subject} onChange={e => setSubject(e.target.value)}>
-              {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+            <select style={sel} value={subject} onChange={e => { setSubject(e.target.value); setClassArm('') }}>
+              {allowedSubjects.map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
           <div>
