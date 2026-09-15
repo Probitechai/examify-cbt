@@ -221,6 +221,11 @@ export default function TimetablePage() {
               </button>
             ))}
           </div>
+          {/* Schedule exam shortcut */}
+          <button onClick={() => router.push('/admin/exams/new')}
+            style={{ padding: '0.5rem 1rem', background: 'var(--brand)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            + Schedule Exam
+          </button>
         </div>
       </div>
 
