@@ -4,6 +4,16 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
+async function isClassTeacherFor(tdb: any, schoolId: string, teacherId: string, classLevel: string, classArm: string): Promise<boolean> {
+  const rows = await tdb.query`
+    SELECT 1 FROM class_teachers
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND class_arm = ${classArm}
+    LIMIT 1
+  ` as any[]
+  return rows.length > 0
+}
+
 export async function attendanceRoutes(app: FastifyInstance) {
 
   // ── Mark attendance for a class (bulk) ───────────────────────────────────
@@ -25,6 +35,17 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
       const d = body.data
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        if (!d.classArm) {
+          return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Select the specific class arm you are the class teacher for.' })
+        }
+        const isClassTeacher = await isClassTeacherFor(tdb, request.schoolId, request.user.id, d.classLevel, d.classArm)
+        if (!isClassTeacher) {
+          return reply.status(403).send({ error: 'NOT_CLASS_TEACHER', message: 'You are not the class teacher for this class arm.' })
+        }
+      }
+
       let saved = 0
 
       for (const r of d.records) {
@@ -94,6 +115,16 @@ export async function attendanceRoutes(app: FastifyInstance) {
 
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        if (!classArm) {
+          return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Select the specific class arm you are the class teacher for.' })
+        }
+        const isClassTeacher = await isClassTeacherFor(tdb, request.schoolId, request.user.id, classLevel, classArm)
+        if (!isClassTeacher) {
+          return reply.status(403).send({ error: 'NOT_CLASS_TEACHER', message: 'You are not the class teacher for this class arm.' })
+        }
+      }
+
       // Get all students in the class
       let students: any[]
       if (classArm) {
@@ -134,6 +165,16 @@ export async function attendanceRoutes(app: FastifyInstance) {
       if (!termId) return reply.status(400).send({ error: 'termId is required' })
 
       const tdb = tenantDb(request.schoolId)
+
+      if (!studentId && request.user.role === 'teacher') {
+        if (!classArm) {
+          return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Select the specific class arm you are the class teacher for.' })
+        }
+        const isClassTeacher = await isClassTeacherFor(tdb, request.schoolId, request.user.id, classLevel, classArm)
+        if (!isClassTeacher) {
+          return reply.status(403).send({ error: 'NOT_CLASS_TEACHER', message: 'You are not the class teacher for this class arm.' })
+        }
+      }
 
       if (studentId) {
         // Single student summary
@@ -199,6 +240,16 @@ export async function attendanceRoutes(app: FastifyInstance) {
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel are required' })
 
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        if (!classArm) {
+          return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Select the specific class arm you are the class teacher for.' })
+        }
+        const isClassTeacher = await isClassTeacherFor(tdb, request.schoolId, request.user.id, classLevel, classArm)
+        if (!isClassTeacher) {
+          return reply.status(403).send({ error: 'NOT_CLASS_TEACHER', message: 'You are not the class teacher for this class arm.' })
+        }
+      }
 
       let rows: any[]
       if (classArm) {
