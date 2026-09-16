@@ -99,7 +99,6 @@ export default function LoginPage() {
         return
       }
       setAuth(data.token, data.user)
-      document.cookie = `examify_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
     } catch {
       setError('Network error. Please check your connection.')
     } finally {
