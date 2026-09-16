@@ -31,9 +31,16 @@ export function getToken(): string {
 // ── FIX 2: expiry check (exp is in seconds) ───────────────────────────────────
 export function isTokenExpired(token: string): boolean {
   const p = parseJWT(token)
-  if (!p) return true
-  if (!p.exp) return false          // no exp claim → treat as valid
-  return Date.now() >= p.exp * 1000
+  if (!p) {
+    console.warn('[EXPIRY CHECK] parseJWT FAILED for token starting with:', token?.slice(0, 30))
+    return true
+  }
+  if (!p.exp) return false
+  const expired = Date.now() >= p.exp * 1000
+  if (expired) {
+    console.warn('[EXPIRY CHECK] genuinely expired?', { nowMs: Date.now(), expMs: p.exp * 1000, diffSeconds: (Date.now() - p.exp * 1000) / 1000 })
+  }
+  return expired
 }
 
 // ── FIX 5: subdomain from JWT payload, never empty silently ───────────────────
