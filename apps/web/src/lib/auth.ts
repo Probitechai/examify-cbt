@@ -65,6 +65,7 @@ export async function apiFetch(
 
   // FIX 2: expired / missing token → redirect before wasting a round-trip
   if (!token || isTokenExpired(token)) {
+    console.trace('[COOKIE CLEARED] apiFetch: expired/missing token', { url, hadToken: !!token })
     if (typeof document !== 'undefined') {
       document.cookie = 'examify_token=; Max-Age=0; path=/'
     }
@@ -85,6 +86,7 @@ export async function apiFetch(
 
   // FIX 1: 401 interceptor — clear cookie and redirect
   if (res.status === 401) {
+    console.trace('[COOKIE CLEARED] apiFetch: got 401 response', { url })
     if (typeof document !== 'undefined') {
       document.cookie = 'examify_token=; Max-Age=0; path=/'
     }
@@ -103,6 +105,7 @@ export function checkAuth(
 ): void {
   const token = getToken()
   if (!token || isTokenExpired(token)) {
+    console.trace('[COOKIE CLEARED] checkAuth: expired/missing token', { hadToken: !!token })
     if (typeof document !== 'undefined') {
       document.cookie = 'examify_token=; Max-Age=0; path=/'
     }
