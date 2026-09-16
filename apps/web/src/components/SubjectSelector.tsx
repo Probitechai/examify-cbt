@@ -7,17 +7,21 @@ interface Props {
   onChange: (subject: string) => void
   style?: React.CSSProperties
   className?: string
+  options?: string[]
+  allowCustom?: boolean
 }
 
-export default function SubjectSelector({ value, onChange, style, className }: Props) {
+export default function SubjectSelector({ value, onChange, style, className, options, allowCustom = true }: Props) {
   const [subjects, setSubjects] = useState<string[]>([])
   const [showCustom, setShowCustom] = useState(false)
   const [customValue, setCustomValue] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setSubjects(getSubjects())
-  }, [])
+    if (!options) setSubjects(getSubjects())
+  }, [options])
+
+  const displayedSubjects = options ?? subjects
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value
@@ -49,8 +53,9 @@ export default function SubjectSelector({ value, onChange, style, className }: P
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <select value={showCustom ? '__add_new__' : value} onChange={handleChange} style={style} className={className}>
-        {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-        <option value="__add_new__">➕ Add new subject…</option>
+        {displayedSubjects.length === 0 && <option value="">No subjects available</option>}
+        {displayedSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+        {allowCustom && <option value="__add_new__">➕ Add new subject…</option>}
       </select>
       {showCustom && (
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
