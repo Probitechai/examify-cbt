@@ -138,7 +138,7 @@ export default function LearningPathsPage() {
   async function autoBuild(pathId: string) {
     setBuildingPath(true); setError('')
     try {
-      const res = await apiFetch(`${API}/learning-paths/${pathId}/auto-build`, { method: 'PATCH' })
+      const res = await apiFetch(`${API}/learning-paths/${pathId}/auto-build`, { method: 'PATCH', body: '{}' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to build')
       setSuccess(`Auto-built ${data.built} steps from scheme of work!`)
@@ -174,7 +174,7 @@ export default function LearningPathsPage() {
   }
 
   async function togglePublish(pathId: string) {
-    await apiFetch(`${API}/learning-paths/${pathId}/publish`, { method: 'PATCH' })
+    await apiFetch(`${API}/learning-paths/${pathId}/publish`, { method: 'PATCH', body: '{}' })
     loadPaths()
     if (selectedPath?.id === pathId) {
       setSelectedPath((prev: any) => ({ ...prev, is_published: !prev.is_published }))
