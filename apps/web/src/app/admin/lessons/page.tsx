@@ -119,7 +119,7 @@ export default function LessonsPage() {
         mainContent: createForm.mainContent || undefined,
         conclusion: createForm.conclusion || undefined,
       }
-      const res = await fetch(`${API}/lessons`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/lessons`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create lesson')
       setShowCreateForm(false)
