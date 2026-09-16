@@ -155,7 +155,7 @@ export default function CurriculumPage() {
   async function saveSettings() {
     setSavingSettings(true)
     try {
-      await fetch(`${API}/curriculum/settings`, {
+      await apiFetch(`${API}/curriculum/settings`, {
         method: 'POST',
         body: JSON.stringify({ curriculumType: settingsForm.curriculumType, secondaryCurriculum: settingsForm.secondaryCurriculum || undefined, academicYear: settingsForm.academicYear || undefined })
       })
@@ -167,7 +167,7 @@ export default function CurriculumPage() {
   async function loadDefaults() {
     setLoadingDefaults(true)
     try {
-      const res = await fetch(`${API}/curriculum/load-defaults`, {
+      const res = await apiFetch(`${API}/curriculum/load-defaults`, {
         method: 'POST',
         body: JSON.stringify({ curriculumType: settingsForm.curriculumType })
       })
@@ -180,7 +180,7 @@ export default function CurriculumPage() {
     if (!subjectForm.name || subjectForm.classLevels.length === 0) { setError('Name and at least one class level required'); return }
     setSavingSubject(true)
     try {
-      await fetch(`${API}/curriculum/subjects`, {
+      await apiFetch(`${API}/curriculum/subjects`, {
         method: 'POST',
         body: JSON.stringify({ name: subjectForm.name, code: subjectForm.code || undefined, classLevels: subjectForm.classLevels, category: subjectForm.category, curriculumType: subjectForm.curriculumType })
       })
@@ -207,7 +207,7 @@ export default function CurriculumPage() {
     if (!schemeForm.topic) { setError('Topic is required'); return }
     setSavingScheme(true)
     try {
-      await fetch(`${API}/curriculum/scheme`, {
+      await apiFetch(`${API}/curriculum/scheme`, {
         method: 'POST',
         body: JSON.stringify({
           subjectId: selectedSubject, termId: selectedTerm, classLevel: selectedClass,
@@ -228,7 +228,7 @@ export default function CurriculumPage() {
     if (!deliveryEntry) return
     setSavingDelivery(true)
     try {
-      await fetch(`${API}/curriculum/delivery`, {
+      await apiFetch(`${API}/curriculum/delivery`, {
         method: 'POST',
         body: JSON.stringify({
           schemeId: deliveryEntry.id, deliveredDate: deliveryForm.deliveredDate,
