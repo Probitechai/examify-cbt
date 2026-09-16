@@ -1,5 +1,5 @@
 ﻿'use client'
-import { apiFetch, checkAuth, getToken, getSubdomain } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, getSubdomain, parseJWT } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -9,6 +9,9 @@ const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function LearningPathsPage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myAssignments, setMyAssignments] = useState<{ class_level: string; subject: string }[]>([])
   const [paths, setPaths] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
@@ -36,7 +39,26 @@ export default function LearningPathsPage() {
     lessonId: '', stepNumber: 1, title: '', description: '', isRequired: true
   })
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${API}/teacher-assignments?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.assignments ?? []).map((a: any) => ({ class_level: a.class_level, subject: a.subject }))
+          setMyAssignments(list)
+          if (list.length > 0) {
+            setSelectedClass(list[0].class_level)
+            setCreateForm(f => ({ ...f, classLevel: list[0].class_level }))
+          }
+        })
+        .catch(console.error)
+    }
+  }, [])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -103,7 +125,7 @@ export default function LearningPathsPage() {
         title: createForm.title, description: createForm.description || undefined,
         isSequential: createForm.isSequential,
       }
-      const res = await fetch(`${API}/learning-paths`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/learning-paths`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowCreateForm(false)
@@ -116,7 +138,7 @@ export default function LearningPathsPage() {
   async function autoBuild(pathId: string) {
     setBuildingPath(true); setError('')
     try {
-      const res = await fetch(`${API}/learning-paths/${pathId}/auto-build`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain() } })
+      const res = await apiFetch(`${API}/learning-paths/${pathId}/auto-build`, { method: 'PATCH' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to build')
       setSuccess(`Auto-built ${data.built} steps from scheme of work!`)
@@ -137,11 +159,13 @@ export default function LearningPathsPage() {
         unlockAfterStep: stepForm.stepNumber > 1 ? stepForm.stepNumber - 1 : undefined,
       }
       if (stepForm.lessonId) body.lessonId = stepForm.lessonId
-      await fetch(`${API}/learning-paths/${pathId}/steps`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/learning-paths/${pathId}/steps`, { method: 'POST', body: JSON.stringify(body) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Failed to add step')
       setShowAddStep(false)
       setStepForm(f => ({ ...f, stepNumber: f.stepNumber + 1, title: '', lessonId: '', description: '' }))
       loadPathDetails(pathId)
-    } catch { setError('Failed to add step') } finally { setAddingStep(false) }
+    } catch (e: any) { setError(e.message ?? 'Failed to add step') } finally { setAddingStep(false) }
   }
 
   async function deleteStep(stepId: string, pathId: string) {
@@ -150,7 +174,7 @@ export default function LearningPathsPage() {
   }
 
   async function togglePublish(pathId: string) {
-    await fetch(`${API}/learning-paths/${pathId}/publish`, { method: 'PATCH' })
+    await apiFetch(`${API}/learning-paths/${pathId}/publish`, { method: 'PATCH' })
     loadPaths()
     if (selectedPath?.id === pathId) {
       setSelectedPath((prev: any) => ({ ...prev, is_published: !prev.is_published }))
@@ -194,7 +218,7 @@ export default function LearningPathsPage() {
             </select></div>
           <div><label style={lbl}>Class</label>
             <select style={sel} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
-              {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+              {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
             </select></div>
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
             <button onClick={loadPaths} disabled={loading}
@@ -338,7 +362,7 @@ export default function LearningPathsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div><label style={lbl}>Class Level *</label>
                   <select style={sel} value={createForm.classLevel} onChange={e => setCreateForm(f => ({ ...f, classLevel: e.target.value }))}>
-                    {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                    {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
                   </select></div>
                 <div><label style={lbl}>Class Arm</label>
                   <input style={inp} value={createForm.classArm} onChange={e => setCreateForm(f => ({ ...f, classArm: e.target.value }))} placeholder="e.g. A, Science" /></div>
@@ -346,7 +370,9 @@ export default function LearningPathsPage() {
               <div><label style={lbl}>Subject *</label>
                 <select style={sel} value={createForm.subjectId} onChange={e => setCreateForm(f => ({ ...f, subjectId: e.target.value }))}>
                   <option value="">Select subject...</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {subjects
+                    .filter(s => !isTeacher || myAssignments.some(a => a.class_level === createForm.classLevel && a.subject === s.name))
+                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select></div>
               <div><label style={lbl}>Term *</label>
                 <select style={sel} value={createForm.termId} onChange={e => setCreateForm(f => ({ ...f, termId: e.target.value }))}>
