@@ -3,6 +3,30 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
+// Scoping ignores class arm (consistent with Curriculum). teacher_subject_assignments
+// stores subject as a name string, curriculum_subjects references it by id.
+async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subjectId: string): Promise<boolean> {
+  const subjectRows = await tdb.query`
+    SELECT name FROM curriculum_subjects WHERE id = ${subjectId}::uuid AND school_id = ${schoolId}::uuid
+  ` as any[]
+  if (!subjectRows[0]) return false
+  const rows = await tdb.query`
+    SELECT 1 FROM teacher_subject_assignments
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND subject = ${subjectRows[0].name}
+    LIMIT 1
+  ` as any[]
+  return rows.length > 0
+}
+
+// A teacher may only modify lessons they themselves created — never a colleague's.
+async function isLessonOwnedByTeacher(tdb: any, schoolId: string, teacherId: string, lessonId: string): Promise<boolean> {
+  const rows = await tdb.query`
+    SELECT 1 FROM lesson_plans WHERE id = ${lessonId}::uuid AND school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+  ` as any[]
+  return rows.length > 0
+}
+
 export async function lessonRoutes(app: FastifyInstance) {
 
   // ── LESSON PLANS ──────────────────────────────────────────────────────────
@@ -180,6 +204,12 @@ export async function lessonRoutes(app: FastifyInstance) {
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        if (!sid) return reply.status(400).send({ error: 'SUBJECT_REQUIRED', message: 'Select a subject to create a lesson plan.' })
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, uid, cl, sid)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+      }
+
       let rows: any[]
       if (sid && tid) {
         rows = await tdb.query`
@@ -230,6 +260,11 @@ export async function lessonRoutes(app: FastifyInstance) {
       const lid = String(id)
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdb, request.schoolId, request.user.id, lid)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only edit your own lesson plans.' })
+      }
+
       if (d.title !== undefined) {
         const val = d.title
         await tdb.query`UPDATE lesson_plans SET title = ${val}, updated_at = now() WHERE id = ${lid}::uuid AND school_id = ${request.schoolId}::uuid`
@@ -268,6 +303,12 @@ export async function lessonRoutes(app: FastifyInstance) {
       const { id } = request.params as any
       const lid = String(id)
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdb, request.schoolId, request.user.id, lid)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only delete your own lesson plans.' })
+      }
+
       await tdb.query`DELETE FROM lesson_plans WHERE id = ${lid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
@@ -277,6 +318,11 @@ export async function lessonRoutes(app: FastifyInstance) {
   app.post('/lessons/:id/resources', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
+      const tdbCheck = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdbCheck, request.schoolId, request.user.id, String(id))
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only add resources to your own lesson plans.' })
+      }
       const schema = z.object({
         resourceType: z.enum(['file','video_link','video_upload','link','image']),
         title: z.string().min(1),
@@ -308,9 +354,13 @@ export async function lessonRoutes(app: FastifyInstance) {
 
   app.delete('/lessons/:id/resources/:resourceId', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
-      const { resourceId } = request.params as any
+      const { id, resourceId } = request.params as any
       const rid = String(resourceId)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdb, request.schoolId, request.user.id, String(id))
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only remove resources from your own lesson plans.' })
+      }
       await tdb.query`DELETE FROM lesson_resources WHERE id = ${rid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
@@ -320,6 +370,11 @@ export async function lessonRoutes(app: FastifyInstance) {
   app.post('/lessons/:id/quizzes', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
+      const tdbCheck = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdbCheck, request.schoolId, request.user.id, String(id))
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only add quizzes to your own lesson plans.' })
+      }
       const schema = z.object({
         examId: z.string().uuid().optional(),
         title: z.string().min(1),
@@ -356,9 +411,13 @@ export async function lessonRoutes(app: FastifyInstance) {
 
   app.delete('/lessons/:id/quizzes/:quizId', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
-      const { quizId } = request.params as any
+      const { id, quizId } = request.params as any
       const qid = String(quizId)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdb, request.schoolId, request.user.id, String(id))
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only remove quizzes from your own lesson plans.' })
+      }
       await tdb.query`DELETE FROM lesson_quizzes WHERE id = ${qid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
@@ -368,6 +427,11 @@ export async function lessonRoutes(app: FastifyInstance) {
   app.post('/lessons/:id/assignments', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
+      const tdbCheck = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdbCheck, request.schoolId, request.user.id, String(id))
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only add assignments to your own lesson plans.' })
+      }
       const schema = z.object({
         title: z.string().min(1),
         instructions: z.string().min(1),
@@ -399,9 +463,13 @@ export async function lessonRoutes(app: FastifyInstance) {
 
   app.delete('/lessons/:id/assignments/:assignmentId', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
-      const { assignmentId } = request.params as any
+      const { id, assignmentId } = request.params as any
       const aid = String(assignmentId)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isLessonOwnedByTeacher(tdb, request.schoolId, request.user.id, String(id))
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only remove assignments from your own lesson plans.' })
+      }
       await tdb.query`DELETE FROM lesson_assignments WHERE id = ${aid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
