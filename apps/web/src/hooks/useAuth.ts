@@ -23,7 +23,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   setAuth: (token, user) => {
-    Cookies.set('examify_token', token, { expires: 0.5, sameSite: 'strict' })
+    console.log('[SET AUTH] called with', { tokenType: typeof token, tokenLength: token?.length, tokenPreview: token?.slice(0, 15), userRole: user?.role })
+    try {
+      Cookies.set('examify_token', token, { expires: 0.5, sameSite: 'strict' })
+      console.log('[SET AUTH] Cookies.set completed, cookie now reads:', Cookies.get('examify_token')?.slice(0, 15))
+    } catch (err) {
+      console.error('[SET AUTH] Cookies.set THREW AN ERROR:', err)
+    }
     saveSubdomain(user?.school?.subdomain)
     set({ token, user, isLoading: false })
   },
