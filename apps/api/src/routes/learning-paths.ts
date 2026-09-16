@@ -3,6 +3,31 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
+async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subjectId: string): Promise<boolean> {
+  const subjectRows = await tdb.query`
+    SELECT name FROM curriculum_subjects WHERE id = ${subjectId}::uuid AND school_id = ${schoolId}::uuid
+  ` as any[]
+  if (!subjectRows[0]) return false
+  const rows = await tdb.query`
+    SELECT 1 FROM teacher_subject_assignments
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND subject = ${subjectRows[0].name}
+    LIMIT 1
+  ` as any[]
+  return rows.length > 0
+}
+
+// A teacher may only modify paths for a subject/class they're actually assigned to
+// (paths aren't owned by an individual teacher the way lesson plans are — several
+// teachers of the same subject/class may share and edit the same path).
+async function isPathInTeacherScope(tdb: any, schoolId: string, teacherId: string, pathId: string): Promise<boolean> {
+  const pathRows = await tdb.query`
+    SELECT subject_id, class_level FROM learning_paths WHERE id = ${pathId}::uuid AND school_id = ${schoolId}::uuid
+  ` as any[]
+  if (!pathRows[0]) return false
+  return isTeacherAssignedToSubject(tdb, schoolId, teacherId, pathRows[0].class_level, pathRows[0].subject_id)
+}
+
 export async function learningPathRoutes(app: FastifyInstance) {
 
   // LIST PATHS
@@ -141,6 +166,11 @@ export async function learningPathRoutes(app: FastifyInstance) {
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, uid, cl, subid)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+      }
+
       const rows = await tdb.query`
         INSERT INTO learning_paths (school_id, subject_id, term_id, class_level, class_arm, title, description, is_sequential, created_by)
         VALUES (${request.schoolId}::uuid, ${subid}::uuid, ${tid}::uuid, ${cl}, ${ca}, ${title}, ${desc}, ${isSeq}, ${uid}::uuid)
@@ -177,6 +207,11 @@ export async function learningPathRoutes(app: FastifyInstance) {
       const ir = d.isRequired
       const uas = d.unlockAfterStep ?? null
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const inScope = await isPathInTeacherScope(tdb, request.schoolId, request.user.id, pid)
+        if (!inScope) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this path\'s subject/class.' })
+      }
 
       let rows: any[]
       if (lid && scid) {
@@ -221,6 +256,11 @@ export async function learningPathRoutes(app: FastifyInstance) {
       ` as any[]
       if (!pathRows[0]) return reply.status(404).send({ error: 'Path not found' })
       const path = pathRows[0]
+
+      if (request.user.role === 'teacher') {
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, request.user.id, path.class_level, path.subject_id)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this path\'s subject/class.' })
+      }
 
       // Get scheme of work for this subject/term/class
       const scheme = await tdb.query`
@@ -279,6 +319,10 @@ export async function learningPathRoutes(app: FastifyInstance) {
       const { id } = request.params as any
       const pid = String(id)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const inScope = await isPathInTeacherScope(tdb, request.schoolId, request.user.id, pid)
+        if (!inScope) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this path\'s subject/class.' })
+      }
       await tdb.query`
         UPDATE learning_paths SET is_published = NOT is_published, updated_at = now()
         WHERE id = ${pid}::uuid AND school_id = ${request.schoolId}::uuid
@@ -292,6 +336,12 @@ export async function learningPathRoutes(app: FastifyInstance) {
       const { id } = request.params as any
       const sid = String(id)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const stepRows = await tdb.query`SELECT path_id FROM learning_path_steps WHERE id = ${sid}::uuid AND school_id = ${request.schoolId}::uuid` as any[]
+        if (!stepRows[0]) return reply.status(404).send({ error: 'STEP_NOT_FOUND' })
+        const inScope = await isPathInTeacherScope(tdb, request.schoolId, request.user.id, stepRows[0].path_id)
+        if (!inScope) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this path\'s subject/class.' })
+      }
       await tdb.query`DELETE FROM learning_path_steps WHERE id = ${sid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
@@ -302,6 +352,10 @@ export async function learningPathRoutes(app: FastifyInstance) {
       const { id } = request.params as any
       const pid = String(id)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const inScope = await isPathInTeacherScope(tdb, request.schoolId, request.user.id, pid)
+        if (!inScope) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this path\'s subject/class.' })
+      }
       await tdb.query`DELETE FROM learning_paths WHERE id = ${pid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
