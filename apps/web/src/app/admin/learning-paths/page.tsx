@@ -143,8 +143,8 @@ export default function LearningPathsPage() {
       if (!res.ok) throw new Error(data.error ?? 'Failed to build')
       setSuccess(`Auto-built ${data.built} steps from scheme of work!`)
       setTimeout(() => setSuccess(''), 4000)
-      loadPathDetails(pathId)
-      loadPaths()
+      await loadPathDetails(pathId)
+      await loadPaths()
     } catch (e: any) { setError(e.message) } finally { setBuildingPath(false) }
   }
 
