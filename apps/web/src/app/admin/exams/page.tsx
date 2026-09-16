@@ -48,7 +48,7 @@ export default function ExamsPage() {
    const [deleting, setDeleting] = useState<string | null>(null)
   const [reminding, setReminding] = useState<string | null>(null)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
 
   useEffect(() => {
     loadExams()
