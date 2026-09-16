@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
@@ -28,6 +28,9 @@ interface CoverageRow { subject_id: string; subject_name: string; category: stri
 
 export default function CurriculumPage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myAssignments, setMyAssignments] = useState<{ class_level: string; subject: string }[]>([])
   const [activeTab, setActiveTab] = useState<'settings' | 'subjects' | 'scheme' | 'coverage'>('settings')
   const [settings, setSettings] = useState<any>(null)
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -63,7 +66,26 @@ export default function CurriculumPage() {
   const [deliveryForm, setDeliveryForm] = useState({ deliveryStatus: 'delivered', deliveredDate: new Date().toISOString().slice(0,10), notes: '', attendanceCount: '' })
   const [savingDelivery, setSavingDelivery] = useState(false)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher') {
+      setActiveTab('scheme')
+      if (payload?.id) {
+        apiFetch(`${API}/teacher-assignments?teacherId=${payload.id}`)
+          .then(res => res.json())
+          .then(d => {
+            const list = (d.assignments ?? []).map((a: any) => ({ class_level: a.class_level, subject: a.subject }))
+            setMyAssignments(list)
+            if (list.length > 0) setSelectedClass(list[0].class_level)
+          })
+          .catch(console.error)
+      }
+    }
+  }, [])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -255,7 +277,7 @@ export default function CurriculumPage() {
           { key: 'subjects', label: '📚 Subjects' },
           { key: 'scheme', label: '📋 Scheme of Work' },
           { key: 'coverage', label: '📊 Coverage' },
-        ] as const).map(tab => (
+        ] as const).filter(tab => !isTeacher || tab.key === 'scheme' || tab.key === 'coverage').map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65' }}>
             {tab.label}
@@ -264,7 +286,7 @@ export default function CurriculumPage() {
       </div>
 
       {/* SETTINGS TAB */}
-      {activeTab === 'settings' && (
+      {activeTab === 'settings' && !isTeacher && (
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1.25rem' }}>Curriculum Settings</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
@@ -324,7 +346,7 @@ export default function CurriculumPage() {
       )}
 
       {/* SUBJECTS TAB */}
-      {activeTab === 'subjects' && (
+      {activeTab === 'subjects' && !isTeacher && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -421,12 +443,15 @@ export default function CurriculumPage() {
                 </select></div>
               <div><label style={lbl}>Class</label>
                 <select style={sel} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
-                  {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                  {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
                 </select></div>
               <div><label style={lbl}>Subject</label>
                 <select style={sel} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
                   <option value="">Select...</option>
-                  {subjects.filter(s => s.class_levels.includes(selectedClass) && s.is_active).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {subjects
+                    .filter(s => s.class_levels.includes(selectedClass) && s.is_active)
+                    .filter(s => !isTeacher || myAssignments.some(a => a.class_level === selectedClass && a.subject === s.name))
+                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select></div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={loadScheme} disabled={loading}
@@ -528,7 +553,7 @@ export default function CurriculumPage() {
               </select></div>
             <div><label style={lbl}>Class</label>
               <select style={{ ...sel, width: 'auto' }} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
-                {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
               </select></div>
             <button onClick={loadCoverage} style={{ padding: '0.625rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
               Refresh
