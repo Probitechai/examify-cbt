@@ -5,22 +5,55 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail, sendBulkEmails } from '../lib/email'
 import { resultReadyEmail, examReminderEmail } from '../emails/templates'
 
+async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subject: string): Promise<{ blanket: boolean; arms: string[] }> {
+  const rows = await tdb.query`
+    SELECT class_arm FROM teacher_subject_assignments
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND subject = ${subject}
+  ` as any[]
+  return {
+    blanket: rows.some((r: any) => !r.class_arm),
+    arms: rows.map((r: any) => r.class_arm).filter(Boolean) as string[],
+  }
+}
+
+async function isExamOwnedByTeacher(tdb: any, schoolId: string, teacherId: string, examId: string): Promise<boolean> {
+  const rows = await tdb.query`
+    SELECT 1 FROM exams WHERE id = ${examId}::uuid AND school_id = ${schoolId}::uuid AND created_by = ${teacherId}::uuid
+  ` as any[]
+  return rows.length > 0
+}
+
 export async function examRoutes(app: FastifyInstance) {
 
   // ── List exams (teacher/admin) ────────────────────────────────────────────
   app.get('/exams', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
-      const result = await tdb.query`
-        SELECT e.id, e.title, e.subject, e.class_level, e.duration_minutes,
-               e.scheduled_at, e.ends_at, e.status, e.total_marks,
-               array_length(e.question_ids, 1) AS question_count,
-               u.full_name AS created_by_name
-        FROM exams e
-        JOIN users u ON u.id = e.created_by
-        WHERE e.school_id = ${request.schoolId}::uuid
-        ORDER BY e.scheduled_at DESC
-      `
+      let result: any[]
+      if (request.user.role === 'teacher') {
+        result = await tdb.query`
+          SELECT e.id, e.title, e.subject, e.class_level, e.duration_minutes,
+                 e.scheduled_at, e.ends_at, e.status, e.total_marks,
+                 array_length(e.question_ids, 1) AS question_count,
+                 u.full_name AS created_by_name
+          FROM exams e
+          JOIN users u ON u.id = e.created_by
+          WHERE e.school_id = ${request.schoolId}::uuid AND e.created_by = ${request.user.id}::uuid
+          ORDER BY e.scheduled_at DESC
+        ` as any[]
+      } else {
+        result = await tdb.query`
+          SELECT e.id, e.title, e.subject, e.class_level, e.duration_minutes,
+                 e.scheduled_at, e.ends_at, e.status, e.total_marks,
+                 array_length(e.question_ids, 1) AS question_count,
+                 u.full_name AS created_by_name
+          FROM exams e
+          JOIN users u ON u.id = e.created_by
+          WHERE e.school_id = ${request.schoolId}::uuid
+          ORDER BY e.scheduled_at DESC
+        ` as any[]
+      }
       return reply.send({ exams: result })
     })
 
@@ -51,6 +84,20 @@ export async function examRoutes(app: FastifyInstance) {
         ? null
         : (d.classArms ?? null)
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const scope = await isTeacherAssignedToSubject(tdb, request.schoolId, request.user.id, d.classLevel, d.subject)
+        if (!scope.blanket && scope.arms.length === 0) {
+          return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+        }
+        if (!scope.blanket) {
+          const requestedArms = normalizedClassArms ?? []
+          const disallowed = requestedArms.filter((a: string) => !scope.arms.includes(a))
+          if (normalizedClassArms === null || disallowed.length > 0) {
+            return reply.status(403).send({ error: 'ARM_NOT_ASSIGNED', message: 'You can only create this exam for the specific arm(s) you are assigned to.' })
+          }
+        }
+      }
       const rows = await tdb.query`
         INSERT INTO exams (school_id, created_by, title, subject, class_level, class_arms,
           duration_minutes, total_marks, pass_mark, question_ids, scheduled_at, ends_at,
@@ -65,10 +112,14 @@ export async function examRoutes(app: FastifyInstance) {
     })
 
   // ── Delete exam ───────────────────────────────────────────────────────────
-  app.delete('/exams/:examId', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.delete('/exams/:examId', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const examId = (request.params as any).examId
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isExamOwnedByTeacher(tdb, request.schoolId, request.user.id, examId)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only cancel your own exams.' })
+      }
       await tdb.query`
         UPDATE exams SET status = 'cancelled'
         WHERE id = ${examId}::uuid
@@ -337,6 +388,11 @@ export async function examRoutes(app: FastifyInstance) {
       const examId = (request.params as any).examId
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        const owns = await isExamOwnedByTeacher(tdb, request.schoolId, request.user.id, examId)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only view results for your own exams.' })
+      }
+
       const results = await tdb.query`
         SELECT u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm,
                es.score, es.percentage, es.passed, es.status, es.submitted_at
@@ -364,6 +420,11 @@ export async function examRoutes(app: FastifyInstance) {
     async (request: any, reply: any) => {
       const examId = (request.params as any).examId
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const owns = await isExamOwnedByTeacher(tdb, request.schoolId, request.user.id, examId)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only send reminders for your own exams.' })
+      }
 
       const examRows = await tdb.query`
         SELECT id, title, subject, class_level, class_arms, scheduled_at, duration_minutes, status
