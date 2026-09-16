@@ -4,7 +4,8 @@
 // ── FIX 9: base64url-safe decode ─────────────────────────────────────────────
 function base64urlDecode(str: string): string {
   const b64 = str.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = b64 + '==='.slice((b64.length % 4) || 4)
+  const padLength = (4 - (b64.length % 4)) % 4
+  const padded = b64 + '='.repeat(padLength)
   try { return atob(padded) } catch { return '' }
 }
 
@@ -31,16 +32,9 @@ export function getToken(): string {
 // ── FIX 2: expiry check (exp is in seconds) ───────────────────────────────────
 export function isTokenExpired(token: string): boolean {
   const p = parseJWT(token)
-  if (!p) {
-    console.warn('[EXPIRY CHECK] parseJWT FAILED for token starting with:', token?.slice(0, 30))
-    return true
-  }
+  if (!p) return true
   if (!p.exp) return false
-  const expired = Date.now() >= p.exp * 1000
-  if (expired) {
-    console.warn('[EXPIRY CHECK] genuinely expired?', { nowMs: Date.now(), expMs: p.exp * 1000, diffSeconds: (Date.now() - p.exp * 1000) / 1000 })
-  }
-  return expired
+  return Date.now() >= p.exp * 1000
 }
 
 // ── FIX 5: subdomain from JWT payload, never empty silently ───────────────────
