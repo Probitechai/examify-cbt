@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import SubjectSelector from '../../../../components/SubjectSelector'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,6 +13,9 @@ type Step = 'details' | 'questions' | 'review'
 
 export default function AdminNewExamPage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myAssignments, setMyAssignments] = useState<{ class_level: string; class_arm: string; subject: string }[]>([])
   const [step, setStep] = useState<Step>('details')
   const [questions, setQuestions] = useState<any[]>([])
   const [loadingQ, setLoadingQ] = useState(true)
@@ -38,7 +41,26 @@ export default function AdminNewExamPage() {
   const [selectedQIds, setSelectedQIds] = useState<Set<string>>(new Set())
   const [subjectFilter, setSubjectFilter] = useState('')
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher-assignments?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.assignments ?? []).map((a: any) => ({ class_level: a.class_level, class_arm: a.class_arm, subject: a.subject }))
+          setMyAssignments(list)
+          if (list.length > 0) {
+            setDetail('classLevel', list[0].class_level)
+            setDetail('subject', list[0].subject)
+          }
+        })
+        .catch(console.error)
+    }
+  }, [])
 
   useEffect(() => {
     api.getQuestions().then((data: any) => {
@@ -108,6 +130,14 @@ export default function AdminNewExamPage() {
 
   const stepIndex = STEPS.findIndex(s => s.key === step)
 
+  const allowedClassLevels = isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS
+  const allowedSubjects = isTeacher
+    ? [...new Set(myAssignments.filter(a => a.class_level === details.classLevel).map(a => a.subject))]
+    : undefined
+  const armsForSelection = myAssignments.filter(a => a.class_level === details.classLevel && a.subject === details.subject)
+  const hasBlanketArm = !isTeacher || armsForSelection.some(a => !a.class_arm)
+  const teacherArms = armsForSelection.map(a => a.class_arm).filter(Boolean)
+
   return (
     <div className={styles.page}>
       {/* Step bar */}
@@ -161,15 +191,17 @@ export default function AdminNewExamPage() {
                 <label className={styles.label}>Subject</label>
                 <SubjectSelector
                   value={details.subject}
-                  onChange={val => setDetail('subject', val)}
+                  onChange={val => { setDetail('subject', val); setDetail('classArms', []) }}
                   className={styles.sel}
+                  options={allowedSubjects}
+                  allowCustom={!isTeacher}
                 />
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Class level</label>
                 <select className={styles.sel} value={details.classLevel}
-                  onChange={e => setDetail('classLevel', e.target.value)}>
-                  {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                  onChange={e => { setDetail('classLevel', e.target.value); setDetail('classArms', []) }}>
+                  {allowedClassLevels.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className={styles.field}>
@@ -187,19 +219,26 @@ export default function AdminNewExamPage() {
               <div className={styles.fieldFull}>
                 <label className={styles.label}>Class arms</label>
                 <div className={styles.armGrid}>
-                  {CLASS_ARMS.map(arm => (
+                  {(isTeacher ? teacherArms : CLASS_ARMS).map(arm => (
                     <button key={arm} type="button"
                       className={`${styles.armBtn} ${details.classArms.includes(arm) ? styles.armActive : ''}`}
                       onClick={() => toggleArm(arm)}>
                       {arm}
                     </button>
                   ))}
-                  <button type="button"
-                    className={`${styles.armBtn} ${details.classArms.length === 0 || details.classArms.includes('all') ? styles.armActive : ''}`}
-                    onClick={() => setDetail('classArms', ['all'])}>
-                    All arms
-                  </button>
+                  {hasBlanketArm && (
+                    <button type="button"
+                      className={`${styles.armBtn} ${details.classArms.length === 0 || details.classArms.includes('all') ? styles.armActive : ''}`}
+                      onClick={() => setDetail('classArms', ['all'])}>
+                      All arms
+                    </button>
+                  )}
                 </div>
+                {isTeacher && !hasBlanketArm && teacherArms.length === 0 && (
+                  <p style={{ fontSize: '0.78rem', color: '#dc2626', marginTop: '0.5rem' }}>
+                    You have no assigned arm for this subject/class combination.
+                  </p>
+                )}
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Start date & time</label>
