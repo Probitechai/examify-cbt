@@ -56,6 +56,13 @@ export default function AdminNewExamPage() {
           if (list.length > 0) {
             setDetail('classLevel', list[0].class_level)
             setDetail('subject', list[0].subject)
+            const hasBlanket = list.some((a: any) => a.class_level === list[0].class_level && a.subject === list[0].subject && !a.class_arm)
+            if (hasBlanket) {
+              setDetail('classArms', ['all'])
+            } else {
+              const firstArm = list.find((a: any) => a.class_level === list[0].class_level && a.subject === list[0].subject && a.class_arm)
+              if (firstArm) setDetail('classArms', [firstArm.class_arm])
+            }
           }
         })
         .catch(console.error)
