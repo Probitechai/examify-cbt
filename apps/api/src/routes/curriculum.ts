@@ -4,6 +4,23 @@ import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
 
+// Curriculum scoping ignores class arm (curriculum is shared across all arms).
+// teacher_subject_assignments stores the subject as a name string, while
+// curriculum_subjects references it by id — so we translate id → name first.
+async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subjectId: string): Promise<boolean> {
+  const subjectRows = await tdb.query`
+    SELECT name FROM curriculum_subjects WHERE id = ${subjectId}::uuid AND school_id = ${schoolId}::uuid
+  ` as any[]
+  if (!subjectRows[0]) return false
+  const rows = await tdb.query`
+    SELECT 1 FROM teacher_subject_assignments
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND subject = ${subjectRows[0].name}
+    LIMIT 1
+  ` as any[]
+  return rows.length > 0
+}
+
 const NIGERIAN_JSS = [
   { name: 'English Language', category: 'core', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
   { name: 'Mathematics', category: 'core', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
@@ -267,6 +284,12 @@ export async function curriculumRoutes(app: FastifyInstance) {
       const tid = String(termId)
       const cl = String(classLevel)
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, request.user.id, cl, sid)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+      }
+
       const rows = await tdb.query`
         SELECT s.id, s.week_number, s.topic, s.sub_topics, s.objectives,
                s.resources, s.assessment_method, s.created_at,
@@ -314,6 +337,12 @@ export async function curriculumRoutes(app: FastifyInstance) {
       const am = d.assessmentMethod ?? null
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, uid, cl, sid)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+      }
+
       const rows = await tdb.query`
         INSERT INTO scheme_of_work (
           school_id, subject_id, term_id, class_level, class_arm,
@@ -367,6 +396,17 @@ export async function curriculumRoutes(app: FastifyInstance) {
       const ac = d.attendanceCount ?? null
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const schemeRows = await tdb.query`
+          SELECT subject_id, class_level FROM scheme_of_work
+          WHERE id = ${scid}::uuid AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+        if (!schemeRows[0]) return reply.status(404).send({ error: 'SCHEME_NOT_FOUND' })
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, uid, schemeRows[0].class_level, schemeRows[0].subject_id)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+      }
+
       await tdb.query`
         INSERT INTO lesson_delivery (
           school_id, scheme_id, teacher_id, delivered_date,
@@ -394,6 +434,17 @@ export async function curriculumRoutes(app: FastifyInstance) {
       const tid = String(termId)
       const cl = String(classLevel)
       const tdb = tenantDb(request.schoolId)
+
+      let assignedNames: string[] | null = null
+      if (request.user.role === 'teacher') {
+        const nameRows = await tdb.query`
+          SELECT DISTINCT subject FROM teacher_subject_assignments
+          WHERE school_id = ${request.schoolId}::uuid AND teacher_id = ${request.user.id}::uuid AND class_level = ${cl}
+        ` as any[]
+        assignedNames = nameRows.map((r: any) => r.subject)
+        if (assignedNames.length === 0) return reply.send({ coverage: [] })
+      }
+
       const rows = await tdb.query`
         SELECT
           cs.id AS subject_id, cs.name AS subject_name, cs.category,
@@ -414,6 +465,7 @@ export async function curriculumRoutes(app: FastifyInstance) {
         WHERE cs.school_id = ${request.schoolId}::uuid
         AND cs.is_active = true
         AND ${cl} = ANY(cs.class_levels)
+        AND (${assignedNames}::text[] IS NULL OR cs.name = ANY(${assignedNames}::text[]))
         GROUP BY cs.id, cs.name, cs.category
         ORDER BY cs.name ASC
       ` as any[]
