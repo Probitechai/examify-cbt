@@ -1,5 +1,5 @@
 ﻿'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
@@ -50,6 +50,9 @@ function today() {
 
 export default function AttendancePage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myClassTeacherRoles, setMyClassTeacherRoles] = useState<{ class_level: string; class_arm: string }[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
@@ -67,7 +70,26 @@ export default function AttendancePage() {
   const [alreadyMarked, setAlreadyMarked] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${API}/class-teachers?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.classTeachers ?? []).map((c: any) => ({ class_level: c.class_level, class_arm: c.class_arm }))
+          setMyClassTeacherRoles(list)
+          if (list.length > 0) {
+            setClassLevel(list[0].class_level)
+            setClassArm(list[0].class_arm)
+          }
+        })
+        .catch(console.error)
+    }
+  }, [])
 
   useEffect(() => { loadSessions() }, [])
 
@@ -99,6 +121,7 @@ export default function AttendancePage() {
       if (classArm) params.append('classArm', classArm)
       const res = await apiFetch(`${API}/attendance?${params}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load students'); setLoading(false); return }
       const list = data.students ?? []
       setStudents(list)
       setAlreadyMarked(data.alreadyMarked ?? false)
@@ -120,6 +143,7 @@ export default function AttendancePage() {
       if (classArm) params.append('classArm', classArm)
       const res = await apiFetch(`${API}/attendance/summary?${params}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load summary'); setLoading(false); return }
       setSummary(data.summary ?? [])
     } catch { setError('Failed to load summary') } finally { setLoading(false) }
   }
@@ -145,10 +169,11 @@ export default function AttendancePage() {
         method: 'POST',
         body: JSON.stringify({ termId: selectedTerm, date, classLevel, classArm: classArm || undefined, records })
       })
-      if (!res.ok) throw new Error('Failed to save')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Failed to save')
       setSaved(true); setAlreadyMarked(true)
       setTimeout(() => setSaved(false), 3000)
-    } catch { setError('Failed to save attendance') } finally { setSaving(false) }
+    } catch (e: any) { setError(e.message ?? 'Failed to save attendance') } finally { setSaving(false) }
   }
 
   const presentCount = Object.values(localStatus).filter(s => s.status === 'present').length
@@ -175,6 +200,14 @@ export default function AttendancePage() {
         ))}
       </div>
 
+      {isTeacher && myClassTeacherRoles.length === 0 ? (
+        <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</p>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>You're not a class teacher yet</p>
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Ask your school admin to assign you as a class teacher under Teacher Assignments.</p>
+        </div>
+      ) : (
+      <>
       {/* Filter panel */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: activeTab === 'mark' ? 'repeat(5, 1fr) auto' : 'repeat(4, 1fr) auto', gap: '1rem', alignItems: 'flex-end' }}>
@@ -194,15 +227,15 @@ export default function AttendancePage() {
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Class</label>
-            <select style={sel} value={classLevel} onChange={e => setClassLevel(e.target.value)}>
-              {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+            <select style={sel} value={classLevel} onChange={e => { setClassLevel(e.target.value); if (isTeacher) { const match = myClassTeacherRoles.find(r => r.class_level === e.target.value); setClassArm(match?.class_arm ?? '') } }}>
+              {(isTeacher ? [...new Set(myClassTeacherRoles.map(r => r.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Arm</label>
             <select style={sel} value={classArm} onChange={e => setClassArm(e.target.value)}>
-              <option value="">All arms</option>
-              {CLASS_ARMS.map(a => <option key={a}>{a}</option>)}
+              {!isTeacher && <option value="">All arms</option>}
+              {(isTeacher ? myClassTeacherRoles.filter(r => r.class_level === classLevel).map(r => r.class_arm) : CLASS_ARMS).map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
           {activeTab === 'mark' && (
@@ -343,6 +376,8 @@ export default function AttendancePage() {
             {activeTab === 'mark' ? 'Mark present, absent, late or excused for each student.' : 'View attendance summary for the selected class and term.'}
           </p>
         </div>
+      )}
+      </>
       )}
     </div>
   )
