@@ -1,5 +1,5 @@
 ﻿'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -14,6 +14,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 
 export default function LessonsPage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myAssignments, setMyAssignments] = useState<{ class_level: string; subject: string }[]>([])
   const [lessons, setLessons] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
@@ -33,7 +36,23 @@ export default function LessonsPage() {
     objectives: '', introduction: '', mainContent: '', conclusion: ''
   })
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${API}/teacher-assignments?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.assignments ?? []).map((a: any) => ({ class_level: a.class_level, subject: a.subject }))
+          setMyAssignments(list)
+          if (list.length > 0) setSelectedClass(list[0].class_level)
+        })
+        .catch(console.error)
+    }
+  }, [])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -135,12 +154,14 @@ export default function LessonsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
           <div><label style={lbl}>Class</label>
             <select style={sel} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
-              {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+              {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
             </select></div>
           <div><label style={lbl}>Subject</label>
             <select style={sel} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
               <option value="">All subjects</option>
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {subjects
+                .filter(s => !isTeacher || myAssignments.some(a => a.class_level === selectedClass && a.subject === s.name))
+                .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select></div>
           <div><label style={lbl}>Term</label>
             <select style={sel} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
@@ -211,7 +232,7 @@ export default function LessonsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                 <div><label style={lbl}>Class Level *</label>
                   <select style={sel} value={createForm.classLevel} onChange={e => setCreateForm(f => ({ ...f, classLevel: e.target.value }))}>
-                    {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                    {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
                   </select></div>
                 <div><label style={lbl}>Class Arm</label>
                   <input style={inp} value={createForm.classArm} onChange={e => setCreateForm(f => ({ ...f, classArm: e.target.value }))} placeholder="e.g. A, Science" /></div>
@@ -222,7 +243,9 @@ export default function LessonsPage() {
                 <div><label style={lbl}>Subject</label>
                   <select style={sel} value={createForm.subjectId} onChange={e => setCreateForm(f => ({ ...f, subjectId: e.target.value }))}>
                     <option value="">Select subject...</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {subjects
+                      .filter(s => !isTeacher || myAssignments.some(a => a.class_level === createForm.classLevel && a.subject === s.name))
+                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select></div>
                 <div><label style={lbl}>Duration (minutes)</label>
                   <input style={inp} type="number" value={createForm.estimatedDurationMins} onChange={e => setCreateForm(f => ({ ...f, estimatedDurationMins: e.target.value }))} placeholder="e.g. 40" /></div>

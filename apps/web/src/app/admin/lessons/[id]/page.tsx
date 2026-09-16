@@ -79,7 +79,7 @@ export default function LessonDetailPage() {
   const [gradingSubmission, setGradingSubmission] = useState<any>(null)
   const [gradeForm, setGradeForm] = useState({ score: '', feedback: '' })
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
 
   useEffect(() => { loadLesson(); loadExams() }, [lessonId])
 
