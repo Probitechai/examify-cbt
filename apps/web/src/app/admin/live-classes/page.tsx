@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
@@ -30,6 +30,9 @@ function isStartable(scheduledAt: string): boolean {
 
 export default function LiveClassesPage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myAssignments, setMyAssignments] = useState<{ class_level: string; subject: string }[]>([])
   const [classes, setClasses] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
@@ -52,7 +55,26 @@ export default function LiveClassesPage() {
     subjectId: '', termId: '', scheduledAt: '', durationMins: '40'
   })
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${API}/teacher-assignments?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.assignments ?? []).map((a: any) => ({ class_level: a.class_level, subject: a.subject }))
+          setMyAssignments(list)
+          if (list.length > 0) {
+            setSelectedClass(list[0].class_level)
+            setCreateForm(f => ({ ...f, classLevel: list[0].class_level }))
+          }
+        })
+        .catch(console.error)
+    }
+  }, [])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -119,7 +141,7 @@ export default function LiveClassesPage() {
       }
       if (createForm.subjectId) body.subjectId = createForm.subjectId
       if (createForm.termId) body.termId = createForm.termId
-      const res = await fetch(`${API}/live-classes`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/live-classes`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create class')
       setShowCreateForm(false)
@@ -130,9 +152,13 @@ export default function LiveClassesPage() {
   }
 
   async function updateStatus(id: string, status: string) {
-    await fetch(`${API}/live-classes/${id}/status`, {
+    const res = await apiFetch(`${API}/live-classes/${id}/status`, {
       method: 'PATCH', body: JSON.stringify({ status })
     })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.message ?? 'Failed to update class status')
+    }
     loadClasses()
   }
 
@@ -140,14 +166,15 @@ export default function LiveClassesPage() {
     if (!recordingUrl) { setError('URL required'); return }
     setSavingRecording(true)
     try {
-      await fetch(`${API}/live-classes/${showRecordingForm.id}/recording`, {
+      const res = await apiFetch(`${API}/live-classes/${showRecordingForm.id}/recording`, {
         method: 'PATCH',
         body: JSON.stringify({ recordingUrl, recordingType })
       })
+      if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.message ?? 'Failed to save recording') }
       setShowRecordingForm(null); setRecordingUrl(''); setRecordingType('youtube')
       setSuccess('Recording saved!'); setTimeout(() => setSuccess(''), 3000)
       loadClasses()
-    } catch { setError('Failed to save recording') } finally { setSavingRecording(false) }
+    } catch (e: any) { setError(e.message ?? 'Failed to save recording') } finally { setSavingRecording(false) }
   }
 
   async function deleteClass(id: string) {
@@ -189,8 +216,8 @@ export default function LiveClassesPage() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
         <select style={{ ...sel, width: 'auto' }} value={selectedClass} onChange={e => { setSelectedClass(e.target.value); }}>
-          <option value="">All classes</option>
-          {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+          {!isTeacher && <option value="">All classes</option>}
+          {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
         </select>
         <button onClick={loadClasses} style={{ padding: '0.625rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
           Refresh
@@ -250,14 +277,16 @@ export default function LiveClassesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div><label style={lbl}>Class Level *</label>
                   <select style={sel} value={createForm.classLevel} onChange={e => setCreateForm(f => ({ ...f, classLevel: e.target.value }))}>
-                    {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+                    {(isTeacher ? [...new Set(myAssignments.map(a => a.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
                   </select></div>
                 <div><label style={lbl}>Class Arm</label>
                   <input style={inp} value={createForm.classArm} onChange={e => setCreateForm(f => ({ ...f, classArm: e.target.value }))} placeholder="e.g. A, Science" /></div>
                 <div><label style={lbl}>Subject</label>
                   <select style={sel} value={createForm.subjectId} onChange={e => setCreateForm(f => ({ ...f, subjectId: e.target.value }))}>
                     <option value="">Select subject...</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {subjects
+                      .filter(s => !isTeacher || myAssignments.some(a => a.class_level === createForm.classLevel && a.subject === s.name))
+                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select></div>
                 <div><label style={lbl}>Duration (mins)</label>
                   <input style={inp} type="number" value={createForm.durationMins} onChange={e => setCreateForm(f => ({ ...f, durationMins: e.target.value }))} /></div>
