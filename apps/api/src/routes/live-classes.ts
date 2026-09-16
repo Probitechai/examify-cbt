@@ -3,6 +3,28 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
+async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subjectId: string): Promise<boolean> {
+  const subjectRows = await tdb.query`
+    SELECT name FROM curriculum_subjects WHERE id = ${subjectId}::uuid AND school_id = ${schoolId}::uuid
+  ` as any[]
+  if (!subjectRows[0]) return false
+  const rows = await tdb.query`
+    SELECT 1 FROM teacher_subject_assignments
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND subject = ${subjectRows[0].name}
+    LIMIT 1
+  ` as any[]
+  return rows.length > 0
+}
+
+// A teacher may only modify a live class they themselves scheduled.
+async function isClassOwnedByTeacher(tdb: any, schoolId: string, teacherId: string, classId: string): Promise<boolean> {
+  const rows = await tdb.query`
+    SELECT 1 FROM live_classes WHERE id = ${classId}::uuid AND school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+  ` as any[]
+  return rows.length > 0
+}
+
 function generateJitsiRoom(schoolSubdomain: string, title: string): string {
   const slug = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 30)
   const rand = Math.random().toString(36).slice(2, 8)
@@ -118,6 +140,12 @@ export async function liveClassRoutes(app: FastifyInstance) {
       const jitsiRoom = generateJitsiRoom(request.school.subdomain, d.title)
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        if (!subid) return reply.status(400).send({ error: 'SUBJECT_REQUIRED', message: 'Select a subject to schedule a live class.' })
+        const allowed = await isTeacherAssignedToSubject(tdb, request.schoolId, uid, cl, subid)
+        if (!allowed) return reply.status(403).send({ error: 'NOT_ASSIGNED', message: 'You are not assigned to teach this subject for this class.' })
+      }
+
       let rows: any[]
       if (subid && tid) {
         rows = await tdb.query`
@@ -157,6 +185,11 @@ export async function liveClassRoutes(app: FastifyInstance) {
       const lid = String(id)
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        const owns = await isClassOwnedByTeacher(tdb, request.schoolId, request.user.id, lid)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only manage your own live classes.' })
+      }
+
       if (st === 'live') {
         await tdb.query`
           UPDATE live_classes SET status = ${st}, started_at = now(), updated_at = now()
@@ -190,6 +223,12 @@ export async function liveClassRoutes(app: FastifyInstance) {
       const rt = body.data.recordingType
       const lid = String(id)
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const owns = await isClassOwnedByTeacher(tdb, request.schoolId, request.user.id, lid)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only add a recording to your own live classes.' })
+      }
+
       await tdb.query`
         UPDATE live_classes SET recording_url = ${ru}, recording_type = ${rt}, updated_at = now()
         WHERE id = ${lid}::uuid AND school_id = ${request.schoolId}::uuid
@@ -203,6 +242,10 @@ export async function liveClassRoutes(app: FastifyInstance) {
       const { id } = request.params as any
       const lid = String(id)
       const tdb = tenantDb(request.schoolId)
+      if (request.user.role === 'teacher') {
+        const owns = await isClassOwnedByTeacher(tdb, request.schoolId, request.user.id, lid)
+        if (!owns) return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only delete your own live classes.' })
+      }
       await tdb.query`DELETE FROM live_classes WHERE id = ${lid}::uuid AND school_id = ${request.schoolId}::uuid`
       return reply.send({ deleted: true })
     })
