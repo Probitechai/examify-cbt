@@ -91,7 +91,7 @@ export default function CurriculumPage() {
 
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
-  useEffect(() => { if (activeTab === 'subjects') loadSubjects() }, [activeTab, selectedClass])
+  useEffect(() => { if (activeTab === 'subjects' || activeTab === 'scheme') loadSubjects() }, [activeTab, selectedClass])
 
   useEffect(() => { if (activeTab === 'coverage' && selectedTerm && selectedClass) loadCoverage() }, [activeTab, selectedTerm, selectedClass])
 
