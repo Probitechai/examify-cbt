@@ -79,25 +79,29 @@ function getToken() {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  console.count('AdminLayout RENDER')
-  console.log('[RENDER]', { isLoading, userId: user?.id, role: user?.role })
+  
+  if (typeof document !== 'undefined') {
+    const rawCookie = document.cookie
+    const manualToken = rawCookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? 'NONE'
+    console.log('[COOKIE CHECK]', { rawCookieLength: rawCookie.length, manualTokenPreview: manualToken.slice(0, 20), manualTokenLength: manualToken.length })
+  }
    const router = useRouter()
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
   const [schoolTier, setSchoolTier] = useState<string>('basic')
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
-  useEffect(() => { console.log('[EFFECT] hydrate fired'); hydrate() }, [hydrate])
+  useEffect(() => { hydrate() }, [hydrate])
 
   useEffect(() => {
-    console.log('[EFFECT] redirect-check fired', { isLoading, hasUser: !!user })
+
     if (!isLoading && !user) router.replace('/login')
     if (!isLoading && user && user.role === 'student') router.replace('/student')
     if (!isLoading && user && user.role === 'parent') router.replace('/parent')
   }, [user, isLoading])
 
    useEffect(() => {
-    console.log('[EFFECT] tier-fetch fired', { hasUser: !!user })
+
     if (!user) return
     try {
       const token = getToken()
