@@ -84,9 +84,9 @@ export default function SuperAdminDashboard() {
 
     const [admins, setAdmins] = useState<{ id: string; full_name: string; email: string; is_active: boolean; created_at: string; last_login_at: string | null }[]>([])
     const [managingSchool, setManagingSchool] = useState<School | null>(null)
-    const [proprietors, setProprietors] = useState<{ id: string; full_name: string; email: string; is_active: boolean; created_at: string; last_login_at: string | null }[]>([])
+    const [proprietors, setProprietors] = useState<{ id: string; full_name: string; email: string; phone: string | null; is_active: boolean; created_at: string; last_login_at: string | null }[]>([])
     const [loadingProprietors, setLoadingProprietors] = useState(false)
-    const [newProprietor, setNewProprietor] = useState({ full_name: '', email: '' })
+    const [newProprietor, setNewProprietor] = useState({ full_name: '', email: '', phone: '' })
     const [creatingProprietor, setCreatingProprietor] = useState(false)
     const [proprietorCreateError, setProprietorCreateError] = useState('')
     const [createdProprietorInfo, setCreatedProprietorInfo] = useState<{ email: string; tempPassword: string } | null>(null)
@@ -264,7 +264,7 @@ export default function SuperAdminDashboard() {
       const data = await res.json()
       if (!res.ok) { setProprietorCreateError(data.message ?? 'Failed to create proprietor.'); return }
       setCreatedProprietorInfo({ email: data.proprietor.email, tempPassword: data.tempPassword })
-      setNewProprietor({ full_name: '', email: '' })
+      setNewProprietor({ full_name: '', email: '', phone: '' })
       loadProprietors(managingSchool.id)
     } catch {
       setProprietorCreateError('Network error. Please try again.')
@@ -830,7 +830,7 @@ export default function SuperAdminDashboard() {
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #f0f0ee' }}>
                       <div>
                         <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a18' }}>{p.full_name}</p>
-                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{p.email}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{p.email}{p.phone ? ` · ${p.phone}` : ''}</p>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <span style={{ padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700, background: p.is_active ? '#e8f5ee' : '#fef2f2', color: p.is_active ? '#0f4a32' : '#dc2626' }}>
@@ -865,6 +865,12 @@ export default function SuperAdminDashboard() {
                     <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Email</label>
                     <input value={newProprietor.email} onChange={e => setNewProprietor(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="proprietor@example.com"
+                      style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
+                  </div>
+                  <div style={{ marginBottom: '0.875rem' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Phone number <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional)</span></label>
+                    <input value={newProprietor.phone} onChange={e => setNewProprietor(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="e.g. 08012345678"
                       style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
                   </div>
                   {proprietorCreateError && (
