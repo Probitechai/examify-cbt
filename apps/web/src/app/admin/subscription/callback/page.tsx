@@ -1,5 +1,5 @@
 ﻿'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -12,7 +12,11 @@ export default function SubscriptionCallbackPage() {
   const [message, setMessage] = useState('')
   const [tier, setTier] = useState('')
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'proprietor']) }, [])
+
+  const role = parseJWT(getToken())?.role ?? 'school_admin'
+  const homePath = role === 'proprietor' ? '/proprietor' : '/admin'
+  const subscriptionPath = role === 'proprietor' ? '/proprietor/subscription' : '/admin/subscription'
 
   useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref')
@@ -28,8 +32,8 @@ export default function SubscriptionCallbackPage() {
         setStatus('success')
         setTier(data.tier)
         setMessage(data.message)
-        // Redirect to admin after 3 seconds
-        setTimeout(() => router.push('/admin'), 3000)
+        // Redirect after 3 seconds
+        setTimeout(() => router.push(homePath), 3000)
       } else {
         setStatus('failed')
         setMessage(data.message ?? 'Payment verification failed.')
@@ -56,7 +60,7 @@ export default function SubscriptionCallbackPage() {
             <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1a6b4a', marginBottom: '0.5rem' }}>Payment Successful!</h1>
             <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1rem' }}>{message}</p>
             <p style={{ fontSize: '0.78rem', color: '#a0a09a' }}>Redirecting you to the dashboard in 3 seconds…</p>
-            <button onClick={() => router.push('/admin')}
+            <button onClick={() => router.push(homePath)}
               style={{ marginTop: '1rem', padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
               Go to Dashboard →
             </button>
@@ -67,7 +71,7 @@ export default function SubscriptionCallbackPage() {
             <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</p>
             <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#dc2626', marginBottom: '0.5rem' }}>Payment Not Confirmed</h1>
             <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1rem' }}>{message}</p>
-            <button onClick={() => router.push('/admin/subscription')}
+            <button onClick={() => router.push(subscriptionPath)}
               style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
               Back to Subscription
             </button>
