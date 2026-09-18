@@ -83,6 +83,15 @@ export default function SuperAdminDashboard() {
   const [pwSuccess, setPwSuccess] = useState(false)
 
     const [admins, setAdmins] = useState<{ id: string; full_name: string; email: string; is_active: boolean; created_at: string; last_login_at: string | null }[]>([])
+    const [managingSchool, setManagingSchool] = useState<School | null>(null)
+    const [proprietors, setProprietors] = useState<{ id: string; full_name: string; email: string; is_active: boolean; created_at: string; last_login_at: string | null }[]>([])
+    const [loadingProprietors, setLoadingProprietors] = useState(false)
+    const [newProprietor, setNewProprietor] = useState({ full_name: '', email: '' })
+    const [creatingProprietor, setCreatingProprietor] = useState(false)
+    const [proprietorCreateError, setProprietorCreateError] = useState('')
+    const [createdProprietorInfo, setCreatedProprietorInfo] = useState<{ email: string; tempPassword: string } | null>(null)
+    const [togglingProprietor, setTogglingProprietor] = useState<string | null>(null)
+    const [deletingProprietor, setDeletingProprietor] = useState<string | null>(null)
   const [showAddAdminModal, setShowAddAdminModal] = useState(false)
   const [newAdmin, setNewAdmin] = useState({ full_name: '', email: '' })
   const [creatingAdmin, setCreatingAdmin] = useState(false)
@@ -224,6 +233,71 @@ export default function SuperAdminDashboard() {
       }
     } catch {} finally { setDeletingAdmin(null) }
   }
+  async function loadProprietors(schoolId: string) {
+    setLoadingProprietors(true)
+    try {
+      const res = await fetch(`${API}/superadmin/schools/${schoolId}/proprietors`, { headers: hdrs() })
+      const data = await res.json()
+      setProprietors(data.proprietors ?? [])
+    } catch {} finally { setLoadingProprietors(false) }
+  }
+
+  function openManageProprietor(school: School) {
+    setManagingSchool(school)
+    setCreatedProprietorInfo(null)
+    setProprietorCreateError('')
+    setNewProprietor({ full_name: '', email: '' })
+    loadProprietors(school.id)
+  }
+
+  async function handleCreateProprietor() {
+    if (!managingSchool) return
+    setProprietorCreateError('')
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!newProprietor.full_name.trim()) { setProprietorCreateError('Full name is required.'); return }
+    if (!emailPattern.test(newProprietor.email)) { setProprietorCreateError('Not a valid email address.'); return }
+    setCreatingProprietor(true)
+    try {
+      const res = await fetch(`${API}/superadmin/schools/${managingSchool.id}/proprietors`, {
+        method: 'POST', headers: hdrs(), body: JSON.stringify(newProprietor),
+      })
+      const data = await res.json()
+      if (!res.ok) { setProprietorCreateError(data.message ?? 'Failed to create proprietor.'); return }
+      setCreatedProprietorInfo({ email: data.proprietor.email, tempPassword: data.tempPassword })
+      setNewProprietor({ full_name: '', email: '' })
+      loadProprietors(managingSchool.id)
+    } catch {
+      setProprietorCreateError('Network error. Please try again.')
+    } finally { setCreatingProprietor(false) }
+  }
+
+  async function handleToggleProprietor(id: string) {
+    setTogglingProprietor(id)
+    try {
+      const res = await fetch(`${API}/superadmin/proprietors/${id}/toggle`, { method: 'PATCH', headers: hdrs(), body: '{}' })
+      const data = await res.json()
+      if (res.ok) {
+        setProprietors(prev => prev.map(p => p.id === id ? { ...p, is_active: data.proprietor.is_active } : p))
+      } else {
+        alert(data.message ?? 'Failed to update proprietor.')
+      }
+    } catch {} finally { setTogglingProprietor(null) }
+  }
+
+  async function handleDeleteProprietor(id: string, name: string) {
+    if (!confirm(`Permanently delete ${name}'s proprietor account? This cannot be undone.`)) return
+    setDeletingProprietor(id)
+    try {
+      const res = await fetch(`${API}/superadmin/proprietors/${id}`, { method: 'DELETE', headers: hdrs() })
+      const data = await res.json()
+      if (res.ok) {
+        setProprietors(prev => prev.filter(p => p.id !== id))
+      } else {
+        alert(data.message ?? 'Failed to delete proprietor.')
+      }
+    } catch {} finally { setDeletingProprietor(null) }
+  }
+
   async function handleUpdateTier(id: string, tier: string) {
     setUpdatingTier(id)
     try {
@@ -429,20 +503,21 @@ export default function SuperAdminDashboard() {
               </button>
             </div>
             <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 120px 100px 120px', gap: '0.5rem', padding: '0.75rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
-                <span>School</span>
-                <span style={{ textAlign: 'center' as const }}>Students</span>
-                <span style={{ textAlign: 'center' as const }}>Teachers</span>
-                <span style={{ textAlign: 'center' as const }}>Parents</span>
-                <span style={{ textAlign: 'center' as const }}>Exams</span>
-                <span style={{ textAlign: 'center' as const }}>Submissions</span>
-                <span style={{ textAlign: 'center' as const }}>Last activity</span>
-                <span style={{ textAlign: 'center' as const }}>Tier</span>
-                <span style={{ textAlign: 'center' as const }}>Status</span>
-              </div>
+                         <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 120px 100px 120px 110px', gap: '0.5rem', padding: '0.75rem 1.25rem', background: '#f7f7f5', fontSize: '0.72rem', fontWeight: 600, color: '#a0a09a', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e0' }}>
+              <span>School</span>
+              <span style={{ textAlign: 'center' as const }}>Students</span>
+              <span style={{ textAlign: 'center' as const }}>Teachers</span>
+              <span style={{ textAlign: 'center' as const }}>Parents</span>
+              <span style={{ textAlign: 'center' as const }}>Exams</span>
+              <span style={{ textAlign: 'center' as const }}>Submissions</span>
+              <span style={{ textAlign: 'center' as const }}>Last activity</span>
+              <span style={{ textAlign: 'center' as const }}>Tier</span>
+              <span style={{ textAlign: 'center' as const }}>Status</span>
+              <span style={{ textAlign: 'center' as const }}>Proprietor</span>
+            </div>
 
               {schools.map((school, i) => (
-                <div key={school.id} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 120px 100px 120px', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
+                <div key={school.id} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 120px 100px 120px 110px', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
                   <div>
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}</p>
                     <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{school.subdomain}.examify.ng · {new Date(school.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
@@ -471,6 +546,12 @@ export default function SuperAdminDashboard() {
                       disabled={toggling === school.id}
                       style={{ padding: '0.3rem 0.75rem', border: 'none', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', background: school.is_active ? '#e8f5ee' : '#fef2f2', color: school.is_active ? '#0f4a32' : '#dc2626', opacity: toggling === school.id ? 0.6 : 1 }}>
                       {toggling === school.id ? '…' : school.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </div>
+                  <div style={{ textAlign: 'center' as const }}>
+                    <button onClick={() => openManageProprietor(school)}
+                      style={{ padding: '0.3rem 0.6rem', border: '1px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer' }}>
+                      👑 Manage
                     </button>
                   </div>
                 </div>
@@ -721,6 +802,94 @@ export default function SuperAdminDashboard() {
                     <p><strong>Temporary password:</strong> {createdAdminInfo.tempPassword}</p>
                   </div>
                   <button onClick={() => setShowAddAdminModal(false)}
+                    style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                    Done
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MANAGE PROPRIETOR MODAL */}
+        {managingSchool && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}
+            onClick={() => setManagingSchool(null)}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '1.75rem', width: 460, maxHeight: '85vh', overflowY: 'auto' as const }}
+              onClick={e => e.stopPropagation()}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.25rem' }}>👑 Proprietor — {managingSchool.name}</h2>
+              <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginBottom: '1.25rem' }}>Full oversight access, subscription control, and school-admin management for this school.</p>
+
+              {loadingProprietors ? (
+                <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Loading…</p>
+              ) : proprietors.length === 0 ? (
+                <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.25rem' }}>No proprietor account yet for this school.</p>
+              ) : (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  {proprietors.map(p => (
+                    <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #f0f0ee' }}>
+                      <div>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a18' }}>{p.full_name}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{p.email}</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700, background: p.is_active ? '#e8f5ee' : '#fef2f2', color: p.is_active ? '#0f4a32' : '#dc2626' }}>
+                          {p.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <button onClick={() => handleToggleProprietor(p.id)} disabled={togglingProprietor === p.id}
+                          style={{ padding: '0.35rem 0.7rem', border: '1px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', opacity: togglingProprietor === p.id ? 0.6 : 1 }}>
+                          {p.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => handleDeleteProprietor(p.id, p.full_name)} disabled={deletingProprietor === p.id}
+                          style={{ padding: '0.35rem 0.7rem', border: '1px solid #fecaca', borderRadius: '8px', background: 'white', color: '#dc2626', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', opacity: deletingProprietor === p.id ? 0.6 : 1 }}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <hr style={{ border: 'none', borderTop: '1px solid #f0f0ee', margin: '1rem 0' }} />
+
+              {!createdProprietorInfo ? (
+                <>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.875rem' }}>Add a new proprietor</p>
+                  <div style={{ marginBottom: '0.875rem' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Full name</label>
+                    <input value={newProprietor.full_name} onChange={e => setNewProprietor(prev => ({ ...prev, full_name: e.target.value }))}
+                      placeholder="e.g. Chief Adebayo Ogundimu"
+                      style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
+                  </div>
+                  <div style={{ marginBottom: '0.875rem' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Email</label>
+                    <input value={newProprietor.email} onChange={e => setNewProprietor(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="proprietor@example.com"
+                      style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem' }} />
+                  </div>
+                  {proprietorCreateError && (
+                    <p style={{ fontSize: '0.8rem', color: '#dc2626', background: '#fef2f2', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '0.875rem' }}>{proprietorCreateError}</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.6rem' }}>
+                    <button onClick={() => setManagingSchool(null)}
+                      style={{ flex: 1, padding: '0.65rem', background: '#f7f7f5', border: '1px solid #e5e5e0', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                      Close
+                    </button>
+                    <button onClick={handleCreateProprietor} disabled={creatingProprietor}
+                      style={{ flex: 1, padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: creatingProprietor ? 0.6 : 1 }}>
+                      {creatingProprietor ? 'Creating…' : 'Create proprietor'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f4a32', marginBottom: '0.75rem' }}>✅ Proprietor created</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#3a3a36', marginBottom: '1rem' }}>Share these login details:</p>
+                  <div style={{ background: '#f7f7f5', borderRadius: '8px', padding: '0.875rem', marginBottom: '1.25rem', fontSize: '0.825rem' }}>
+                    <p style={{ marginBottom: '0.4rem' }}><strong>Email:</strong> {createdProprietorInfo.email}</p>
+                    <p><strong>Temporary password:</strong> {createdProprietorInfo.tempPassword}</p>
+                  </div>
+                  <button onClick={() => setCreatedProprietorInfo(null)}
                     style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
                     Done
                   </button>
