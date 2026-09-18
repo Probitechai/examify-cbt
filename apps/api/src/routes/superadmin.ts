@@ -231,6 +231,73 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       ` as any[]
       return reply.send({ school: rows[0] })
     })
+
+  // ── List proprietor accounts for a specific school ────────────────────────
+  app.get('/superadmin/schools/:id/proprietors', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const rows = await db()`
+        SELECT id, full_name, email, is_active, created_at, last_login_at
+        FROM users WHERE school_id = ${id}::uuid AND role = 'proprietor'
+        ORDER BY created_at ASC
+      ` as any[]
+      return reply.send({ proprietors: rows })
+    })
+
+  // ── Create a proprietor account for a specific school ─────────────────────
+  app.post('/superadmin/schools/:id/proprietors', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const { full_name, email } = request.body as any
+      if (!full_name || !email) {
+        return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'full_name and email are required.' })
+      }
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailPattern.test(email)) {
+        return reply.status(400).send({ error: 'INVALID_EMAIL', message: 'Not a valid email address.' })
+      }
+      const schoolRows = await db()`SELECT id FROM schools WHERE id = ${id}::uuid` as any[]
+      if (!schoolRows[0]) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
+
+      const existing = await db()`SELECT id FROM users WHERE email = ${email.toLowerCase()}` as any[]
+      if (existing.length > 0) {
+        return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
+      }
+
+      const tempPassword = Math.random().toString(36).slice(-10)
+      const passwordHash = await bcrypt.hash(tempPassword, 10)
+      const rows = await db()`
+        INSERT INTO users (school_id, full_name, email, password_hash, role, is_active, must_change_password)
+        VALUES (${id}::uuid, ${full_name}, ${email.toLowerCase()}, ${passwordHash}, 'proprietor', true, true)
+        RETURNING id, full_name, email
+      ` as any[]
+      return reply.status(201).send({ proprietor: rows[0], tempPassword })
+    })
+
+  // ── Deactivate/reactivate a proprietor account ────────────────────────────
+  app.patch('/superadmin/proprietors/:proprietorId/toggle', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { proprietorId } = request.params as any
+      const rows = await db()`
+        UPDATE users SET is_active = NOT is_active
+        WHERE id = ${proprietorId}::uuid AND role = 'proprietor'
+        RETURNING id, full_name, is_active
+      ` as any[]
+      if (!rows[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+      return reply.send({ proprietor: rows[0] })
+    })
+
+  // ── Permanently delete a proprietor account ───────────────────────────────
+  app.delete('/superadmin/proprietors/:proprietorId', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { proprietorId } = request.params as any
+      const rows = await db()`
+        DELETE FROM users WHERE id = ${proprietorId}::uuid AND role = 'proprietor'
+        RETURNING id, full_name
+      ` as any[]
+      if (!rows[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+      return reply.send({ deleted: true, proprietor: rows[0] })
+    })
       // ── Change own password (superadmin) ──────────────────────────────────────
   app.patch('/superadmin/change-password', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
