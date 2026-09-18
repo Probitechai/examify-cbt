@@ -120,7 +120,7 @@ export function checkAuth(
       const map: Record<string, string> = {
         student: '/student', parent: '/parent',
         school_admin: '/admin', teacher: '/admin',
-        super_admin: '/superadmin',
+        super_admin: '/superadmin', proprietor: '/proprietor',
       }
       router.replace(map[p.role] ?? '/login')
     }
