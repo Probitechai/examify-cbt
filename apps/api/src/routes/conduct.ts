@@ -4,6 +4,16 @@ import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
 
+async function isClassTeacherFor(tdb: any, schoolId: string, teacherId: string, classLevel: string, classArm: string): Promise<boolean> {
+  const rows = await tdb.query`
+    SELECT 1 FROM class_teachers
+    WHERE school_id = ${schoolId}::uuid AND teacher_id = ${teacherId}::uuid
+    AND class_level = ${classLevel} AND class_arm = ${classArm}
+    LIMIT 1
+  ` as any[]
+  return rows.length > 0
+}
+
 export async function conductRoutes(app: FastifyInstance) {
 
   // ── Get conduct reports for a class/term ──────────────────────────────────
@@ -13,6 +23,17 @@ export async function conductRoutes(app: FastifyInstance) {
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel required' })
 
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        if (!classArm) {
+          return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Select the specific class arm you are the class teacher for.' })
+        }
+        const isClassTeacher = await isClassTeacherFor(tdb, request.schoolId, request.user.id, classLevel, classArm)
+        if (!isClassTeacher) {
+          return reply.status(403).send({ error: 'NOT_CLASS_TEACHER', message: 'You are not the class teacher for this class arm.' })
+        }
+      }
+
       let students: any[]
 
       if (classArm) {
@@ -68,6 +89,19 @@ export async function conductRoutes(app: FastifyInstance) {
       const d = body.data
       const tdb = tenantDb(request.schoolId)
 
+      if (request.user.role === 'teacher') {
+        const studentRows = await tdb.query`
+          SELECT class_level, class_arm FROM users
+          WHERE id = ${d.studentId}::uuid AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+        const student = studentRows[0]
+        if (!student) return reply.status(404).send({ error: 'STUDENT_NOT_FOUND' })
+        const isClassTeacher = await isClassTeacherFor(tdb, request.schoolId, request.user.id, student.class_level, student.class_arm)
+        if (!isClassTeacher) {
+          return reply.status(403).send({ error: 'NOT_CLASS_TEACHER', message: 'You are not the class teacher for this student\'s class.' })
+        }
+      }
+
       await tdb.query`
         INSERT INTO conduct_reports (
           school_id, term_id, student_id, entered_by,
@@ -114,6 +148,31 @@ export async function conductRoutes(app: FastifyInstance) {
 
       const d = body.data
       const tdb = tenantDb(request.schoolId)
+
+      if (request.user.role === 'teacher') {
+        const studentIds = d.reports.map(r => r.studentId)
+        const studentRows = await tdb.query`
+          SELECT id, class_level, class_arm FROM users
+          WHERE id = ANY(${studentIds}::uuid[]) AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+
+        const scopeCache: Record<string, boolean> = {}
+        const unauthorized: string[] = []
+        for (const s of studentRows) {
+          const key = `${s.class_level}|${s.class_arm}`
+          if (!(key in scopeCache)) {
+            scopeCache[key] = await isClassTeacherFor(tdb, request.schoolId, request.user.id, s.class_level, s.class_arm)
+          }
+          if (!scopeCache[key]) unauthorized.push(s.id)
+        }
+        if (unauthorized.length > 0) {
+          return reply.status(403).send({
+            error: 'NOT_CLASS_TEACHER',
+            message: `You are not the class teacher for ${unauthorized.length} of these students. No reports were saved.`,
+          })
+        }
+      }
+
       let saved = 0
 
       for (const r of d.reports) {
