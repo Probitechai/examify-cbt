@@ -17,7 +17,7 @@ async function isClassTeacherFor(tdb: any, schoolId: string, teacherId: string, 
 export async function conductRoutes(app: FastifyInstance) {
 
   // ── Get conduct reports for a class/term ──────────────────────────────────
-  app.get('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
+  app.get('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel required' })

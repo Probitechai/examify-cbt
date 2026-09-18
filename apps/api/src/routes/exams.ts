@@ -27,7 +27,7 @@ async function isExamOwnedByTeacher(tdb: any, schoolId: string, teacherId: strin
 export async function examRoutes(app: FastifyInstance) {
 
   // ── List exams (teacher/admin) ────────────────────────────────────────────
-  app.get('/exams', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/exams', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       let result: any[]
@@ -383,7 +383,7 @@ export async function examRoutes(app: FastifyInstance) {
     })
 
   // ── Exam results (teacher/admin) ──────────────────────────────────────────
-  app.get('/exams/:examId/results', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/exams/:examId/results', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const examId = (request.params as any).examId
       const tdb = tenantDb(request.schoolId)

@@ -106,7 +106,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
     })
 
   // ── Get attendance for a class on a specific date ─────────────────────────
-  app.get('/attendance', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/attendance', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { termId, date, classLevel, classArm } = request.query as any
       if (!termId || !date || !classLevel) {
@@ -234,7 +234,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
     })
 
   // ── Get attendance history for a class (by date range) ───────────────────
-  app.get('/attendance/history', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/attendance/history', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm, startDate, endDate } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel are required' })

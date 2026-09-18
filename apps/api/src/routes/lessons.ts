@@ -533,7 +533,7 @@ export async function lessonRoutes(app: FastifyInstance) {
     })
 
   // Get submissions for an assignment
-  app.get('/lessons/assignments/:assignmentId/submissions', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/lessons/assignments/:assignmentId/submissions', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { assignmentId } = request.params as any
       const aid = String(assignmentId)
@@ -597,7 +597,7 @@ export async function lessonRoutes(app: FastifyInstance) {
     })
 
   // Get completion stats for a lesson (teacher view)
-  app.get('/lessons/:id/completions', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/lessons/:id/completions', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const lid = String(id)

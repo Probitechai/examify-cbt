@@ -99,7 +99,7 @@ const CAMBRIDGE_SUBJECTS = [
 export async function curriculumRoutes(app: FastifyInstance) {
 
   // SETTINGS
-  app.get('/curriculum/settings', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/curriculum/settings', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
@@ -276,7 +276,7 @@ export async function curriculumRoutes(app: FastifyInstance) {
     })
 
   // GET SCHEME OF WORK
-  app.get('/curriculum/scheme', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/curriculum/scheme', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { subjectId, termId, classLevel } = request.query as any
       if (!subjectId || !termId || !classLevel) return reply.status(400).send({ error: 'subjectId, termId and classLevel required' })
@@ -427,7 +427,7 @@ export async function curriculumRoutes(app: FastifyInstance) {
     })
 
   // COVERAGE REPORT
-  app.get('/curriculum/coverage', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/curriculum/coverage', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { termId, classLevel } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel required' })

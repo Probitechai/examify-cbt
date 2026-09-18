@@ -7,7 +7,7 @@ export async function teacherAssignmentRoutes(app: FastifyInstance) {
 
   // List assignments — optionally filtered by teacherId (for the modal) or
   // by classLevel (for the management page's "view by class" mode)
-  app.get('/teacher-assignments', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/teacher-assignments', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { teacherId, classLevel } = request.query as any
       const tdb = tenantDb(request.schoolId)
