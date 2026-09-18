@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
@@ -43,6 +43,9 @@ const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ConductPage() {
   const router = useRouter()
+  const [role, setRole] = useState('school_admin')
+  const isTeacher = role === 'teacher'
+  const [myClassTeacherRoles, setMyClassTeacherRoles] = useState<{ class_level: string; class_arm: string }[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
@@ -57,7 +60,26 @@ export default function ConductPage() {
   const [error, setError] = useState('')
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+
+  useEffect(() => {
+    const payload = parseJWT(getToken())
+    const r = payload?.role ?? 'school_admin'
+    setRole(r)
+    if (r === 'teacher' && payload?.id) {
+      apiFetch(`${API}/class-teachers?teacherId=${payload.id}`)
+        .then(res => res.json())
+        .then(d => {
+          const list = (d.classTeachers ?? []).map((c: any) => ({ class_level: c.class_level, class_arm: c.class_arm }))
+          setMyClassTeacherRoles(list)
+          if (list.length > 0) {
+            setClassLevel(list[0].class_level)
+            setClassArm(list[0].class_arm)
+          }
+        })
+        .catch(console.error)
+    }
+  }, [])
 
   useEffect(() => { loadSessions() }, [])
 
@@ -89,6 +111,7 @@ export default function ConductPage() {
       if (classArm) params.append('classArm', classArm)
       const res = await apiFetch(`${API}/conduct?${params}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load students'); setLoading(false); return }
       const list = data.students ?? []
       setStudents(list)
 
@@ -125,14 +148,15 @@ export default function ConductPage() {
         leadership: localData[s.id]?.leadership || undefined,
         participation: localData[s.id]?.participation || undefined,
       }))
-      const res = await fetch(`${API}/conduct/bulk`, {
+      const res = await apiFetch(`${API}/conduct/bulk`, {
         method: 'POST',
         body: JSON.stringify({ termId: selectedTerm, reports })
       })
-      if (!res.ok) throw new Error('Failed to save')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Failed to save')
       setSaved(true); setTimeout(() => setSaved(false), 3000)
       loadStudents()
-    } catch { setError('Failed to save conduct reports') } finally { setSaving(false) }
+    } catch (e: any) { setError(e.message ?? 'Failed to save conduct reports') } finally { setSaving(false) }
   }
 
   function RatingButtons({ studentId, field }: { studentId: string; field: string }) {
@@ -161,6 +185,14 @@ export default function ConductPage() {
         <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Enter class teacher remarks and behaviour ratings for each student. These appear on the report card.</p>
       </div>
 
+      {isTeacher && myClassTeacherRoles.length === 0 ? (
+        <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' as const }}>
+          <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📝</p>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>You're not a class teacher yet</p>
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Ask your school admin to assign you as a class teacher under Teacher Assignments.</p>
+        </div>
+      ) : (
+      <>
       {/* Filter panel */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr) auto', gap: '1rem', alignItems: 'flex-end' }}>
@@ -180,15 +212,15 @@ export default function ConductPage() {
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Class</label>
-            <select style={sel} value={classLevel} onChange={e => setClassLevel(e.target.value)}>
-              {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
+            <select style={sel} value={classLevel} onChange={e => { setClassLevel(e.target.value); if (isTeacher) { const match = myClassTeacherRoles.find(r => r.class_level === e.target.value); setClassArm(match?.class_arm ?? '') } }}>
+              {(isTeacher ? [...new Set(myClassTeacherRoles.map(r => r.class_level))] : CLASS_LEVELS).map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Arm</label>
             <select style={sel} value={classArm} onChange={e => setClassArm(e.target.value)}>
-              <option value="">All arms</option>
-              {CLASS_ARMS.map(a => <option key={a}>{a}</option>)}
+              {!isTeacher && <option value="">All arms</option>}
+              {(isTeacher ? myClassTeacherRoles.filter(r => r.class_level === classLevel).map(r => r.class_arm) : CLASS_ARMS).map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
           <button onClick={loadStudents} disabled={loading}
@@ -293,6 +325,8 @@ export default function ConductPage() {
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>Select filters and click Load students</p>
           <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Enter remarks and ratings for each student. These will appear on their report card.</p>
         </div>
+      )}
+      </>
       )}
     </div>
   )
