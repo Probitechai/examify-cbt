@@ -34,7 +34,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   // ── SCHOOL SUBSCRIPTION ───────────────────────────────────────────────────
 
   // Initialize subscription payment
-  app.post('/paystack/subscription/initialize', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.post('/paystack/subscription/initialize', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         tier: z.enum(['basic', 'standard', 'premium', 'enterprise']),
@@ -119,7 +119,7 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Verify subscription payment
-  app.get('/paystack/subscription/verify', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/paystack/subscription/verify', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const { reference } = request.query as any
       if (!reference) return reply.status(400).send({ error: 'reference required' })
@@ -164,7 +164,7 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Get subscription history
-  app.get('/paystack/subscription/history', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/paystack/subscription/history', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const rows = await db()`
         SELECT id, amount, tier, term_name, status, paid_at, created_at
@@ -180,7 +180,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   const PLATFORM_MARKUP_PERCENT = 0.004 // 0.4%
 
   // Get list of Nigerian banks (for the bank selection dropdown)
-  app.get('/paystack/banks', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/paystack/banks', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const res = await paystackRequest('GET', '/bank?country=nigeria&currency=NGN')
       if (!res.status) return reply.status(500).send({ error: 'PAYSTACK_ERROR', message: res.message })
@@ -189,7 +189,7 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Verify an account number resolves to a real account before creating the subaccount
-  app.post('/paystack/resolve-account', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.post('/paystack/resolve-account', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         accountNumber: z.string().min(10).max(10),
@@ -206,7 +206,7 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Create the Paystack subaccount and switch this school to direct payments
-  app.post('/paystack/subaccount/create', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.post('/paystack/subaccount/create', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         accountNumber: z.string().min(10).max(10),
@@ -252,7 +252,7 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Switch back to receiving payments through Probitechai (doesn't delete the subaccount)
-  app.patch('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.patch('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const schema = z.object({ preference: z.enum(['direct', 'probitechai']) })
       const body = schema.safeParse(request.body)
@@ -270,7 +270,7 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Get current payment setup status (for the settings page to display)
-  app.get('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const rows = await db()`
         SELECT payment_preference, paystack_subaccount_code, paystack_subaccount_bank, paystack_subaccount_account_number

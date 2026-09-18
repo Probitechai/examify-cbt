@@ -17,7 +17,7 @@ app.get('/schools/public', async (request: any, reply: any) => {
 })
 
   // ── Get school settings ───────────────────────────────────────────────────
-  app.get('/schools/settings', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/schools/settings', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const rows = await db()`
         SELECT id, name, subdomain, logo_url, email, phone, subscription_tier
