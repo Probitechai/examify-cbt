@@ -237,7 +237,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const rows = await db()`
-        SELECT id, full_name, email, is_active, created_at, last_login_at
+        SELECT id, full_name, email, phone, is_active, created_at, last_login_at
         FROM users WHERE school_id = ${id}::uuid AND role = 'proprietor'
         ORDER BY created_at ASC
       ` as any[]
@@ -248,7 +248,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
   app.post('/superadmin/schools/:id/proprietors', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
-      const { full_name, email } = request.body as any
+      const { full_name, email, phone } = request.body as any
       if (!full_name || !email) {
         return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'full_name and email are required.' })
       }
@@ -267,9 +267,9 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       const tempPassword = Math.random().toString(36).slice(-10)
       const passwordHash = await bcrypt.hash(tempPassword, 10)
       const rows = await db()`
-        INSERT INTO users (school_id, full_name, email, password_hash, role, is_active, must_change_password)
-        VALUES (${id}::uuid, ${full_name}, ${email.toLowerCase()}, ${passwordHash}, 'proprietor', true, true)
-        RETURNING id, full_name, email
+        INSERT INTO users (school_id, full_name, email, phone, password_hash, role, is_active, must_change_password)
+        VALUES (${id}::uuid, ${full_name}, ${email.toLowerCase()}, ${phone ?? null}, ${passwordHash}, 'proprietor', true, true)
+        RETURNING id, full_name, email, phone
       ` as any[]
       return reply.status(201).send({ proprietor: rows[0], tempPassword })
     })
