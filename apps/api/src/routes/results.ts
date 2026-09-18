@@ -52,7 +52,7 @@ export async function resultRoutes(app: FastifyInstance) {
   }
 
   // ── List results ──────────────────────────────────────────────────────────
-  app.get('/results', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/results', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm, subject } = request.query as any
       if (!termId) return reply.status(400).send({ error: 'termId is required' })
@@ -113,7 +113,7 @@ export async function resultRoutes(app: FastifyInstance) {
     })
 
   // ── Get students for result entry ─────────────────────────────────────────
-  app.get('/results/entry', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/results/entry', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm, subject } = request.query as any
       if (!termId || !classLevel || !subject) {
@@ -384,7 +384,7 @@ export async function resultRoutes(app: FastifyInstance) {
     })
 
   // ── Broadsheet ────────────────────────────────────────────────────────────
-  app.get('/results/broadsheet', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/results/broadsheet', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel are required' })

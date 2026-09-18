@@ -8,7 +8,7 @@ import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
 export async function userRoutes(app: FastifyInstance) {
 
-  app.get('/users', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/users', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const users = await tdb.query`

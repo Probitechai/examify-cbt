@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 
-export type UserRole = 'super_admin' | 'school_admin' | 'teacher' | 'student' | 'parent'
+export type UserRole = 'super_admin' | 'school_admin' | 'teacher' | 'student' | 'parent' | 'proprietor'
 
 export async function authenticate(request: any, reply: FastifyReply) {
   try {
