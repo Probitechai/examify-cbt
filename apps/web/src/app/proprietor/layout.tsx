@@ -1,32 +1,40 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
 
 const NAV = [
   { href: '/proprietor', icon: '📊', label: 'Overview' },
-  { href: '/proprietor/curriculum', icon: '📚', label: 'Curriculum' },
-  { href: '/proprietor/exams', icon: '📝', label: 'Exams' },
-  { href: '/proprietor/results', icon: '📈', label: 'Results' },
-  { href: '/proprietor/attendance', icon: '📋', label: 'Attendance' },
-  { href: '/proprietor/conduct', icon: '🗒️', label: 'Conduct Reports' },
-  { href: '/proprietor/admissions', icon: '🎓', label: 'Admissions' },
-  { href: '/proprietor/hostels', icon: '🏠', label: 'Hostel Management' },
-  { href: '/proprietor/hostel-operations', icon: '🗝️', label: 'Hostel Operations' },
-  { href: '/proprietor/transport', icon: '🚌', label: 'Transport' },
-  { href: '/proprietor/transport-operations', icon: '🛠️', label: 'Transport Operations' },
-  { href: '/proprietor/students-staff', icon: '👥', label: 'Students & Staff' },
-  { href: '/proprietor/teacher-assignments', icon: '🧑‍🏫', label: 'Teacher Assignments' },
-  { href: '/proprietor/subscription', icon: '💳', label: 'Subscription & Billing' },
-  { href: '/proprietor/settings', icon: '⚙️', label: 'School Settings' },
-  { href: '/proprietor/admins', icon: '👤', label: 'Admin Accounts' },
+  { href: '/proprietor/curriculum', icon: '📚', label: 'Curriculum', group: 'academics' },
+  { href: '/proprietor/exams', icon: '📝', label: 'Exams', group: 'academics' },
+  { href: '/proprietor/results', icon: '📈', label: 'Results', group: 'academics' },
+  { href: '/proprietor/attendance', icon: '📋', label: 'Attendance', group: 'academics' },
+  { href: '/proprietor/conduct', icon: '🗒️', label: 'Conduct Reports', group: 'academics' },
+  { href: '/proprietor/admissions', icon: '🎓', label: 'Admissions', group: 'operations' },
+  { href: '/proprietor/hostels', icon: '🏠', label: 'Hostel Management', group: 'operations' },
+  { href: '/proprietor/hostel-operations', icon: '🗝️', label: 'Hostel Operations', group: 'operations' },
+  { href: '/proprietor/transport', icon: '🚌', label: 'Transport', group: 'operations' },
+  { href: '/proprietor/transport-operations', icon: '🛠️', label: 'Transport Operations', group: 'operations' },
+  { href: '/proprietor/students-staff', icon: '👥', label: 'Students & Staff', group: 'people' },
+  { href: '/proprietor/teacher-assignments', icon: '🧑‍🏫', label: 'Teacher Assignments', group: 'people' },
+  { href: '/proprietor/subscription', icon: '💳', label: 'Subscription & Billing', group: 'business' },
+  { href: '/proprietor/settings', icon: '⚙️', label: 'School Settings', group: 'business' },
+  { href: '/proprietor/admins', icon: '👤', label: 'Admin Accounts', group: 'business' },
 ]
+
+const GROUP_LABELS: Record<string, string> = {
+  academics: '🎓 ACADEMICS',
+  operations: '🏫 OPERATIONS',
+  people: '👥 PEOPLE',
+  business: '💼 BUSINESS',
+}
 
 export default function ProprietorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const { user, isLoading, hydrate, logout } = useAuthStore()
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -54,16 +62,43 @@ export default function ProprietorLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </div>
-        <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column' as const, gap: '0.25rem' }}>
-          {NAV.map(item => {
-            const active = pathname === item.href
-            return (
-              <Link key={item.href} href={item.href}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.75rem', borderRadius: 8, textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, background: active ? '#e8f5ee' : 'transparent', color: active ? '#0f4a32' : '#3a3a36' }}>
-                <span>{item.icon}</span><span>{item.label}</span>
-              </Link>
-            )
-          })}
+        <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column' as const, gap: '0.25rem', overflowY: 'auto' as const }}>
+          {(() => {
+            let lastGroup: string | undefined
+            return NAV.map(item => {
+              const isGroupStart = !!item.group && item.group !== lastGroup
+              lastGroup = item.group
+              const open = item.group ? (openGroups[item.group] ?? true) : true
+
+              if (item.group && !isGroupStart && !open) return null
+
+              const indent = item.group ? { paddingLeft: '1.5rem' } : {}
+              const groupKey = item.group as string
+
+              const header = isGroupStart ? (
+                <div key={`group-${groupKey}`}
+                  onClick={() => setOpenGroups(prev => ({ ...prev, [groupKey]: !open }))}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                  <span>{GROUP_LABELS[groupKey]}</span>
+                  <span style={{ fontSize: '0.65rem' }}>{open ? '▾' : '▸'}</span>
+                </div>
+              ) : null
+
+              if (item.group && !open) {
+                return <div key={`wrap-${item.href}`}>{header}</div>
+              }
+
+              const active = pathname === item.href
+              const navElement = (
+                <Link key={item.href} href={item.href}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.75rem', borderRadius: 8, textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, background: active ? '#e8f5ee' : 'transparent', color: active ? '#0f4a32' : '#3a3a36', ...indent }}>
+                  <span>{item.icon}</span><span>{item.label}</span>
+                </Link>
+              )
+
+              return header ? <div key={`wrap-${item.href}`}>{header}{navElement}</div> : navElement
+            })
+          })()}
         </nav>
         <div style={{ padding: '1rem 1.25rem 0', borderTop: '1px solid #f0f0ee' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.75rem' }}>
