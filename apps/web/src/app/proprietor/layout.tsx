@@ -8,6 +8,7 @@ const NAV = [
   { href: '/proprietor', icon: '📊', label: 'Overview' },
   { href: '/proprietor/subscription', icon: '💳', label: 'Subscription & Billing' },
   { href: '/proprietor/settings', icon: '⚙️', label: 'School Settings' },
+  { href: '/proprietor/admins', icon: '👤', label: 'Admin Accounts' },
 ]
 
 export default function ProprietorLayout({ children }: { children: React.ReactNode }) {
