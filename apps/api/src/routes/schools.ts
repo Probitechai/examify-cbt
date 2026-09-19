@@ -27,7 +27,7 @@ app.get('/schools/public', async (request: any, reply: any) => {
     })
 
   // ── Update school settings (logo, etc.) ───────────────────────────────────
-  app.patch('/schools/settings', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.patch('/schools/settings', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         logoUrl: z.string().url().optional(),
