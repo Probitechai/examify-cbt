@@ -9,7 +9,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMISSIONS SETTINGS ───────────────────────────────────────────────────
 
-  app.get('/admissions/settings', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.get('/admissions/settings', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
@@ -191,7 +191,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — LIST APPLICATIONS ─────────────────────────────────────────────
 
-  app.get('/admissions/applications', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.get('/admissions/applications', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireTier('premium')] },
     async (request: any, reply: any) => {
       const { status, appliedClass, search } = request.query as any
       const tdb = tenantDb(request.schoolId)
@@ -244,7 +244,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — GET SINGLE APPLICATION ────────────────────────────────────────
 
-  app.get('/admissions/applications/:id', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.get('/admissions/applications/:id', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireTier('premium')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const tdb = tenantDb(request.schoolId)
@@ -502,7 +502,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── STATS ─────────────────────────────────────────────────────────────────
 
-  app.get('/admissions/stats', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.get('/admissions/stats', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireTier('premium')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
