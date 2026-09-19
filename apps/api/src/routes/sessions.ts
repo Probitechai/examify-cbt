@@ -6,7 +6,7 @@ import { authenticate, requireRole } from '../middleware/auth'
 export async function sessionRoutes(app: FastifyInstance) {
 
   // ── List academic sessions ────────────────────────────────────────────────
-  app.get('/sessions', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/sessions', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const sessions = await tdb.query`
@@ -66,7 +66,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     })
 
   // ── List terms for a session ──────────────────────────────────────────────
-  app.get('/sessions/:sessionId/terms', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+  app.get('/sessions/:sessionId/terms', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { sessionId } = request.params as any
       const tdb = tenantDb(request.schoolId)
