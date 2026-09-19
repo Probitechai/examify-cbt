@@ -7,6 +7,7 @@ import { useAuthStore } from '../../hooks/useAuth'
 const NAV = [
   { href: '/proprietor', icon: '📊', label: 'Overview' },
   { href: '/proprietor/subscription', icon: '💳', label: 'Subscription & Billing' },
+  { href: '/proprietor/settings', icon: '⚙️', label: 'School Settings' },
 ]
 
 export default function ProprietorLayout({ children }: { children: React.ReactNode }) {
