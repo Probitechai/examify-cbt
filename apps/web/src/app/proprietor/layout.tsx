@@ -6,8 +6,13 @@ import { useAuthStore } from '../../hooks/useAuth'
 
 const NAV = [
   { href: '/proprietor', icon: '📊', label: 'Overview' },
+  { href: '/proprietor/curriculum', icon: '📚', label: 'Curriculum' },
+  { href: '/proprietor/exams', icon: '📝', label: 'Exams' },
   { href: '/proprietor/results', icon: '📈', label: 'Results' },
   { href: '/proprietor/attendance', icon: '📋', label: 'Attendance' },
+  { href: '/proprietor/conduct', icon: '🗒️', label: 'Conduct Reports' },
+  { href: '/proprietor/students-staff', icon: '👥', label: 'Students & Staff' },
+  { href: '/proprietor/teacher-assignments', icon: '🧑‍🏫', label: 'Teacher Assignments' },
   { href: '/proprietor/subscription', icon: '💳', label: 'Subscription & Billing' },
   { href: '/proprietor/settings', icon: '⚙️', label: 'School Settings' },
   { href: '/proprietor/admins', icon: '👤', label: 'Admin Accounts' },
