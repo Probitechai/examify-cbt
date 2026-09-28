@@ -2,8 +2,18 @@ import { sendSms, resultReleaseSms } from '../lib/sms'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
+import { asJson } from '../lib/json'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
+
+const DEFAULT_BOUNDARIES = [
+  { grade: 'A', min: 75, max: 100, remark: 'Excellent' },
+  { grade: 'B', min: 65, max: 74, remark: 'Very Good' },
+  { grade: 'C', min: 55, max: 64, remark: 'Good' },
+  { grade: 'D', min: 45, max: 54, remark: 'Fair' },
+  { grade: 'E', min: 40, max: 44, remark: 'Pass' },
+  { grade: 'F', min: 0, max: 39, remark: 'Fail' },
+]
 
 export async function resultRoutes(app: FastifyInstance) {
 
@@ -12,17 +22,15 @@ export async function resultRoutes(app: FastifyInstance) {
       SELECT ca_weight, exam_weight, grade_boundaries, show_position
       FROM result_configs WHERE school_id = ${schoolId}::uuid
     ` as any[]
-    if (rows[0]) return rows[0]
+    if (rows[0]) {
+      // Boundaries saved by older code came back as a JSON string, which graded everyone F
+      const gb = asJson<any>(rows[0].grade_boundaries, null)
+      if (Array.isArray(gb) && gb.length > 0) return { ...rows[0], grade_boundaries: gb }
+      return { ...rows[0], grade_boundaries: DEFAULT_BOUNDARIES }
+    }
     return {
       ca_weight: 40, exam_weight: 60, show_position: true,
-      grade_boundaries: [
-        { grade: 'A', min: 75, max: 100, remark: 'Excellent' },
-        { grade: 'B', min: 65, max: 74, remark: 'Very Good' },
-        { grade: 'C', min: 55, max: 64, remark: 'Good' },
-        { grade: 'D', min: 45, max: 54, remark: 'Fair' },
-        { grade: 'E', min: 40, max: 44, remark: 'Pass' },
-        { grade: 'F', min: 0, max: 39, remark: 'Fail' },
-      ]
+      grade_boundaries: DEFAULT_BOUNDARIES,
     }
   }
 

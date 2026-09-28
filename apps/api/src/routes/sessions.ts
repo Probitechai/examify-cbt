@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { tenantDb } from '../db/client'
+import { tenantDb, db } from '../db/client'
+import { asJson } from '../lib/json'
 import { authenticate, requireRole } from '../middleware/auth'
 
 export async function sessionRoutes(app: FastifyInstance) {
@@ -177,7 +178,7 @@ export async function sessionRoutes(app: FastifyInstance) {
           caWeight: rows[0].ca_weight,
           examWeight: rows[0].exam_weight,
           showPosition: rows[0].show_position,
-          gradeBoundaries: rows[0].grade_boundaries,
+          gradeBoundaries: asJson(rows[0].grade_boundaries, []),
         }
       })
     })
@@ -203,7 +204,7 @@ export async function sessionRoutes(app: FastifyInstance) {
 
       await tdb.query`
         INSERT INTO result_configs (school_id, ca_weight, exam_weight, show_position, grade_boundaries)
-        VALUES (${request.schoolId}::uuid, ${d.caWeight}, ${d.examWeight}, ${d.showPosition}, ${JSON.stringify(d.gradeBoundaries)}::jsonb)
+        VALUES (${request.schoolId}::uuid, ${d.caWeight}, ${d.examWeight}, ${d.showPosition}, ${db().json(d.gradeBoundaries)})
         ON CONFLICT (school_id) DO UPDATE SET
           ca_weight = EXCLUDED.ca_weight,
           exam_weight = EXCLUDED.exam_weight,

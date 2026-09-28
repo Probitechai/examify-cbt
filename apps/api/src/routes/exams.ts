@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
+import { asJson, mergeAnswers } from '../lib/json'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail, sendBulkEmails } from '../lib/email'
 import { resultReadyEmail, examReminderEmail } from '../emails/templates'
@@ -238,6 +239,7 @@ export async function examRoutes(app: FastifyInstance) {
       const ordered = session.question_order
         .map((qId: string) => questionRows.find((q: any) => q.id === qId))
         .filter(Boolean)
+        .map((q: any) => ({ ...q, options: asJson(q.options, null) }))
         .map((q: any) => isFinished ? q : { ...q, correct_answer: undefined })
 
       return reply.send({
@@ -246,7 +248,7 @@ export async function examRoutes(app: FastifyInstance) {
           status: session.status,
           serverDeadline: session.server_deadline,
           server_deadline: session.server_deadline,
-          answers: session.answers,
+          answers: mergeAnswers(session.answers),
         },
         questions: ordered,
         totalQuestions: ordered.length,
@@ -263,7 +265,7 @@ export async function examRoutes(app: FastifyInstance) {
 
       const tdb = tenantDb(request.schoolId)
       const sessionRows = await tdb.query`
-        SELECT id, status, server_deadline FROM exam_sessions
+        SELECT id, status, server_deadline, answers FROM exam_sessions
         WHERE id = ${sessionId}::uuid
         AND student_id = ${request.user.id}::uuid
       ` as any[]
@@ -273,12 +275,24 @@ export async function examRoutes(app: FastifyInstance) {
       if (session.status !== 'in_progress') return reply.status(400).send({ error: 'SESSION_NOT_ACTIVE' })
       if (new Date() > new Date(session.server_deadline)) return reply.status(410).send({ error: 'TIME_EXPIRED' })
 
-      await tdb.query`
-        UPDATE exam_sessions
-        SET answers = answers || ${JSON.stringify(body.data.answers)}::jsonb,
-            updated_at = now()
-        WHERE id = ${sessionId}::uuid
-      `
+      const current = session.answers
+      if (current && typeof current === 'object' && !Array.isArray(current)) {
+        await tdb.query`
+          UPDATE exam_sessions
+          SET answers = answers || ${db().json(body.data.answers)},
+              updated_at = now()
+          WHERE id = ${sessionId}::uuid
+        `
+      } else {
+        // Session saved by the old code (array of snapshots): rewrite it as one object
+        const merged = { ...mergeAnswers(current), ...body.data.answers }
+        await tdb.query`
+          UPDATE exam_sessions
+          SET answers = ${db().json(merged)},
+              updated_at = now()
+          WHERE id = ${sessionId}::uuid
+        `
+      }
       return reply.send({ saved: true })
     })
 
@@ -314,17 +328,7 @@ export async function examRoutes(app: FastifyInstance) {
 
       const exam = examRows[0]
 
-      let finalAnswers: Record<string, string> = {}
-      if (Array.isArray(session.answers)) {
-        for (const snapshot of session.answers) {
-          const parsed = typeof snapshot === 'string' ? JSON.parse(snapshot) : (snapshot ?? {})
-          Object.assign(finalAnswers, parsed)
-        }
-      } else if (typeof session.answers === 'string') {
-        finalAnswers = JSON.parse(session.answers)
-      } else {
-        finalAnswers = session.answers ?? {}
-      }
+      const finalAnswers = mergeAnswers(session.answers)
 
       let score = 0
       for (const q of questionRows) {

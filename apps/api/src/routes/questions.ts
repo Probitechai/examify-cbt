@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { tenantDb } from '../db/client'
+import { tenantDb, db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
 const questionSchema = z.object({
@@ -46,7 +46,7 @@ export async function questionRoutes(app: FastifyInstance) {
           question_text, options, correct_answer, explanation, marks, difficulty)
         VALUES (${request.schoolId}, ${request.user.id}, ${d.type}, ${d.subject}, ${d.classLevel},
           ${d.topic ?? null}, ${d.questionText},
-          ${d.options ? JSON.stringify(d.options) : null}::jsonb,
+          ${d.options ? db().json(d.options) : null}::jsonb,
           ${d.correctAnswer}, ${d.explanation ?? null}, ${d.marks}, ${d.difficulty ?? null})
         RETURNING id
       ` as any[]
