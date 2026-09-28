@@ -2,7 +2,7 @@
 import { useEffect, useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import { checkAuth } from '@/lib/auth'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 import { CLASS_ARMS } from '@/lib/classArms'
 import {
   call, money, today, downloadCsv, S, Pill, Field, Table, PageHeader, TermPicker, Modal,
@@ -11,10 +11,12 @@ import {
 import { PaymentForm, ReceiptCard, PaymentHistory, type ReceiptData } from '@/components/finance/payments'
 
 export default function LedgerPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const t = useTerms()
   const { access, readOnly } = useFinanceAccess()
   const [classLevel, setClassLevel] = useState('JSS1')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [rows, setRows] = useState<any[]>([])
   const [structures, setStructures] = useState<any[]>([])

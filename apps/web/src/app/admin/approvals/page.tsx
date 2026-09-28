@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 
 interface Session { id: string; name: string; is_active: boolean }
@@ -23,7 +24,6 @@ interface ResultRow {
   entered_by_name?: string
 }
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religious Studies','Civic Education','Commerce','Computer Science','Economics','English Language','Financial Accounting','French','Further Mathematics','Geography','Government','History','Home Economics','Islamic Religious Studies','Literature in English','Mathematics','Music','Physical Education','Physics','Technical Drawing']
 
 function getSubdomain() {
@@ -37,12 +37,14 @@ function getSubdomain() {
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ApprovalsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [subject, setSubject] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved'>('pending')

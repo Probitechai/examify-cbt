@@ -21,7 +21,7 @@ export async function classTeacherRoutes(app: FastifyInstance) {
           FROM class_teachers ct
           JOIN users u ON u.id = ct.teacher_id
           WHERE ct.school_id = ${request.schoolId}::uuid AND ct.teacher_id = ${request.user.id}::uuid
-          ORDER BY ct.class_level, ct.class_arm
+          ORDER BY class_level_rank(ct.class_level), ct.class_level, ct.class_arm
         ` as any[]
         return reply.send({ classTeachers: rows })
       }
@@ -34,7 +34,7 @@ export async function classTeacherRoutes(app: FastifyInstance) {
           FROM class_teachers ct
           JOIN users u ON u.id = ct.teacher_id
           WHERE ct.school_id = ${request.schoolId}::uuid AND ct.class_level = ${classLevel} AND ct.class_arm = ${classArm}
-          ORDER BY ct.class_level, ct.class_arm
+          ORDER BY class_level_rank(ct.class_level), ct.class_level, ct.class_arm
         ` as any[]
       } else {
         rows = await tdb.query`
@@ -42,7 +42,7 @@ export async function classTeacherRoutes(app: FastifyInstance) {
           FROM class_teachers ct
           JOIN users u ON u.id = ct.teacher_id
           WHERE ct.school_id = ${request.schoolId}::uuid
-          ORDER BY ct.class_level, ct.class_arm
+          ORDER BY class_level_rank(ct.class_level), ct.class_level, ct.class_arm
         ` as any[]
       }
       return reply.send({ classTeachers: rows })

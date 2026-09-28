@@ -2,10 +2,10 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 function getGrade(pct: number): { grade: string; color: string } {
   if (pct >= 70) return { grade: 'A', color: '#1a6b4a' }
@@ -16,6 +16,7 @@ function getGrade(pct: number): { grade: string; color: string } {
 }
 
 export default function GradebookPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
@@ -23,6 +24,7 @@ export default function GradebookPage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [selectedSubject, setSelectedSubject] = useState('')
   const [students, setStudents] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])

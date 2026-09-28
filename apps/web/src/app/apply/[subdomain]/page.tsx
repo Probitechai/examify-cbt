@@ -13,6 +13,7 @@ export default function PublicApplyPage() {
 
   const [schoolInfo, setSchoolInfo] = useState<any>(null)
   const [settings, setSettings] = useState<any>(null)
+  const [schoolLevels, setSchoolLevels] = useState<string[]>([])
   const [open, setOpen] = useState(true)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -38,14 +39,18 @@ export default function PublicApplyPage() {
 
   async function loadSchool() {
     try {
-      const res = await fetch(`${API}/admissions/public/${subdomain}`)
+      const [res, lv] = await Promise.all([
+        fetch(`${API}/admissions/public/${subdomain}`),
+        fetch(`${API}/schools/public/class-levels/${subdomain}`).then(r => (r.ok ? r.json() : null)).catch(() => null),
+      ])
       const data = await res.json()
       setOpen(data.open)
       setSchoolInfo(data.school)
       setSettings(data.settings)
-      if (data.settings?.applyForClasses?.length > 0) {
-        setForm(f => ({ ...f, appliedClass: data.settings.applyForClasses[0] }))
-      }
+      const levels: string[] = lv?.levels?.length ? lv.levels : ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+      setSchoolLevels(levels)
+      const offered: string[] = data.settings?.applyForClasses?.length > 0 ? data.settings.applyForClasses : levels
+      setForm(f => ({ ...f, appliedClass: offered[0] }))
     } catch { setError('Failed to load application form') } finally { setLoading(false) }
   }
 
@@ -217,7 +222,7 @@ export default function PublicApplyPage() {
                 <div><label style={lbl}>Applying for Class *</label>
                   <select style={sel} value={form.appliedClass} onChange={e => set('appliedClass', e.target.value)}>
                     <option value="">Select...</option>
-                    {(settings?.applyForClasses?.length > 0 ? settings.applyForClasses : ['JSS1','JSS2','JSS3','SS1','SS2','SS3']).map((c: string) => <option key={c}>{c}</option>)}
+                    {(settings?.applyForClasses?.length > 0 ? settings.applyForClasses : schoolLevels).map((c: string) => <option key={c}>{c}</option>)}
                   </select></div>
                 <div><label style={lbl}>Previous School</label><input style={inp} value={form.previousSchool} onChange={e => set('previousSchool', e.target.value)} /></div>
                 <div><label style={lbl}>Last Class Attended</label><input style={inp} value={form.previousClass} onChange={e => set('previousClass', e.target.value)} placeholder="e.g. JSS2" /></div>

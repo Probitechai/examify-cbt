@@ -2,7 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 
 type QType = 'mcq' | 'true_false' | 'short_answer' | 'fill_blank' | 'essay'
@@ -23,6 +23,7 @@ const inp = { padding: '0.625rem 0.875rem', background: '#f7f7f5', border: '1.5p
 const lbl = { fontSize: '0.825rem', fontWeight: 500 as const, color: '#1a1a18', display: 'block' as const, marginBottom: '0.4rem' }
 
 export default function NewQuestionPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +33,7 @@ export default function NewQuestionPage() {
   const [customSubject, setCustomSubject] = useState('')
   const [showCustom, setShowCustom] = useState(false)
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [difficulty, setDifficulty] = useState('medium')
   const [marks, setMarks] = useState(1)
   const [topic, setTopic] = useState('')

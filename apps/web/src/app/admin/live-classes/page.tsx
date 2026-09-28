@@ -2,10 +2,10 @@
 import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   scheduled: { label: 'Scheduled', color: '#1e40af', bg: '#eff6ff' },
@@ -29,6 +29,7 @@ function isStartable(scheduledAt: string): boolean {
 }
 
 export default function LiveClassesPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [role, setRole] = useState('school_admin')
   const isTeacher = role === 'teacher'
@@ -54,6 +55,7 @@ export default function LiveClassesPage() {
     title: '', description: '', classLevel: 'SS2', classArm: '',
     subjectId: '', termId: '', scheduledAt: '', durationMins: '40'
   })
+  useDefaultClass(CLASS_LEVELS, createForm.classLevel, v => setCreateForm((f: any) => ({ ...f, classLevel: v })))
 
   useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
 

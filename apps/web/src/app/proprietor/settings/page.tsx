@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import { SchoolSections } from '@/components/SchoolSections'
 
 function getSubdomain() {
   try {
@@ -97,6 +98,8 @@ export default function ProprietorSettingsPage() {
           </div>
         </div>
       </div>
+
+      <SchoolSections />
 
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>School Logo</h2>

@@ -2,12 +2,13 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useClassLevels } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function HostelPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [hostels, setHostels] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])

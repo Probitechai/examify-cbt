@@ -1,11 +1,17 @@
 import type { FastifyInstance } from 'fastify'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { tenantDb } from '../db/client'
+import { tenantDb, db } from '../db/client'
+import { levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
 import { getStudentLimit } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
+async function schoolLevels(schoolId: string): Promise<string[]> {
+  const rows = await db()`SELECT sections FROM schools WHERE id = ${schoolId}::uuid` as any[]
+  return levelsFor(asSections(rows[0]?.sections))
+}
+
 export async function userRoutes(app: FastifyInstance) {
 
   app.get('/users', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
@@ -43,6 +49,12 @@ export async function userRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: body.error.flatten() })
 
       const d = body.data
+      if (d.role === 'student' && d.classLevel) {
+        const levels = await schoolLevels(request.schoolId)
+        if (!levels.includes(d.classLevel)) {
+          return reply.status(400).send({ error: 'UNKNOWN_CLASS', message: `“${d.classLevel}” isn’t one of this school’s classes (${levels.join(', ')}).` })
+        }
+      }
       const passwordHash = await bcrypt.hash(d.password, 12)
       const tdb = tenantDb(request.schoolId)
 
@@ -107,8 +119,13 @@ export async function userRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
       let imported = 0
       const errors: string[] = []
+      const levels = await schoolLevels(request.schoolId)
 
       for (const s of body.data.students) {
+        if (!levels.includes(s.classLevel)) {
+          errors.push(`${s.email}: “${s.classLevel}” isn’t one of this school’s classes`)
+          continue
+        }
         try {
           const passwordHash = await bcrypt.hash(s.password, 12)
           await tdb.query`

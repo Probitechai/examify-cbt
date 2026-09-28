@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; is_active: boolean }
@@ -20,7 +21,6 @@ interface TimetableEntry {
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday']
 const PERIODS = [1,2,3,4,5,6,7,8]
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 const SUBJECTS = ['Agricultural Science','Biology','Chemistry','Christian Religious Studies','Civic Education','Commerce','Computer Science','Economics','English Language','Financial Accounting','French','Further Mathematics','Geography','Government','History','Home Economics','Islamic Religious Studies','Literature in English','Mathematics','Music','Physical Education','Physics','Technical Drawing','Assembly','Break','Lunch','Games','Library']
 
@@ -44,12 +44,14 @@ function getSubdomain() {
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function TimetablePage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('A')
   const [entries, setEntries] = useState<TimetableEntry[]>([])
   const [loading, setLoading] = useState(false)

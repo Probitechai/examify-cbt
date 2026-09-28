@@ -28,7 +28,7 @@ export async function teacherAssignmentRoutes(app: FastifyInstance) {
           FROM teacher_subject_assignments a
           JOIN users u ON u.id = a.teacher_id
           WHERE a.school_id = ${request.schoolId}::uuid AND a.teacher_id = ${teacherId}::uuid
-          ORDER BY a.class_level, a.class_arm, a.subject
+          ORDER BY class_level_rank(a.class_level), a.class_level, a.class_arm, a.subject
         `
       } else if (classLevel) {
         rows = await tdb.query`
@@ -46,7 +46,7 @@ export async function teacherAssignmentRoutes(app: FastifyInstance) {
           FROM teacher_subject_assignments a
           JOIN users u ON u.id = a.teacher_id
           WHERE a.school_id = ${request.schoolId}::uuid
-          ORDER BY u.full_name, a.class_level, a.class_arm, a.subject
+          ORDER BY u.full_name, class_level_rank(a.class_level), a.class_level, a.class_arm, a.subject
         `
       }
 

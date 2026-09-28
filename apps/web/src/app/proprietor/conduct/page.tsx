@@ -2,7 +2,7 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 import { CLASS_ARMS } from '@/lib/classArms'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -10,12 +10,14 @@ const sel = { padding: '0.5rem 0.625rem', background: '#f7f7f5', border: '1.5px 
 const lbl = { fontSize: '0.72rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.3rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }
 
 export default function ProprietorConductPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)

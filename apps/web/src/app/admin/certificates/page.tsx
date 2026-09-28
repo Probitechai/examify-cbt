@@ -2,12 +2,13 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function CertificatesPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [certificates, setCertificates] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
@@ -17,6 +18,7 @@ export default function CertificatesPage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')

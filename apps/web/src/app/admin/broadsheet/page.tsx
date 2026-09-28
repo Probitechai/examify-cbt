@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -25,7 +26,6 @@ interface Broadsheet {
   config: { caWeight: number; examWeight: number; showPosition: boolean }
 }
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 
 function getSubdomain() {
@@ -47,6 +47,7 @@ function gradeColor(grade: string) {
 }
 
 export default function BroadsheetPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const printRef = useRef<HTMLDivElement>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -54,6 +55,7 @@ export default function BroadsheetPage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [broadsheet, setBroadsheet] = useState<Broadsheet | null>(null)
   const [loading, setLoading] = useState(false)

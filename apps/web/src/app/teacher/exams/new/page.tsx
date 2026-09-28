@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './new-exam.module.css'
 import { CLASS_ARMS } from '../../../../lib/classArms'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const QUESTIONS_POOL = [
   { id: '1', questionText: 'Choose the sentence with the correct use of the apostrophe.', topic: 'Grammar', difficulty: 'medium', marks: 1 },
@@ -25,6 +25,7 @@ const STEPS: { key: Step; label: string }[] = [
 ]
 
 export default function NewExamPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [step, setStep] = useState<Step>('details')
   const [publishing, setPublishing] = useState(false)
@@ -40,6 +41,7 @@ export default function NewExamPage() {
     instructions: '',
     passMark: 50,
   })
+  useDefaultClass(CLASS_LEVELS, details.classLevel, v => setDetails((f: any) => ({ ...f, classLevel: v })))
 
   const [selectedQIds, setSelectedQIds] = useState<Set<string>>(new Set())
   const [topicFilter, setTopicFilter] = useState('')

@@ -2,16 +2,18 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ProprietorTeacherAssignmentsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [view, setView] = useState<'teacher' | 'class'>('teacher')
   const [teachers, setTeachers] = useState<any[]>([])
   const [selectedTeacher, setSelectedTeacher] = useState('')
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 

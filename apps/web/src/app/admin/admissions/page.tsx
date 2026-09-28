@@ -20,10 +20,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 }
 
 import { NIGERIAN_LGAS } from '../students/lga-data'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 const NIGERIAN_STATES = Object.keys(NIGERIAN_LGAS).sort()
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function AdmissionsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [stats, setStats] = useState<any>(null)
   const [applications, setApplications] = useState<any[]>([])
@@ -36,6 +37,7 @@ export default function AdmissionsPage() {
 
   // Add applicant form
   const [addForm, setAddForm] = useState({ firstName: '', lastName: '', middleName: '', dateOfBirth: '', gender: '', appliedClass: 'JSS1', previousSchool: '', parentName: '', parentEmail: '', parentPhone: '', parentRelationship: 'parent', stateOfOrigin: '' })
+  useDefaultClass(CLASS_LEVELS, addForm.appliedClass, v => setAddForm((f: any) => ({ ...f, appliedClass: v })))
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
 

@@ -114,7 +114,7 @@ export async function resultRoutes(app: FastifyInstance) {
                  u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm
           FROM student_results sr JOIN users u ON u.id = sr.student_id
           WHERE sr.term_id = ${termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
-          ORDER BY u.class_level, u.class_arm, u.full_name, sr.subject
+          ORDER BY class_level_rank(u.class_level), u.class_level, u.class_arm, u.full_name, sr.subject
         ` as any[]
       }
       return reply.send({ results })

@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; is_active: boolean }
@@ -26,7 +27,6 @@ interface AttendanceSummary {
   total_days: number
 }
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const STATUS_CONFIG = {
   present: { label: 'Present', color: '#0f4a32', bg: '#e8f5ee', icon: '✓' },
   absent:  { label: 'Absent',  color: '#dc2626', bg: '#fef2f2', icon: '✗' },
@@ -49,6 +49,7 @@ function today() {
 }
 
 export default function AttendancePage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [role, setRole] = useState('school_admin')
   const isTeacher = role === 'teacher'
@@ -58,6 +59,7 @@ export default function AttendancePage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [date, setDate] = useState(today())
   const [activeTab, setActiveTab] = useState<'mark' | 'summary'>('mark')

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './users.module.css'
 import { CLASS_ARMS } from '@/lib/classArms'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 import { getSubjects } from '@/lib/subjects'
 
 interface User {
@@ -271,11 +271,13 @@ export default function UsersPage() {
 }
 
 function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const CLASS_LEVELS = useClassLevels()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [linkedStudentId, setLinkedStudentId] = useState('')
   const [students, setStudents] = useState<any[]>([])
   const [assignClassLevel, setAssignClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, assignClassLevel, setAssignClassLevel)
   const [assignClassArm, setAssignClassArm] = useState('')
   const [assignSubject, setAssignSubject] = useState('')
   const subjects = getSubjects()
@@ -283,6 +285,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     role: 'student', fullName: '', email: '', password: 'Student@1234',
     admissionNo: '', classLevel: 'SS2', classArm: 'A', phone: '', dateOfBirth: '',
   })
+  useDefaultClass(CLASS_LEVELS, form.classLevel, v => setForm((f: any) => ({ ...f, classLevel: v })))
 
   function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
 
@@ -413,7 +416,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
                 <div>
                   <label style={lbl}>Class level</label>
                   <select style={inp} value={form.classLevel} onChange={e => set('classLevel', e.target.value)}>
-                    {['JSS1','JSS2','JSS3','SS1','SS2','SS3'].map(c => <option key={c}>{c}</option>)}
+                    {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                                 <div>

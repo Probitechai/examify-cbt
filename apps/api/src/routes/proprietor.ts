@@ -449,7 +449,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
         FROM users
         WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
         GROUP BY class_level
-        ORDER BY class_level
+        ORDER BY class_level_rank(class_level), class_level
       ` as any[]
       const totalStudents = enrollmentRows.reduce((s: number, r: any) => s + Number(r.count), 0)
 

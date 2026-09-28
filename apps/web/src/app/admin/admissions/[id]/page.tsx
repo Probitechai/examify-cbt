@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useClassLevels } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -36,6 +37,7 @@ const NEXT_ACTIONS: Record<string, { label: string; nextStatus: string; color: s
 }
 
 export default function ApplicationDetailPage() {
+  const CLASS_LEVELS = useClassLevels()
   const params = useParams()
   const router = useRouter()
   const applicantId = params.id as string
@@ -351,7 +353,8 @@ export default function ApplicationDetailPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div><label style={lbl}>Class Level *</label>
                   <select style={sel} value={enrollForm.classLevel} onChange={e => setEnrollForm(f => ({ ...f, classLevel: e.target.value }))}>
-                    {['JSS1','JSS2','JSS3','SS1','SS2','SS3'].map(c => <option key={c}>{c}</option>)}
+                    <option value="">Choose a class</option>
+                    {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                   </select></div>
                 <div><label style={lbl}>Class Arm</label><input style={inp} value={enrollForm.classArm} onChange={e => setEnrollForm(f => ({ ...f, classArm: e.target.value }))} placeholder="e.g. A, B, Science" /></div>
               </div>

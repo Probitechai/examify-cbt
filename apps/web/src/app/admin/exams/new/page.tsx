@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation'
 import { api } from '../../../../lib/api'
 import styles from './new-exam.module.css'
 import { CLASS_ARMS } from '@/lib/classArms'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 export const dynamic = 'force-dynamic'
 
 type Step = 'details' | 'questions' | 'review'
 
 export default function AdminNewExamPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [role, setRole] = useState('school_admin')
   const isTeacher = role === 'teacher'
@@ -37,6 +38,7 @@ export default function AdminNewExamPage() {
     randomiseOptions: true,
     showResultAfter: true,
   })
+  useDefaultClass(CLASS_LEVELS, details.classLevel, v => setDetails((f: any) => ({ ...f, classLevel: v })))
 
   const [selectedQIds, setSelectedQIds] = useState<Set<string>>(new Set())
   const [subjectFilter, setSubjectFilter] = useState('')

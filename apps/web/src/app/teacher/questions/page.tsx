@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './questions.module.css'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels } from '@/lib/classLevels'
 
 interface Question {
   id: string
@@ -28,6 +28,7 @@ const MOCK_QUESTIONS: Question[] = [
 const DIFF_COLORS: Record<string, string> = { easy: styles.diffEasy, medium: styles.diffMedium, hard: styles.diffHard }
 
 export default function QuestionsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [questions, setQuestions] = useState(MOCK_QUESTIONS)
   const [search, setSearch] = useState('')

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { tenantDb } from '../db/client'
+import { tenantDb, db } from '../db/client'
+import { levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
 
@@ -96,6 +97,75 @@ const CAMBRIDGE_SUBJECTS = [
   { name: 'Art & Design', category: 'elective', levels: ['SS1','SS2','SS3'] },
 ]
 
+// ── Nursery & Primary (loaded only for schools that run those sections) ─────
+const NURSERY = ['Creche', 'Pre-Nursery', 'Nursery 1', 'Nursery 2']
+const NURSERY_UP = ['Pre-Nursery', 'Nursery 1', 'Nursery 2']
+const PRIMARY = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6']
+const PRIMARY_UPPER = ['Primary 4', 'Primary 5', 'Primary 6']
+
+const NIGERIAN_NURSERY = [
+  { name: 'Numeracy', category: 'core', levels: NURSERY },
+  { name: 'Literacy', category: 'core', levels: NURSERY },
+  { name: 'Phonics', category: 'core', levels: NURSERY_UP },
+  { name: 'Rhymes and Songs', category: 'core', levels: NURSERY },
+  { name: 'Social Habits', category: 'core', levels: NURSERY },
+  { name: 'Health Habits', category: 'core', levels: NURSERY },
+  { name: 'Basic Science', category: 'core', levels: NURSERY_UP },
+  { name: 'Creative Arts', category: 'elective', levels: NURSERY },
+  { name: 'Handwriting', category: 'elective', levels: NURSERY_UP },
+  { name: 'Physical Development', category: 'elective', levels: NURSERY },
+]
+const NIGERIAN_PRIMARY = [
+  { name: 'English Studies', category: 'core', levels: PRIMARY },
+  { name: 'Mathematics', category: 'core', levels: PRIMARY },
+  { name: 'Basic Science and Technology', category: 'core', levels: PRIMARY },
+  { name: 'Social and Citizenship Studies', category: 'core', levels: PRIMARY },
+  { name: 'Nigerian History', category: 'core', levels: PRIMARY },
+  { name: 'Cultural and Creative Arts', category: 'core', levels: PRIMARY },
+  { name: 'Physical and Health Education', category: 'core', levels: PRIMARY },
+  { name: 'Pre-Vocational Studies', category: 'core', levels: PRIMARY_UPPER },
+  { name: 'Quantitative Reasoning', category: 'elective', levels: PRIMARY },
+  { name: 'Verbal Reasoning', category: 'elective', levels: PRIMARY },
+  { name: 'Christian Religious Studies', category: 'elective', levels: PRIMARY },
+  { name: 'Islamic Religious Studies', category: 'elective', levels: PRIMARY },
+  { name: 'Nigerian Language', category: 'elective', levels: PRIMARY },
+  { name: 'French', category: 'elective', levels: PRIMARY },
+  { name: 'Computer Studies', category: 'elective', levels: PRIMARY },
+  { name: 'Handwriting', category: 'elective', levels: ['Primary 1', 'Primary 2', 'Primary 3'] },
+]
+const EYFS = [
+  { name: 'Communication and Language', category: 'core', levels: NURSERY },
+  { name: 'Personal, Social and Emotional Development', category: 'core', levels: NURSERY },
+  { name: 'Physical Development', category: 'core', levels: NURSERY },
+  { name: 'Literacy', category: 'core', levels: NURSERY },
+  { name: 'Mathematics', category: 'core', levels: NURSERY },
+  { name: 'Understanding the World', category: 'core', levels: NURSERY },
+  { name: 'Expressive Arts and Design', category: 'core', levels: NURSERY },
+]
+const BRITISH_PRIMARY = [
+  { name: 'English', category: 'core', levels: PRIMARY },
+  { name: 'Mathematics', category: 'core', levels: PRIMARY },
+  { name: 'Science', category: 'core', levels: PRIMARY },
+  { name: 'Computing', category: 'elective', levels: PRIMARY },
+  { name: 'History', category: 'elective', levels: PRIMARY },
+  { name: 'Geography', category: 'elective', levels: PRIMARY },
+  { name: 'Art & Design', category: 'elective', levels: PRIMARY },
+  { name: 'Music', category: 'elective', levels: PRIMARY },
+  { name: 'Physical Education', category: 'elective', levels: PRIMARY },
+  { name: 'Modern Foreign Languages', category: 'elective', levels: PRIMARY },
+  { name: 'PSHE', category: 'elective', levels: PRIMARY },
+]
+const CAMBRIDGE_PRIMARY = [
+  { name: 'English', category: 'core', levels: PRIMARY },
+  { name: 'Mathematics', category: 'core', levels: PRIMARY },
+  { name: 'Science', category: 'core', levels: PRIMARY },
+  { name: 'Computing', category: 'elective', levels: PRIMARY },
+  { name: 'Global Perspectives', category: 'elective', levels: PRIMARY },
+  { name: 'Art & Design', category: 'elective', levels: PRIMARY },
+  { name: 'Music', category: 'elective', levels: PRIMARY },
+  { name: 'Physical Education', category: 'elective', levels: PRIMARY },
+]
+
 export async function curriculumRoutes(app: FastifyInstance) {
 
   // SETTINGS
@@ -145,21 +215,35 @@ export async function curriculumRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
       let subjects: any[] = []
       if (ct === 'nigerian') {
-        subjects = [...NIGERIAN_JSS, ...NIGERIAN_SS]
+        subjects = [...NIGERIAN_NURSERY, ...NIGERIAN_PRIMARY, ...NIGERIAN_JSS, ...NIGERIAN_SS]
       } else if (ct === 'british') {
-        subjects = BRITISH_SUBJECTS
+        subjects = [...EYFS, ...BRITISH_PRIMARY, ...BRITISH_SUBJECTS]
       } else if (ct === 'cambridge') {
-        subjects = CAMBRIDGE_SUBJECTS
+        subjects = [...EYFS, ...CAMBRIDGE_PRIMARY, ...CAMBRIDGE_SUBJECTS]
+      }
+      // Only the classes this school actually runs
+      const [sch] = await db()`SELECT sections FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
+      const offered = new Set(levelsFor(asSections(sch?.sections)))
+      // The same subject name can appear in several sections (e.g. Mathematics): merge its classes
+      const merged = new Map<string, { name: string; category: string; levels: string[] }>()
+      for (const s of subjects) {
+        const lv = s.levels.filter((l: string) => offered.has(l))
+        if (!lv.length) continue
+        const cur = merged.get(s.name)
+        if (cur) cur.levels = [...new Set([...cur.levels, ...lv])]
+        else merged.set(s.name, { name: s.name, category: s.category, levels: lv })
       }
       let loaded = 0
-      for (const s of subjects) {
+      for (const s of merged.values()) {
         const sname = s.name
         const scat = s.category
         const slev = s.levels
+        // Re-loading adds any new classes to a subject the school already has
         await tdb.query`
           INSERT INTO curriculum_subjects (school_id, name, category, class_levels, curriculum_type)
           VALUES (${request.schoolId}::uuid, ${sname}, ${scat}, ${slev}, ${ct})
-          ON CONFLICT (school_id, name, curriculum_type) DO NOTHING
+          ON CONFLICT (school_id, name, curriculum_type) DO UPDATE SET
+            class_levels = ARRAY(SELECT x FROM (SELECT DISTINCT unnest(curriculum_subjects.class_levels || EXCLUDED.class_levels) AS x) d ORDER BY class_level_rank(x), x)
         `
         loaded++
       }

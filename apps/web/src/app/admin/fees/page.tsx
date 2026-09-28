@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { useFinanceAccess, AccessBanner } from '@/components/finance/ui'
 import { EnrollmentModal } from '@/components/finance/enrollment'
+import { useClassLevels, useDefaultClass, useSchoolSections, SECTIONS, SECTION_NAMES, type Section } from '@/lib/classLevels'
 
 function hdrs() {
   return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
@@ -33,7 +34,6 @@ interface SummaryRow {
   total_outstanding: number
 }
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 
 function getSubdomain() {
@@ -51,12 +51,14 @@ function formatAmount(n: number) {
 }
 
 export default function FeesPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [activeTab, setActiveTab] = useState<'structures' | 'ledger' | 'summary'>('structures')
 
@@ -66,9 +68,11 @@ export default function FeesPage() {
   const [feeName, setFeeName] = useState('')
   const [feeAmount, setFeeAmount] = useState('')
   const [feeClassLevel, setFeeClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, feeClassLevel, setFeeClassLevel)
   const [feeMandatory, setFeeMandatory] = useState(true)
   const [savingStructure, setSavingStructure] = useState(false)
-    const [applyToAllClasses, setApplyToAllClasses] = useState(false)
+  const [feeScope, setFeeScope] = useState('class')   // 'class' | 'all' | a section
+  const { sections } = useSchoolSections()
 
   // Ledger
   const [ledger, setLedger] = useState<LedgerRow[]>([])
@@ -145,16 +149,17 @@ export default function FeesPage() {
         headers: hdrs(),
         body: JSON.stringify({
           termId: selectedTerm,
-          classLevel: applyToAllClasses ? undefined : feeClassLevel,
-          applyToAllClasses,
+          classLevel: feeScope === 'class' ? feeClassLevel : undefined,
+          applyToAllClasses: feeScope === 'all',
+          applyToSection: SECTIONS.includes(feeScope as Section) ? feeScope : undefined,
           name: feeName,
           amount: parseFloat(feeAmount),
           isMandatory: feeMandatory,
         })
       })
       if (!res.ok) throw new Error('Failed')
-      setFeeName(''); setFeeAmount(''); setShowStructureForm(false); setApplyToAllClasses(false)
-      setSuccess(applyToAllClasses ? 'Fee added to all classes!' : 'Fee structure created!')
+      setFeeName(''); setFeeAmount(''); setShowStructureForm(false); setFeeScope('class')
+      setSuccess(feeScope === 'class' ? 'Fee structure created!' : feeScope === 'all' ? 'Fee added to all classes!' : `Fee added to every ${SECTION_NAMES[feeScope as Section]} class!`)
       setTimeout(() => setSuccess(''), 3000)
       loadStructures()
     } catch { setError('Failed to create fee structure') } finally { setSavingStructure(false) }
@@ -336,7 +341,7 @@ export default function FeesPage() {
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }}>Class level</label>
-                  <select style={sel} value={feeClassLevel} onChange={e => setFeeClassLevel(e.target.value)} disabled={applyToAllClasses}>
+                  <select style={sel} value={feeClassLevel} onChange={e => setFeeClassLevel(e.target.value)} disabled={feeScope !== 'class'}>
                     {CLASS_LEVELS.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
@@ -346,8 +351,12 @@ export default function FeesPage() {
                 <label htmlFor="mandatory" style={{ fontSize: '0.875rem', color: '#1a1a18', cursor: 'pointer' }}>Mandatory fee</label>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <input type="checkbox" id="allClasses" checked={applyToAllClasses} onChange={e => setApplyToAllClasses(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#1a6b4a' }} />
-                <label htmlFor="allClasses" style={{ fontSize: '0.875rem', color: '#1a1a18', cursor: 'pointer' }}>Apply to all classes (JSS1–SS3)</label>
+                <label htmlFor="feeScope" style={{ fontSize: '0.875rem', color: '#1a1a18' }}>Apply to</label>
+                <select id="feeScope" style={{ ...sel, width: 'auto' }} value={feeScope} onChange={e => setFeeScope(e.target.value)}>
+                  <option value="class">The class above only</option>
+                  {sections.length > 1 && sections.map(sec => <option key={sec} value={sec}>Every {SECTION_NAMES[sec]} class</option>)}
+                  <option value="all">All classes</option>
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={handleCreateStructure} disabled={savingStructure}

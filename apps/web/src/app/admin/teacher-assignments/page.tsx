@@ -2,7 +2,7 @@
 import { getToken, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { getSubjects } from '@/lib/subjects'
 
@@ -25,19 +25,23 @@ const inp = { padding: '0.625rem 0.875rem', background: 'white', border: '1.5px 
 const lbl = { fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }
 
 export default function TeacherAssignmentsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [view, setView] = useState<'teacher' | 'class' | 'classTeacher'>('teacher')
   const [classTeachers, setClassTeachers] = useState<{ id: string; teacher_id: string; teacher_name: string; class_level: string; class_arm: string }[]>([])
   const [ctForm, setCtForm] = useState({ classLevel: 'SS2', classArm: 'A', teacherId: '' })
+  useDefaultClass(CLASS_LEVELS, ctForm.classLevel, v => setCtForm((f: any) => ({ ...f, classLevel: v })))
   const [savingCt, setSavingCt] = useState(false)
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [selectedTeacher, setSelectedTeacher] = useState('')
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ classLevel: 'SS2', classArm: '', subject: 'Mathematics' })
+  useDefaultClass(CLASS_LEVELS, form.classLevel, v => setForm((f: any) => ({ ...f, classLevel: v })))
   const subjects = getSubjects()
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])

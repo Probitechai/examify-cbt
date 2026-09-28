@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { tenantDb } from '../db/client'
+import { tenantDb, db } from '../db/client'
+import { SECTION_LEVELS, levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
 import { getFinanceAccess, requireFinanceRead, requireFinanceWrite } from '../middleware/finance'
@@ -43,7 +44,7 @@ export async function feeRoutes(app: FastifyInstance) {
           FROM fee_structures
           WHERE school_id = ${request.schoolId}::uuid
           AND term_id = ${termId}::uuid
-          ORDER BY class_level, is_mandatory DESC, name ASC
+          ORDER BY class_level_rank(class_level), class_level, is_mandatory DESC, name ASC
         ` as any[]
       } else {
         structures = await tdb.query`
@@ -51,7 +52,7 @@ export async function feeRoutes(app: FastifyInstance) {
                  (SELECT COUNT(*) FROM fee_optional_enrollments e WHERE e.fee_structure_id = fee_structures.id) AS enrolled_count
           FROM fee_structures
           WHERE school_id = ${request.schoolId}::uuid
-          ORDER BY class_level, is_mandatory DESC, name ASC
+          ORDER BY class_level_rank(class_level), class_level, is_mandatory DESC, name ASC
         ` as any[]
       }
       return reply.send({ structures })
@@ -64,6 +65,7 @@ export async function feeRoutes(app: FastifyInstance) {
         termId: z.string().uuid(),
         classLevel: z.string().min(1).optional(),
         applyToAllClasses: z.boolean().optional().default(false),
+        applyToSection: z.enum(['nursery', 'primary', 'secondary']).optional(),
         name: z.string().min(1),
         amount: z.number().positive(),
         isMandatory: z.boolean().default(true),
@@ -72,13 +74,22 @@ export async function feeRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
 
       const d = body.data
-      if (!d.applyToAllClasses && !d.classLevel) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'classLevel is required unless applyToAllClasses is true.' })
+      if (!d.applyToAllClasses && !d.applyToSection && !d.classLevel) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Choose a class, a section, or all classes.' })
       }
 
-      const ALL_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+      // "All classes" and "whole section" mean the classes this school runs
+      const [sch] = await db()`SELECT sections FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
+      const schoolSections = asSections(sch?.sections)
+      const schoolLevels = levelsFor(schoolSections)
       let levels: string[] = [d.classLevel as string]
-      if (d.applyToAllClasses) levels = ALL_LEVELS
+      if (d.applyToAllClasses) levels = schoolLevels
+      else if (d.applyToSection) {
+        if (!schoolSections.includes(d.applyToSection)) {
+          return reply.status(400).send({ error: 'SECTION_NOT_OFFERED', message: 'This school doesn’t run that section.' })
+        }
+        levels = [...SECTION_LEVELS[d.applyToSection]]
+      }
 
       const tdb = tenantDb(request.schoolId)
       const created = await tdb.transaction(async (tx: any) => {
@@ -545,7 +556,7 @@ export async function feeRoutes(app: FastifyInstance) {
         LEFT JOIN counts c USING (class_level)
         LEFT JOIN paid   p USING (class_level)
         LEFT JOIN waived w USING (class_level)
-        ORDER BY f.class_level
+        ORDER BY class_level_rank(f.class_level), f.class_level
       ` as any[]
 
       return reply.send({ summary })

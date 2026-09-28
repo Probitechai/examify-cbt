@@ -16,6 +16,7 @@ interface School {
   subdomain: string
   is_active: boolean
   subscription_tier: string
+  sections?: string[]
   created_at: string
   student_count: number
   teacher_count: number
@@ -49,6 +50,9 @@ function getSubdomain() {
   } catch {}
   return 'greensprings'
 }
+const SECTION_KEYS = ['nursery', 'primary', 'secondary']
+const SECTION_LABEL: Record<string, string> = { nursery: 'Nursery', primary: 'Primary', secondary: 'Secondary' }
+
 function hdrs() {
   return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
 }
@@ -69,6 +73,7 @@ export default function SuperAdminDashboard() {
   const [newSchool, setNewSchool] = useState({
     name: '', subdomain: '', email: '', phone: '',
     subscription_tier: 'basic', admin_name: '', admin_email: '',
+    sections: ['secondary'] as string[],
     
   })
   const [analytics, setAnalytics] = useState<{
@@ -158,6 +163,18 @@ export default function SuperAdminDashboard() {
       setAdmins(adminsData.admins ?? [])
       setAnalytics(analyticsData)
     } catch {} finally { setLoading(false) }
+  }
+
+  const [editSections, setEditSections] = useState<{ id: string; picked: string[]; error?: string } | null>(null)
+  async function saveSchoolSections() {
+    if (!editSections) return
+    const res = await fetch(`${API}/superadmin/schools/${editSections.id}/sections`, {
+      method: 'PATCH', headers: hdrs(), body: JSON.stringify({ sections: editSections.picked }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { setEditSections({ ...editSections, error: data.message ?? 'Could not save.' }); return }
+    setSchools(prev => prev.map(s => s.id === editSections.id ? { ...s, sections: editSections.picked } : s))
+    setEditSections(null)
   }
 
   async function handleToggleSchool(id: string) {
@@ -333,7 +350,7 @@ export default function SuperAdminDashboard() {
         return
       }
       setCreatedInfo({ subdomain: data.school.subdomain, adminEmail: data.admin.email, tempPassword: data.tempPassword })
-      setNewSchool({ name: '', subdomain: '', email: '', phone: '', subscription_tier: 'basic', admin_name: '', admin_email: '' })
+      setNewSchool({ name: '', subdomain: '', email: '', phone: '', subscription_tier: 'basic', admin_name: '', admin_email: '', sections: ['secondary'] })
       loadData()
     } catch {
       setCreateError('Network error. Please try again.')
@@ -525,6 +542,26 @@ export default function SuperAdminDashboard() {
                   <div>
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}</p>
                     <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{school.subdomain}.examify.ng · {new Date(school.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    {editSections?.id === school.id ? (
+                      <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', fontSize: '0.72rem' }}>
+                        {SECTION_KEYS.map(k => (
+                          <label key={k} style={{ display: 'inline-flex', gap: '0.2rem', alignItems: 'center' }}>
+                            <input type="checkbox" checked={editSections.picked.includes(k)}
+                              onChange={() => setEditSections(e => e && ({ ...e, error: undefined, picked: SECTION_KEYS.filter(x => (x === k ? !e.picked.includes(k) : e.picked.includes(x))) }))} />
+                            {SECTION_LABEL[k]}
+                          </label>
+                        ))}
+                        <button onClick={saveSchoolSections} disabled={!editSections.picked.length} style={{ padding: '0.15rem 0.5rem', fontSize: '0.7rem', border: 'none', borderRadius: '6px', background: '#1a6b4a', color: 'white', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditSections(null)} style={{ padding: '0.15rem 0.5rem', fontSize: '0.7rem', border: '1px solid #e5e5e0', borderRadius: '6px', background: 'white', cursor: 'pointer' }}>Cancel</button>
+                        {editSections.error && <span style={{ color: '#b91c1c', flexBasis: '100%' }}>{editSections.error}</span>}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '0.7rem', color: '#6b6b65', marginTop: '0.15rem' }}>
+                        {(Array.isArray(school.sections) && school.sections.length ? school.sections : ['secondary']).map((k: string) => SECTION_LABEL[k] ?? k).join(' · ')}{' '}
+                        <button onClick={() => setEditSections({ id: school.id, picked: Array.isArray(school.sections) && school.sections.length ? school.sections : ['secondary'] })}
+                          style={{ border: 'none', background: 'none', color: '#1a6b4a', fontSize: '0.7rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>edit</button>
+                      </p>
+                    )}
                   </div>
                   <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.student_count}</span>
                   <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', color: '#3a3a36' }}>{school.teacher_count}</span>
@@ -949,6 +986,19 @@ export default function SuperAdminDashboard() {
                     <option value="premium">Premium</option>
                     <option value="enterprise">Enterprise</option>
                   </select>
+                </div>
+
+                <div style={{ marginBottom: '0.875rem' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3a3a36', display: 'block', marginBottom: '0.3rem' }}>Sections the school runs</label>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    {SECTION_KEYS.map(k => (
+                      <label key={k} style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.85rem' }}>
+                        <input type="checkbox" checked={newSchool.sections.includes(k)}
+                          onChange={() => setNewSchool(prev => ({ ...prev, sections: SECTION_KEYS.filter(x => (x === k ? !prev.sections.includes(k) : prev.sections.includes(x))) }))} />
+                        {SECTION_LABEL[k]}
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 <hr style={{ border: 'none', borderTop: '1px solid #f0f0ee', margin: '1.25rem 0' }} />

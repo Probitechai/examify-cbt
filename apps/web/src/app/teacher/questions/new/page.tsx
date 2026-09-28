@@ -2,12 +2,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './new-question.module.css'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 interface Option { key: string; text: string }
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E']
 
 export default function NewQuestionPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -29,6 +30,7 @@ export default function NewQuestionPage() {
     marks: 1,
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
   })
+  useDefaultClass(CLASS_LEVELS, form.classLevel, v => setForm((f: any) => ({ ...f, classLevel: v })))
 
   function set<K extends keyof typeof form>(key: K, val: typeof form[K]) {
     setForm(f => ({ ...f, [key]: val }))

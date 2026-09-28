@@ -2,10 +2,10 @@
 import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   draft:     { label: 'Draft',     color: '#d97706', bg: '#fffbeb' },
   published: { label: 'Published', color: '#1a6b4a', bg: '#e8f5ee' },
@@ -13,6 +13,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 }
 
 export default function LessonsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [role, setRole] = useState('school_admin')
   const isTeacher = role === 'teacher'
@@ -23,6 +24,7 @@ export default function LessonsPage() {
   const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [selectedSession, setSelectedSession] = useState('')
@@ -35,6 +37,7 @@ export default function LessonsPage() {
     termId: '', weekNumber: '', estimatedDurationMins: '',
     objectives: '', introduction: '', mainContent: '', conclusion: ''
   })
+  useDefaultClass(CLASS_LEVELS, createForm.classLevel, v => setCreateForm((f: any) => ({ ...f, classLevel: v })))
 
   useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
 

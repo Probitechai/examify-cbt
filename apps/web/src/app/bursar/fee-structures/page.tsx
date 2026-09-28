@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { checkAuth } from '@/lib/auth'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass, useSchoolSections, SECTIONS, SECTION_NAMES, type Section } from '@/lib/classLevels'
 import {
   call, errorText, money, S, Banner, Pill, Field, Table, PageHeader, TermPicker, Modal,
   useTerms, useFinanceAccess, AccessBanner,
@@ -10,6 +10,7 @@ import {
 import { EnrollmentModal } from '@/components/finance/enrollment'
 
 export default function FeeStructuresPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const t = useTerms()
   const { access, readOnly } = useFinanceAccess()
@@ -18,7 +19,9 @@ export default function FeeStructuresPage() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', amount: '', classLevel: 'JSS1', allClasses: false, mandatory: true })
+  const [form, setForm] = useState({ name: '', amount: '', classLevel: 'JSS1', scope: 'class', mandatory: true })
+  const { sections } = useSchoolSections()
+  useDefaultClass(CLASS_LEVELS, form.classLevel, v => setForm((f: any) => ({ ...f, classLevel: v })))
   const [saving, setSaving] = useState(false)
   const [managing, setManaging] = useState<string | null>(null)
 
@@ -43,12 +46,15 @@ export default function FeeStructuresPage() {
       method: 'POST',
       body: JSON.stringify({
         termId: t.termId, name: form.name.trim(), amount, isMandatory: form.mandatory,
-        applyToAllClasses: form.allClasses, classLevel: form.allClasses ? undefined : form.classLevel,
+        applyToAllClasses: form.scope === 'all',
+        applyToSection: SECTIONS.includes(form.scope as Section) ? form.scope : undefined,
+        classLevel: form.scope === 'class' ? form.classLevel : undefined,
       }),
     })
     setSaving(false)
     if (!r.ok) { setMsg({ tone: 'error', text: errorText(r.data) }); return }
-    setMsg({ tone: 'success', text: form.allClasses ? `“${form.name}” added to all classes.` : `“${form.name}” added to ${form.classLevel}.` })
+    const where = form.scope === 'class' ? form.classLevel : form.scope === 'all' ? 'all classes' : `every ${SECTION_NAMES[form.scope as Section]} class`
+    setMsg({ tone: 'success', text: `“${form.name}” added to ${where}.` })
     setShowAdd(false)
     setForm(f => ({ ...f, name: '', amount: '' }))
     load()
@@ -111,10 +117,14 @@ export default function FeeStructuresPage() {
           <div style={{ display: 'grid', gap: '0.875rem' }}>
             <Field label="Name"><input style={S.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Tuition, PTA levy, Bus" /></Field>
             <Field label="Amount (₦)"><input style={S.input} type="number" min="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></Field>
-            <label style={{ fontSize: '0.86rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input type="checkbox" checked={form.allClasses} onChange={e => setForm({ ...form, allClasses: e.target.checked })} /> Apply to all classes
-            </label>
-            {!form.allClasses && (
+            <Field label="Apply to">
+              <select style={S.input} value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value })}>
+                <option value="class">One class</option>
+                {sections.length > 1 && sections.map(sec => <option key={sec} value={sec}>Every {SECTION_NAMES[sec]} class</option>)}
+                <option value="all">All classes</option>
+              </select>
+            </Field>
+            {form.scope === 'class' && (
               <Field label="Class">
                 <select style={S.input} value={form.classLevel} onChange={e => setForm({ ...form, classLevel: e.target.value })}>
                   {CLASS_LEVELS.map(c => <option key={c} value={c}>{c}</option>)}

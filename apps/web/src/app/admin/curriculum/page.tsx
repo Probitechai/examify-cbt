@@ -2,10 +2,10 @@
 import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const CURRICULUM_TYPES = [
   { value: 'nigerian', label: 'Nigerian (NERDC)', color: '#1a6b4a', bg: '#e8f5ee' },
   { value: 'british', label: 'British National', color: '#1e40af', bg: '#eff6ff' },
@@ -27,6 +27,7 @@ interface SchemeEntry { id: string; week_number: number; topic: string; sub_topi
 interface CoverageRow { subject_id: string; subject_name: string; category: string; total_topics: number; delivered: number; partial: number; not_delivered: number; coverage_pct: number }
 
 export default function CurriculumPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [role, setRole] = useState('school_admin')
   const isTeacher = role === 'teacher'
@@ -40,6 +41,7 @@ export default function CurriculumPage() {
   const [selectedTerm, setSelectedTerm] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [scheme, setScheme] = useState<SchemeEntry[]>([])
   const [coverage, setCoverage] = useState<CoverageRow[]>([])
   const [loading, setLoading] = useState(false)

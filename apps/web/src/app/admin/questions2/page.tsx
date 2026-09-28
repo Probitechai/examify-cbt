@@ -2,7 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 
 interface Question {
@@ -126,6 +126,7 @@ export default function QuestionsPage() {
 }
 
 function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const CLASS_LEVELS = useClassLevels()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [type, setType] = useState<QType>('mcq')
@@ -133,6 +134,7 @@ function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void 
   const [customSubject, setCustomSubject] = useState('')
   const [showCustom, setShowCustom] = useState(false)
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [difficulty, setDifficulty] = useState('medium')
   const [marks, setMarks] = useState(1)
   const [topic, setTopic] = useState('')

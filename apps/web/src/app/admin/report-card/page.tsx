@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -24,7 +25,6 @@ interface ReportCard {
   config: { caWeight: number; examWeight: number }
 }
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -54,6 +54,7 @@ function gradeBg(grade: string) {
 }
 
 export default function ReportCardPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
@@ -61,6 +62,7 @@ export default function ReportCardPage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [selectedStudent, setSelectedStudent] = useState('')
   const [selectedStudentData, setSelectedStudentData] = useState<Student | null>(null)

@@ -34,7 +34,7 @@ export async function financeRoutes(app: FastifyInstance) {
         LEFT JOIN users p ON p.id = psl.parent_id
         WHERE u.school_id = ${request.schoolId}::uuid AND u.role = 'student'
         GROUP BY u.id
-        ORDER BY u.class_level, u.class_arm, u.full_name
+        ORDER BY class_level_rank(u.class_level), u.class_level, u.class_arm, u.full_name
       ` as any[]
       return reply.send({ students })
     })
@@ -558,7 +558,7 @@ export async function financeRoutes(app: FastifyInstance) {
         LEFT JOIN counts c ON c.fee_structure_id = fs.id
         LEFT JOIN paid p   ON p.fee_structure_id = fs.id
         WHERE fs.school_id = ${request.schoolId}::uuid AND fs.term_id = ${termId}::uuid
-        ORDER BY fs.class_level, fs.is_mandatory DESC, fs.name
+        ORDER BY class_level_rank(fs.class_level), fs.class_level, fs.is_mandatory DESC, fs.name
       ` as any[]
       return reply.send({ items })
     })

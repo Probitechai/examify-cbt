@@ -240,7 +240,7 @@ export default function ImportStudentsPage() {
                 { col: 'fullName', req: true, desc: "Student's full name" },
                 { col: 'email', req: true, desc: 'Login email address' },
                 { col: 'admissionNo', req: false, desc: 'School admission number' },
-                { col: 'classLevel', req: true, desc: 'SS1, SS2, or SS3' },
+                { col: 'classLevel', req: true, desc: 'Exactly as in Examify, e.g. Nursery 1, Primary 3, JSS1, SS2' },
                 { col: 'classArm', req: true, desc: 'A, B, Science, Arts, etc.' },
                 { col: 'password', req: false, desc: 'Default: Student@1234' },
                 { col: 'phone', req: false, desc: "Student's phone number" },

@@ -4,6 +4,8 @@ import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { saveSections } from './schools'
+import { asSections } from '../lib/classLevels'
 
 export async function superAdminRoutes(app: FastifyInstance) {
 
@@ -126,6 +128,12 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
 app.post('/superadmin/schools', { preHandler: [superAuth] },
   async (request: any, reply: any) => {
     const { name, subdomain, email, phone, subscription_tier, admin_name, admin_email } = request.body
+    const valid = ['nursery', 'primary', 'secondary']
+    const rawSections: string[] = Array.isArray(request.body.sections) ? request.body.sections : ['secondary']
+    const sections = valid.filter(s => rawSections.includes(s))
+    if (!sections.length) {
+      return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'Choose at least one section (Nursery, Primary or Secondary).' })
+    }
 
     if (!name || !subdomain || !email || !subscription_tier || !admin_name || !admin_email) {
       return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'name, subdomain, email, subscription_tier, admin_name, and admin_email are required.' })
@@ -156,9 +164,9 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     try {
       const result = await db().begin(async (tx: any) => {
         const schoolRows = await tx`
-          INSERT INTO schools (name, subdomain, email, phone, subscription_tier, is_active)
-          VALUES (${name}, ${subdomain}, ${email}, ${phone ?? null}, ${subscription_tier}, true)
-          RETURNING id, name, subdomain, subscription_tier
+          INSERT INTO schools (name, subdomain, email, phone, subscription_tier, is_active, sections)
+          VALUES (${name}, ${subdomain}, ${email}, ${phone ?? null}, ${subscription_tier}, true, ${sections})
+          RETURNING id, name, subdomain, subscription_tier, sections
         `
         const school = schoolRows[0]
 
@@ -187,7 +195,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const schools = await db()`
         SELECT
-          s.id, s.name, s.subdomain, s.is_active, s.subscription_tier,
+          s.id, s.name, s.subdomain, s.is_active, s.subscription_tier, s.sections,
           s.created_at,
           COUNT(DISTINCT u.id) FILTER (WHERE u.role = 'student') AS student_count,
           COUNT(DISTINCT u.id) FILTER (WHERE u.role = 'teacher') AS teacher_count,
@@ -203,7 +211,16 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         ORDER BY s.created_at DESC
       ` as any[]
 
-      return reply.send({ schools })
+      return reply.send({ schools: schools.map(s => ({ ...s, sections: asSections(s.sections) })) })
+    })
+
+  // ── Set a school's sections ───────────────────────────────────────────────
+  app.patch('/superadmin/schools/:id/sections', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const sections = Array.isArray(request.body?.sections) ? request.body.sections : []
+      const r = await saveSections((request.params as any).id, sections)
+      if (r) return reply.status(r.error === 'SECTION_IN_USE' ? 409 : 400).send(r)
+      return reply.send({ saved: true })
     })
 
   // ── Toggle school active status ───────────────────────────────────────────

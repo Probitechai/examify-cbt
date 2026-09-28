@@ -2,7 +2,7 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 import { CLASS_ARMS } from '@/lib/classArms'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -14,12 +14,14 @@ const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
 }
 
 export default function ProprietorAttendancePage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [sessions, setSessions] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [classArm, setClassArm] = useState('')
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(false)

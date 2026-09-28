@@ -2,12 +2,13 @@
 import { apiFetch, checkAuth, getToken, getSubdomain, parseJWT } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
-const CLASS_LEVELS = ['JSS1','JSS2','JSS3','SS1','SS2','SS3']
 
 export default function LearningPathsPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [role, setRole] = useState('school_admin')
   const isTeacher = role === 'teacher'
@@ -19,6 +20,7 @@ export default function LearningPathsPage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, selectedClass, setSelectedClass)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -35,6 +37,7 @@ export default function LearningPathsPage() {
     subjectId: '', termId: '', classLevel: 'SS2', classArm: '',
     title: '', description: '', isSequential: true
   })
+  useDefaultClass(CLASS_LEVELS, createForm.classLevel, v => setCreateForm((f: any) => ({ ...f, classLevel: v })))
   const [stepForm, setStepForm] = useState({
     lessonId: '', stepNumber: 1, title: '', description: '', isRequired: true
   })

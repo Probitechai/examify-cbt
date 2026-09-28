@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import SubjectSelector from '../../../components/SubjectSelector'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 
 interface Props {
@@ -56,6 +56,7 @@ function getSubdomain() {
 }
 
 export default function AddQuestionModal({ onClose, onSaved }: Props) {
+  const CLASS_LEVELS = useClassLevels()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
@@ -73,6 +74,7 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
     marks: 1,
     difficulty: 'medium',
   })
+  useDefaultClass(CLASS_LEVELS, form.classLevel, v => setForm((f: any) => ({ ...f, classLevel: v })))
 
   function set(key: string, val: any) {
     setForm(f => ({ ...f, [key]: val }))

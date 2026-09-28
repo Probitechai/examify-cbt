@@ -2,13 +2,14 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const sel = { padding: '0.5rem 0.625rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '6px', fontSize: '0.875rem', cursor: 'pointer', width: '100%', boxSizing: 'border-box' as const }
 const lbl = { fontSize: '0.72rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.3rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }
 
 export default function ProprietorCurriculumPage() {
+  const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [view, setView] = useState<'scheme' | 'coverage'>('scheme')
   const [sessions, setSessions] = useState<any[]>([])
@@ -16,6 +17,7 @@ export default function ProprietorCurriculumPage() {
   const [selectedSession, setSelectedSession] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [classLevel, setClassLevel] = useState('SS2')
+  useDefaultClass(CLASS_LEVELS, classLevel, setClassLevel)
   const [subjects, setSubjects] = useState<any[]>([])
   const [selectedSubject, setSelectedSubject] = useState('')
   const [scheme, setScheme] = useState<any[]>([])

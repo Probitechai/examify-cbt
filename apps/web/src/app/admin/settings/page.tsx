@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import { SchoolSections } from '@/components/SchoolSections'
 
  
 
@@ -243,6 +244,8 @@ export default function SettingsPage() {
       </div>
 
       {/* School Logo */}
+      <SchoolSections />
+
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem', marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.375rem' }}>School Logo</h2>
         <p style={{ fontSize: '0.825rem', color: '#6b6b65', marginBottom: '1.25rem' }}>

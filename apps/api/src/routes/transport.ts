@@ -299,7 +299,7 @@ export async function transportRoutes(app: FastifyInstance) {
           JOIN transport_routes tr ON tr.id = st.route_id
           LEFT JOIN route_stops rs ON rs.id = st.stop_id
           WHERE st.term_id = ${tid}::uuid AND st.bus_id = ${bid}::uuid AND st.is_active = true
-          ORDER BY u.class_level ASC, u.full_name ASC
+          ORDER BY class_level_rank(u.class_level), u.class_level, u.full_name ASC
         ` as any[]
       } else if (routeId) {
         const rid = String(routeId)
@@ -438,7 +438,7 @@ export async function transportRoutes(app: FastifyInstance) {
             SELECT student_id FROM student_transport
             WHERE term_id = ${tid}::uuid AND is_active = true
           )
-        ORDER BY class_level ASC, full_name ASC
+        ORDER BY class_level_rank(class_level), class_level, full_name ASC
       ` as any[]
       return reply.send({ students })
     })

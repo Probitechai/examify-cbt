@@ -2,7 +2,7 @@
 // Finance reports shared by the Bursar portal and the Proprietor finance pages.
 // Pass canWrite={false} for read-only use (Proprietor, Admin while a Bursar is active).
 import { useEffect, useState, Fragment } from 'react'
-import { CLASS_LEVELS } from '@/lib/classLevels'
+import { useClassLevels } from '@/lib/classLevels'
 import {
   call, errorText, money, fmtDate, fmtDateTime, today, daysAgo, downloadCsv, METHOD_LABELS,
   S, Banner, Pill, Stat, StatGrid, Field, Table, TermPicker, DateRange, useTerms,
@@ -58,6 +58,7 @@ export function CollectionSummary() {
 
 // ── Debtors ──────────────────────────────────────────────────────────────────
 export function Debtors({ canWrite }: { canWrite: boolean }) {
+  const CLASS_LEVELS = useClassLevels()
   const t = useTerms()
   const [classLevel, setClassLevel] = useState('')
   const [minBalance, setMinBalance] = useState('0')

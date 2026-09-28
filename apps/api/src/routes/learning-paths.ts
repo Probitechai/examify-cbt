@@ -77,7 +77,7 @@ export async function learningPathRoutes(app: FastifyInstance) {
           LEFT JOIN learning_path_steps lps ON lps.path_id = lp.id
           WHERE lp.school_id = ${request.schoolId}::uuid
           GROUP BY lp.id, cs.name, t.name
-          ORDER BY lp.class_level ASC, cs.name ASC
+          ORDER BY class_level_rank(lp.class_level), lp.class_level, cs.name ASC
         ` as any[]
       }
       return reply.send({ paths: rows })
