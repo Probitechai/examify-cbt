@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import * as bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
+import { z } from 'zod'
 import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
@@ -326,6 +327,94 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
                 ${rows[0].id}::uuid, ${db().json({ fullName: full_name, email: email.toLowerCase() })})
       `
       return reply.status(201).send({ bursar: rows[0], tempPassword })
+    })
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // JAMB QUESTION BANK — shared by every school, so only super_admin may change it
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  app.get('/superadmin/jamb/subjects', { preHandler: [superAuth] },
+    async (_request: any, reply: any) => {
+      const subjects = await db()`
+        SELECT js.id, js.name, js.is_compulsory,
+               (SELECT COUNT(*) FROM jamb_past_questions q WHERE q.subject_id = js.id) AS question_count
+        FROM jamb_subjects js ORDER BY js.is_compulsory DESC, js.name
+      ` as any[]
+      const topics = await db()`
+        SELECT jt.id, jt.subject_id, jt.name, jt.sort_order,
+               (SELECT COUNT(*) FROM jamb_past_questions q WHERE q.topic_id = jt.id) AS question_count
+        FROM jamb_topics jt ORDER BY jt.subject_id, jt.sort_order
+      ` as any[]
+      return reply.send({
+        subjects: subjects.map((s: any) => ({ ...s, topics: topics.filter((t: any) => t.subject_id === s.id) })),
+      })
+    })
+
+  // Bulk add past questions. Subject and topic are matched by NAME (case-insensitive)
+  // so a spreadsheet can be uploaded as-is. All-or-nothing: any bad row rejects the batch.
+  app.post('/superadmin/jamb/questions/bulk', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const row = z.object({
+        subject: z.string().trim().min(1),
+        topic: z.string().trim().optional().transform(v => (v ? v : undefined)),
+        year: z.coerce.number().int().min(1978).max(2100),
+        question: z.string().trim().min(1),
+        optionA: z.string().trim().min(1),
+        optionB: z.string().trim().min(1),
+        optionC: z.string().trim().min(1),
+        optionD: z.string().trim().min(1),
+        correctOption: z.string().trim().toLowerCase().pipe(z.enum(['a', 'b', 'c', 'd'])),
+        explanation: z.string().trim().optional().transform(v => (v ? v : null)),
+        difficulty: z.string().trim().toLowerCase().optional().transform(v => (v ? v : 'medium')).pipe(z.enum(['easy', 'medium', 'hard'])),
+      })
+      const body = z.object({ questions: z.array(z.any()).min(1).max(1000) }).safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Send { questions: [...] } with 1 to 1000 rows.' })
+
+      const subjects = await db()`SELECT id, lower(name) AS name FROM jamb_subjects` as any[]
+      const topics = await db()`SELECT id, subject_id, lower(name) AS name FROM jamb_topics` as any[]
+
+      const errors: { row: number; message: string }[] = []
+      const clean: any[] = []
+      body.data.questions.forEach((raw: any, i: number) => {
+        const r = row.safeParse(raw)
+        if (!r.success) {
+          const f = r.error.flatten().fieldErrors
+          const first = Object.keys(f)[0]
+          errors.push({ row: i + 1, message: `${first}: ${(f as any)[first]?.[0] ?? 'invalid'}` })
+          return
+        }
+        const q = r.data
+        const subj = subjects.find((s: any) => s.name === q.subject.toLowerCase())
+        if (!subj) { errors.push({ row: i + 1, message: `Unknown subject "${q.subject}"` }); return }
+        let topicId: string | null = null
+        if (q.topic) {
+          const t = topics.find((x: any) => x.subject_id === subj.id && x.name === q.topic!.toLowerCase())
+          if (!t) { errors.push({ row: i + 1, message: `Unknown topic "${q.topic}" in ${q.subject}` }); return }
+          topicId = t.id
+        }
+        clean.push({ ...q, subjectId: subj.id, topicId })
+      })
+      if (errors.length > 0) return reply.status(400).send({ error: 'ROWS_INVALID', errors: errors.slice(0, 100), errorCount: errors.length })
+
+      let inserted = 0
+      let duplicates = 0
+      await db().begin(async (tx: any) => {
+        for (const q of clean) {
+          const dup = await tx`
+            SELECT 1 FROM jamb_past_questions
+            WHERE subject_id = ${q.subjectId}::uuid AND year = ${q.year} AND lower(trim(question)) = lower(${q.question})
+            LIMIT 1
+          ` as any[]
+          if (dup[0]) { duplicates++; continue }
+          await tx`
+            INSERT INTO jamb_past_questions (subject_id, topic_id, year, question, option_a, option_b, option_c, option_d, correct_option, explanation, difficulty_level)
+            VALUES (${q.subjectId}::uuid, ${q.topicId}::uuid, ${q.year}, ${q.question}, ${q.optionA}, ${q.optionB}, ${q.optionC}, ${q.optionD},
+                    ${q.correctOption}, ${q.explanation}, ${q.difficulty})
+          `
+          inserted++
+        }
+      })
+      return reply.status(201).send({ inserted, duplicates })
     })
 
   // ── Deactivate/reactivate a proprietor account ────────────────────────────

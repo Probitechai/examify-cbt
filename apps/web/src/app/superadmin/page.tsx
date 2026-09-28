@@ -401,6 +401,10 @@ export default function SuperAdminDashboard() {
               {tab.label}
             </button>
           ))}
+          <button onClick={() => router.push('/superadmin/jamb')}
+            style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 500, border: 'none', borderLeft: '1px solid #e5e5e0', cursor: 'pointer', background: 'transparent', color: '#6b6b65' }}>
+            📚 JAMB Question Bank
+          </button>
         </div>
 
         {/* OVERVIEW TAB */}

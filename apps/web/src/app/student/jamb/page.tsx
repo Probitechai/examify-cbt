@@ -127,6 +127,11 @@ export default function JambPrepPage() {
   const [summaryContent, setSummaryContent] = useState('')
   const [loadingQuestions, setLoadingQuestions] = useState(false)
   const [error, setError] = useState('')
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [startedAt, setStartedAt] = useState(0)
+  const [saveError, setSaveError] = useState('')
+  const [answeredToday, setAnsweredToday] = useState(0)
+  const [aiUsage, setAiUsage] = useState<{ usedToday: number; dailyLimit: number } | null>(null)
   const questionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { checkAuth(router, 'student') }, [])
@@ -163,6 +168,8 @@ export default function JambPrepPage() {
     const res = await apiFetch(`${API}/jamb/profile`)
     const data = await res.json()
     setProfile(data.profile)
+    setAnsweredToday(data.answeredToday ?? 0)
+    setAiUsage(data.ai ?? null)
     if (data.profile?.selected_subjects?.length) {
       setSelectedSubjects(data.profile.selected_subjects)
     }
@@ -197,7 +204,7 @@ export default function JambPrepPage() {
       if (!data.questions?.length) { setError('No past questions available for this topic yet. Try AI Practice instead.'); setLoadingQuestions(false); return }
       setQuestions(data.questions)
       setCurrentQ(0); setSelectedAnswer(null); setConfirmed(false)
-      setLives(3); setScore(0); setSessionXp(0)
+      setLives(3); setScore(0); setSessionXp(0); setAnswers({}); setStartedAt(Date.now()); setSaveError('')
       setSessionType('past_questions')
       setScreen('quiz')
     } catch { setError('Failed to load questions') } finally { setLoadingQuestions(false) }
@@ -208,15 +215,21 @@ export default function JambPrepPage() {
     try {
             const res = await apiFetch(`${API}/jamb/ai/quiz`, {
               method: 'POST',
-              body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
+              body: JSON.stringify({ topicId: topic.id })
             })
       const data = await res.json()
-      if (!res.ok || !data.questions?.length) throw new Error('No questions generated')
-      setQuestions(data.questions.slice(0, 10).map((q: any, i: number) => ({ ...q, id: `ai-${i}` })))
+      if (!res.ok || !data.questions?.length) {
+        setError(data.message ?? 'Failed to generate questions. Please try again.')
+        setScreen('subject')   // the topic list is where errors are shown
+        if (data.error === 'AI_DAILY_LIMIT') loadProfile()
+        return
+      }
+      setQuestions(data.questions)   // each has a server id, so the server can mark it
       setCurrentQ(0); setSelectedAnswer(null); setConfirmed(false)
-      setLives(3); setScore(0); setSessionXp(0)
+      setLives(3); setScore(0); setSessionXp(0); setAnswers({}); setStartedAt(Date.now()); setSaveError('')
       setSessionType('ai_generated')
       setScreen('quiz')
+      loadProfile()
     } catch (e: any) { setError('Failed to generate questions. Please try again.') } finally { setAiLoading(false) }
   }
 
@@ -225,10 +238,10 @@ export default function JambPrepPage() {
     try {
             const res = await apiFetch(`${API}/jamb/ai/summary`, {
               method: 'POST',
-              body: JSON.stringify({ subjectName: subject.name, topicName: topic.name })
+              body: JSON.stringify({ topicId: topic.id })
             })
       const data = await res.json()
-      setSummaryContent(data.summary ?? 'Could not generate summary.')
+      setSummaryContent(res.ok ? (data.summary ?? 'Could not generate summary.') : (data.message ?? 'Could not generate summary.'))
     } catch { setSummaryContent('Failed to generate summary. Please try again.') } finally { setAiLoading(false) }
   }
 
@@ -237,6 +250,7 @@ export default function JambPrepPage() {
     const q = questions[currentQ]
     const isCorrect = selectedAnswer === q.correct_option
     setConfirmed(true)
+    setAnswers(a => ({ ...a, [q.id]: selectedAnswer }))
     if (isCorrect) {
       const xp = 10
       setScore(s => s + 1)
@@ -267,20 +281,24 @@ export default function JambPrepPage() {
   async function saveSession() {
     if (!activeSubject) return
     try {
-            await apiFetch(`${API}/jamb/sessions`, {
+            // Send the answers; the server marks them and awards XP
+            const res = await apiFetch(`${API}/jamb/sessions`, {
               method: 'POST',
               body: JSON.stringify({
                 subjectId: activeSubject.id,
                 topicId: activeTopic?.id,
                 sessionType,
-                questions,
-                answers: {},
-                score,
-                totalQuestions: questions.length,
+                answers,
+                timeTakenSecs: startedAt ? Math.round((Date.now() - startedAt) / 1000) : undefined,
               })
             })
+      if (!res.ok) setSaveError("Your answers couldn't be saved, so this quiz won't count towards your progress. Check your connection and try again.")
+      else {
+        const data = await res.json()
+        if (typeof data.xpEarned === 'number') setSessionXp(data.xpEarned)
+      }
       await loadProfile()
-    } catch {}
+    } catch { setSaveError("Your answers couldn't be saved, so this quiz won't count towards your progress.") }
     setShowConfetti(false)
   }
 
@@ -537,7 +555,8 @@ export default function JambPrepPage() {
 
   // ── RESULT SCREEN ─────────────────────────────────────────────────────────────
   if (screen === 'result') {
-    const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0
+    const answeredCount = Object.keys(answers).length
+    const pct = answeredCount > 0 ? Math.round((score / answeredCount) * 100) : 0
     const grade = pct >= 80 ? { label: 'Excellent! 🌟', color: '#1a6b4a', bg: '#e8f5ee' }
       : pct >= 60 ? { label: 'Good work! 👍', color: '#1e40af', bg: '#eff6ff' }
       : pct >= 40 ? { label: 'Keep going! 💪', color: '#d97706', bg: '#fffbeb' }
@@ -557,7 +576,7 @@ export default function JambPrepPage() {
               <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Correct</p>
             </div>
             <div style={{ background: '#f7f7f5', borderRadius: '12px', padding: '1rem' }}>
-              <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626' }}>{questions.length - score}</p>
+              <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626' }}>{Object.keys(answers).length - score}</p>
               <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Wrong</p>
             </div>
             <div style={{ background: '#fffbeb', borderRadius: '12px', padding: '1rem' }}>
@@ -565,6 +584,9 @@ export default function JambPrepPage() {
               <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>XP</p>
             </div>
           </div>
+          {saveError && (
+            <div style={{ padding: '0.75rem', background: '#fef2f2', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.8rem', color: '#b91c1c', textAlign: 'left' as const }}>{saveError}</div>
+          )}
           {profile && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginBottom: '1.5rem', padding: '0.875rem', background: '#f7f7f5', borderRadius: '12px' }}>
               <div style={{ textAlign: 'center' as const }}>
@@ -585,7 +607,7 @@ export default function JambPrepPage() {
             </div>
           )}
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button onClick={() => { setCurrentQ(0); setSelectedAnswer(null); setConfirmed(false); setLives(3); setScore(0); setSessionXp(0); setShowConfetti(false); setScreen('quiz') }}
+            <button onClick={() => { setCurrentQ(0); setSelectedAnswer(null); setConfirmed(false); setLives(3); setScore(0); setSessionXp(0); setAnswers({}); setStartedAt(Date.now()); setSaveError(''); setShowConfetti(false); setScreen('quiz') }}
               style={{ flex: 1, padding: '0.875rem', background: activeSubject?.color ?? '#1a6b4a', color: 'white', border: 'none', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>
               Try Again 🔄
             </button>
@@ -663,9 +685,7 @@ export default function JambPrepPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
               {mySubjects.map(s => {
-                const subjectProgress = progress.filter(p => {
-                  return subjects.find(sub => sub.id === s.id)
-                })
+                const subjectProgress = progress.filter(p => p.subject_id === s.id)
                 const avgMastery = subjectProgress.length > 0
                   ? Math.round(subjectProgress.reduce((a: number, b: any) => a + Number(b.mastery_pct), 0) / subjectProgress.length)
                   : 0
@@ -694,13 +714,16 @@ export default function JambPrepPage() {
               <div style={{ background: 'white', borderRadius: '14px', padding: '1.25rem', border: '1px solid #e5e5e0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1a1a18' }}>📅 Today's Goal</h3>
-                  <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{Math.min(totalAttempted, profile.daily_goal_questions)}/{profile.daily_goal_questions} questions</span>
+                  <span style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{Math.min(answeredToday, profile.daily_goal_questions)}/{profile.daily_goal_questions} questions</span>
                 </div>
                 <div style={{ height: 10, background: '#f0f0ee', borderRadius: 5, overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, (totalAttempted / profile.daily_goal_questions) * 100)}%`, height: '100%', background: 'linear-gradient(to right, #1a6b4a, #d4af37)', borderRadius: 5, transition: 'width 0.8s ease' }} />
+                  <div style={{ width: `${Math.min(100, (answeredToday / profile.daily_goal_questions) * 100)}%`, height: '100%', background: 'linear-gradient(to right, #1a6b4a, #d4af37)', borderRadius: 5, transition: 'width 0.8s ease' }} />
                 </div>
                 {streak > 0 && (
                   <p style={{ fontSize: '0.78rem', color: '#d97706', marginTop: '0.625rem', fontWeight: 600 }}>🔥 {streak} day streak! Keep it up!</p>
+                )}
+                {aiUsage && (
+                  <p style={{ fontSize: '0.72rem', color: '#6b6b65', marginTop: '0.5rem' }}>🤖 AI sessions today: {aiUsage.usedToday}/{aiUsage.dailyLimit}</p>
                 )}
               </div>
             )}
