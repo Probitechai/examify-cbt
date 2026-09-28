@@ -119,15 +119,20 @@ export async function parentRoutes(app: FastifyInstance) {
           // Fee summary
           const feeRows = await tdb.query`
             SELECT
-              COALESCE(SUM(fs.amount), 0) AS total_fees,
-              COALESCE(SUM(fp.amount_paid), 0) AS total_paid
-            FROM fee_structures fs
-            LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
-              AND fp.student_id = ${student.id}::uuid
-              AND fp.school_id = ${request.schoolId}::uuid
-            WHERE fs.school_id = ${request.schoolId}::uuid
-            AND fs.term_id = ${activeTerm.term_id}::uuid
-            AND fs.class_level = ${student.class_level}
+              (SELECT COALESCE(SUM(fs.amount), 0) FROM fee_structures fs
+                WHERE fs.school_id = ${request.schoolId}::uuid
+                AND fs.term_id = ${activeTerm.term_id}::uuid
+                AND fs.class_level = ${student.class_level}) AS total_fees,
+              (SELECT COALESCE(SUM(fp.amount_paid), 0) FROM fee_payments_effective fp
+                JOIN fee_structures fs ON fs.id = fp.fee_structure_id
+                WHERE fp.student_id = ${student.id}::uuid
+                AND fp.school_id = ${request.schoolId}::uuid
+                AND fs.term_id = ${activeTerm.term_id}::uuid) AS total_paid,
+              (SELECT COALESCE(SUM(w.amount), 0) FROM fee_waivers w
+                WHERE w.student_id = ${student.id}::uuid
+                AND w.school_id = ${request.schoolId}::uuid
+                AND w.term_id = ${activeTerm.term_id}::uuid
+                AND w.status = 'approved') AS total_waived
           ` as any[]
           feeSummary = feeRows[0]
         }
@@ -140,7 +145,8 @@ export async function parentRoutes(app: FastifyInstance) {
           feeSummary: feeSummary ? {
             totalFees: Number(feeSummary.total_fees),
             totalPaid: Number(feeSummary.total_paid),
-            balance: Number(feeSummary.total_fees) - Number(feeSummary.total_paid),
+            totalWaived: Number(feeSummary.total_waived),
+            balance: Number(feeSummary.total_fees) - Number(feeSummary.total_paid) - Number(feeSummary.total_waived),
           } : null,
         })
       }
@@ -281,7 +287,7 @@ export async function parentRoutes(app: FastifyInstance) {
         SELECT fs.id, fs.name, fs.amount, fs.is_mandatory,
                COALESCE(SUM(fp.amount_paid), 0) AS total_paid
         FROM fee_structures fs
-        LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
+        LEFT JOIN fee_payments_effective fp ON fp.fee_structure_id = fs.id
           AND fp.student_id = ${studentId}::uuid
           AND fp.school_id = ${request.schoolId}::uuid
         WHERE fs.school_id = ${request.schoolId}::uuid
@@ -292,14 +298,24 @@ export async function parentRoutes(app: FastifyInstance) {
 
       const payments = await tdb.query`
         SELECT fp.receipt_number, fp.amount_paid, fp.payment_method,
-               fp.payment_date, fs.name AS fee_name
+               fp.payment_date, fs.name AS fee_name,
+               EXISTS (SELECT 1 FROM fee_reversals r
+                       WHERE r.payment_id = fp.id AND r.status = 'approved') AS is_reversed
         FROM fee_payments fp
         JOIN fee_structures fs ON fs.id = fp.fee_structure_id
         WHERE fp.student_id = ${studentId}::uuid
         AND fp.school_id = ${request.schoolId}::uuid
         AND fs.term_id = ${termId}::uuid
+        AND fp.status = 'success'
         ORDER BY fp.payment_date DESC
       ` as any[]
+
+      const waiverRows = await tdb.query`
+        SELECT COALESCE(SUM(amount), 0) AS total FROM fee_waivers
+        WHERE student_id = ${studentId}::uuid AND school_id = ${request.schoolId}::uuid
+        AND term_id = ${termId}::uuid AND status = 'approved'
+      ` as any[]
+      const totalWaived = Number(waiverRows[0]?.total ?? 0)
 
       const totalFees = structures.reduce((s: number, f: any) => s + Number(f.amount), 0)
       const totalPaid = structures.reduce((s: number, f: any) => s + Number(f.total_paid), 0)
@@ -312,7 +328,7 @@ export async function parentRoutes(app: FastifyInstance) {
           balance: Number(f.amount) - Number(f.total_paid),
         })),
         payments,
-        summary: { totalFees, totalPaid, balance: totalFees - totalPaid }
+        summary: { totalFees, totalPaid, totalWaived, balance: totalFees - totalPaid - totalWaived }
       })
     })
 

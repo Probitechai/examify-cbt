@@ -3,21 +3,24 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
+import { getFinanceAccess, requireFinanceRead, requireFinanceWrite } from '../middleware/finance'
+import { nextReceiptNo, logFinance } from '../lib/finance'
 import { sendSms, feeReminderSms } from '../lib/sms'
 
 export async function feeRoutes(app: FastifyInstance) {
 
-  // ── Generate receipt number ───────────────────────────────────────────────
-  async function generateReceiptNo(tdb: any, schoolId: string): Promise<string> {
-    const rows = await tdb.query`
-      SELECT COUNT(*) AS total FROM fee_payments WHERE school_id = ${schoolId}::uuid
-    ` as any[]
-    const count = Number(rows[0]?.total ?? 0) + 1
-    return `RCP-${String(count).padStart(5, '0')}-${new Date().getFullYear()}`
-  }
+  // Guard sets — see middleware/finance.ts for the permission model
+  const READ = [authenticate, requireFinanceRead]
+  const WRITE = [authenticate, requireRole('school_admin', 'bursar'), requireFinanceWrite]
+
+  // ── Who am I, finance-wise? (drives read-only banners in the UI) ──────────
+  app.get('/finance/access', { preHandler: READ },
+    async (request: any, reply: any) => {
+      return reply.send(await getFinanceAccess(request))
+    })
 
   // ── List fee structures ───────────────────────────────────────────────────
-  app.get('/fees/structures', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
+  app.get('/fees/structures', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'bursar', 'proprietor'), requireTier('standard')] },
     async (request: any, reply: any) => {
       const { termId, classLevel } = request.query as any
       const tdb = tenantDb(request.schoolId)
@@ -52,7 +55,7 @@ export async function feeRoutes(app: FastifyInstance) {
     })
 
   // ── Create fee structure ──────────────────────────────────────────────────
-  app.post('/fees/structures', { preHandler: [authenticate, requireRole('school_admin')] },
+  app.post('/fees/structures', { preHandler: WRITE },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -66,54 +69,74 @@ export async function feeRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
 
       const d = body.data
-      const tdb = tenantDb(request.schoolId)
+      if (!d.applyToAllClasses && !d.classLevel) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'classLevel is required unless applyToAllClasses is true.' })
+      }
 
-      if (d.applyToAllClasses) {
-        const ALL_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
-        const created: any[] = []
-        for (const level of ALL_LEVELS) {
-          const rows = await tdb.query`
+      const ALL_LEVELS = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3']
+      let levels: string[] = [d.classLevel as string]
+      if (d.applyToAllClasses) levels = ALL_LEVELS
+
+      const tdb = tenantDb(request.schoolId)
+      const created = await tdb.transaction(async (tx: any) => {
+        const out: any[] = []
+        for (const level of levels) {
+          const rows = await tx`
             INSERT INTO fee_structures (school_id, term_id, class_level, name, amount, is_mandatory)
             VALUES (${request.schoolId}::uuid, ${d.termId}::uuid, ${level}, ${d.name}, ${d.amount}, ${d.isMandatory})
             RETURNING id, name, amount, class_level, is_mandatory
           ` as any[]
-          created.push(rows[0])
+          out.push(rows[0])
+          await logFinance(tx, request, request.schoolId, {
+            action: 'structure.created', entityType: 'fee_structure', entityId: rows[0].id,
+            after: { termId: d.termId, classLevel: level, name: d.name, amount: d.amount, isMandatory: d.isMandatory },
+          })
         }
-        return reply.status(201).send({ structures: created })
-      }
+        return out
+      })
 
-      if (!d.classLevel) {
-        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'classLevel is required unless applyToAllClasses is true.' })
-      }
-
-      const rows = await tdb.query`
-        INSERT INTO fee_structures (school_id, term_id, class_level, name, amount, is_mandatory)
-        VALUES (${request.schoolId}::uuid, ${d.termId}::uuid, ${d.classLevel}, ${d.name}, ${d.amount}, ${d.isMandatory})
-        RETURNING id, name, amount, class_level, is_mandatory
-      ` as any[]
-      return reply.status(201).send({ structure: rows[0] })
+      if (d.applyToAllClasses) return reply.status(201).send({ structures: created })
+      return reply.status(201).send({ structure: created[0] })
     })
 
-  // ── Delete fee structure ──────────────────────────────────────────────────
-  app.delete('/fees/structures/:id', { preHandler: [authenticate, requireRole('school_admin')] },
+  // ── Delete fee structure (only if nothing has been paid against it) ───────
+  app.delete('/fees/structures/:id', { preHandler: WRITE },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const tdb = tenantDb(request.schoolId)
-      await tdb.query`
-        DELETE FROM fee_structures WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
-      `
+
+      const result = await tdb.transaction(async (tx: any) => {
+        const rows = await tx`
+          SELECT id, name, amount, class_level, term_id FROM fee_structures
+          WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+        if (!rows[0]) return 'NOT_FOUND'
+
+        const paid = await tx`SELECT 1 FROM fee_payments WHERE fee_structure_id = ${id}::uuid LIMIT 1` as any[]
+        if (paid[0]) return 'HAS_PAYMENTS'
+
+        await tx`DELETE FROM fee_structures WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid`
+        await logFinance(tx, request, request.schoolId, {
+          action: 'structure.deleted', entityType: 'fee_structure', entityId: id, before: rows[0],
+        })
+        return 'OK'
+      })
+
+      if (result === 'NOT_FOUND') return reply.status(404).send({ error: 'NOT_FOUND' })
+      if (result === 'HAS_PAYMENTS') {
+        return reply.status(409).send({ error: 'HAS_PAYMENTS', message: 'Payments exist against this fee item. It cannot be deleted.' })
+      }
       return reply.send({ deleted: true })
     })
 
-  // ── Get fee ledger for a class (who owes what, who paid) ─────────────────
-  app.get('/fees/ledger', { preHandler: [authenticate, requireRole('school_admin')] },
+  // ── Fee ledger for a class (who owes what, who paid) ──────────────────────
+  app.get('/fees/ledger', { preHandler: READ },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel are required' })
 
       const tdb = tenantDb(request.schoolId)
 
-      // Get fee structures for this class/term
       const structures = await tdb.query`
         SELECT id, name, amount, is_mandatory
         FROM fee_structures
@@ -123,7 +146,6 @@ export async function feeRoutes(app: FastifyInstance) {
         ORDER BY is_mandatory DESC, name ASC
       ` as any[]
 
-      // Get students
       let students: any[]
       if (classArm) {
         students = await tdb.query`
@@ -145,10 +167,10 @@ export async function feeRoutes(app: FastifyInstance) {
         ` as any[]
       }
 
-      // Get all payments for this term/class
+      // Only settled, non-reversed payments count
       const payments = await tdb.query`
         SELECT fp.student_id, fp.fee_structure_id, SUM(fp.amount_paid) AS total_paid
-        FROM fee_payments fp
+        FROM fee_payments_effective fp
         JOIN fee_structures fs ON fs.id = fp.fee_structure_id
         WHERE fp.school_id = ${request.schoolId}::uuid
         AND fs.term_id = ${termId}::uuid
@@ -156,19 +178,27 @@ export async function feeRoutes(app: FastifyInstance) {
         GROUP BY fp.student_id, fp.fee_structure_id
       ` as any[]
 
-      // Build payment map
+      const waivers = await tdb.query`
+        SELECT student_id, SUM(amount) AS total_waived
+        FROM fee_waivers
+        WHERE school_id = ${request.schoolId}::uuid AND term_id = ${termId}::uuid AND status = 'approved'
+        GROUP BY student_id
+      ` as any[]
+
       const paymentMap: Record<string, Record<string, number>> = {}
       for (const p of payments) {
         if (!paymentMap[p.student_id]) paymentMap[p.student_id] = {}
         paymentMap[p.student_id][p.fee_structure_id] = Number(p.total_paid)
       }
+      const waivedMap: Record<string, number> = {}
+      for (const w of waivers) waivedMap[w.student_id] = Number(w.total_waived)
 
-      // Build ledger
       const totalFees = structures.reduce((s: number, f: any) => s + Number(f.amount), 0)
       const ledger = students.map((s: any) => {
         const studentPayments = paymentMap[s.id] ?? {}
         const totalPaid = Object.values(studentPayments).reduce((a: number, b: any) => a + Number(b), 0)
-        const balance = totalFees - totalPaid
+        const totalWaived = waivedMap[s.id] ?? 0
+        const balance = totalFees - totalPaid - totalWaived
         return {
           studentId: s.id,
           studentName: s.full_name,
@@ -176,6 +206,7 @@ export async function feeRoutes(app: FastifyInstance) {
           classArm: s.class_arm,
           totalFees,
           totalPaid,
+          totalWaived,
           balance,
           isPaid: balance <= 0,
           feeDetails: structures.map((f: any) => ({
@@ -184,123 +215,205 @@ export async function feeRoutes(app: FastifyInstance) {
             amount: Number(f.amount),
             paid: studentPayments[f.id] ?? 0,
             balance: Number(f.amount) - (studentPayments[f.id] ?? 0),
-          }))
+          })),
         }
       })
 
       return reply.send({ ledger, structures, totalFees })
     })
 
-  // ── Record a payment ──────────────────────────────────────────────────────
-  app.post('/fees/payments', { preHandler: [authenticate, requireRole('school_admin')] },
+  // ── Record a manual payment ───────────────────────────────────────────────
+  app.post('/fees/payments', { preHandler: WRITE },
     async (request: any, reply: any) => {
       const schema = z.object({
         feeStructureId: z.string().uuid(),
         studentId: z.string().uuid(),
         amountPaid: z.number().positive(),
-        paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'cheque']),
+        paymentMethod: z.enum(['cash', 'bank_transfer', 'pos', 'card', 'cheque']),
         paymentDate: z.string().optional(),
         notes: z.string().optional(),
         payerName: z.string().optional(),
         payerBank: z.string().optional(),
         accountNumber: z.string().optional(),
-        transferReference: z.string().optional(),
+        transferReference: z.string().trim().optional(),
+      }).refine(d => d.paymentMethod === 'cash' || !!d.transferReference, {
+        message: 'A teller / transfer / POS reference is required for non-cash payments',
+        path: ['transferReference'],
       })
       const body = schema.safeParse(request.body)
-      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: body.error.flatten() })
 
       const d = body.data
       const tdb = tenantDb(request.schoolId)
-      const receiptNo = await generateReceiptNo(tdb, request.schoolId)
 
-      const rows = await tdb.query`
-        INSERT INTO fee_payments (
-          school_id, fee_structure_id, student_id, amount_paid,
-          payment_method, receipt_number, payment_date, recorded_by, notes,
-          payer_name, payer_bank, account_number, transfer_reference
-        )
-        VALUES (
-          ${request.schoolId}::uuid, ${d.feeStructureId}::uuid, ${d.studentId}::uuid,
-          ${d.amountPaid}, ${d.paymentMethod}, ${receiptNo},
-          ${d.paymentDate ?? new Date().toISOString().split('T')[0]}::date,
-          ${request.user.id}::uuid, ${d.notes ?? null},
-          ${d.payerName ?? null}, ${d.payerBank ?? null},
-          ${d.accountNumber ?? null}, ${d.transferReference ?? null}
-        )
-        RETURNING id, receipt_number, amount_paid, payment_method, payment_date
-      ` as any[]
+      const result: any = await tdb.transaction(async (tx: any) => {
+        // Both IDs must belong to THIS school
+        const fs = await tx`
+          SELECT id FROM fee_structures
+          WHERE id = ${d.feeStructureId}::uuid AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+        const st = await tx`
+          SELECT id FROM users
+          WHERE id = ${d.studentId}::uuid AND school_id = ${request.schoolId}::uuid AND role = 'student'
+        ` as any[]
+        if (!fs[0] || !st[0]) return { error: 'NOT_FOUND' }
 
-      return reply.status(201).send({ payment: rows[0], receiptNo })
+        // The same teller / transfer reference can't be used twice (unless the first was reversed)
+        if (d.transferReference) {
+          const dup = await tx`
+            SELECT receipt_number FROM fee_payments_effective
+            WHERE school_id = ${request.schoolId}::uuid
+              AND lower(transfer_reference) = lower(${d.transferReference})
+          ` as any[]
+          if (dup[0]) return { error: 'DUPLICATE_REFERENCE', receipt: dup[0].receipt_number }
+        }
+
+        const receiptNo = await nextReceiptNo(tx, request.schoolId)
+        const rows = await tx`
+          INSERT INTO fee_payments (
+            school_id, fee_structure_id, student_id, amount_paid, payment_method,
+            receipt_number, payment_date, recorded_by, notes,
+            payer_name, payer_bank, account_number, transfer_reference, status
+          ) VALUES (
+            ${request.schoolId}::uuid, ${d.feeStructureId}::uuid, ${d.studentId}::uuid,
+            ${d.amountPaid}, ${d.paymentMethod}, ${receiptNo},
+            ${d.paymentDate ?? new Date().toISOString().split('T')[0]}::date,
+            ${request.user.id}::uuid, ${d.notes ?? null},
+            ${d.payerName ?? null}, ${d.payerBank ?? null},
+            ${d.accountNumber ?? null}, ${d.transferReference ?? null}, 'success'
+          )
+          RETURNING id, receipt_number, amount_paid, payment_method, payment_date
+        ` as any[]
+
+        await logFinance(tx, request, request.schoolId, {
+          action: 'payment.recorded',
+          entityType: 'fee_payment',
+          entityId: rows[0].id,
+          after: { ...d, receiptNo },
+        })
+        return { payment: rows[0], receiptNo }
+      })
+
+      if (result.error === 'DUPLICATE_REFERENCE') {
+        return reply.status(409).send({ error: 'DUPLICATE_REFERENCE', message: `This reference is already on receipt ${result.receipt}.` })
+      }
+      if (result.error) return reply.status(404).send({ error: 'NOT_FOUND' })
+      return reply.status(201).send(result)
     })
 
-  // ── Get payment history for a student ────────────────────────────────────
+  // ── Payment history for a student ─────────────────────────────────────────
   app.get('/fees/payments', { preHandler: [authenticate] },
     async (request: any, reply: any) => {
       const { studentId, termId } = request.query as any
       if (!studentId) return reply.status(400).send({ error: 'studentId is required' })
 
+      const role = request.user.role
       const tdb = tenantDb(request.schoolId)
+
+      if (role === 'student') {
+        if (studentId !== request.user.id) return reply.status(403).send({ error: 'FORBIDDEN' })
+      } else if (role === 'parent') {
+        const link = await tdb.query`
+          SELECT 1 FROM parent_student_links
+          WHERE parent_id = ${request.user.id}::uuid
+          AND student_id = ${studentId}::uuid
+          AND school_id = ${request.schoolId}::uuid
+        ` as any[]
+        if (!link[0]) return reply.status(403).send({ error: 'NOT_LINKED' })
+      } else if (!['school_admin', 'bursar', 'proprietor'].includes(role)) {
+        return reply.status(403).send({ error: 'FORBIDDEN' })
+      }
 
       let payments: any[]
       if (termId) {
         payments = await tdb.query`
           SELECT fp.id, fp.amount_paid, fp.payment_method, fp.receipt_number,
-                 fp.payment_date, fp.notes, fs.name AS fee_name, fs.amount AS fee_amount
+                 fp.payment_date, fp.notes, fp.status, fs.name AS fee_name, fs.amount AS fee_amount,
+                 EXISTS (SELECT 1 FROM fee_reversals r
+                         WHERE r.payment_id = fp.id AND r.status = 'approved') AS is_reversed
           FROM fee_payments fp
           JOIN fee_structures fs ON fs.id = fp.fee_structure_id
           WHERE fp.student_id = ${studentId}::uuid
           AND fp.school_id = ${request.schoolId}::uuid
           AND fs.term_id = ${termId}::uuid
+          AND fp.status = 'success'
           ORDER BY fp.payment_date DESC, fp.created_at DESC
         ` as any[]
       } else {
         payments = await tdb.query`
           SELECT fp.id, fp.amount_paid, fp.payment_method, fp.receipt_number,
-                 fp.payment_date, fp.notes, fs.name AS fee_name, fs.amount AS fee_amount
+                 fp.payment_date, fp.notes, fp.status, fs.name AS fee_name, fs.amount AS fee_amount,
+                 EXISTS (SELECT 1 FROM fee_reversals r
+                         WHERE r.payment_id = fp.id AND r.status = 'approved') AS is_reversed
           FROM fee_payments fp
           JOIN fee_structures fs ON fs.id = fp.fee_structure_id
           WHERE fp.student_id = ${studentId}::uuid
           AND fp.school_id = ${request.schoolId}::uuid
+          AND fp.status = 'success'
           ORDER BY fp.payment_date DESC, fp.created_at DESC
         ` as any[]
       }
       return reply.send({ payments })
     })
 
-  // ── Get fee collection summary ────────────────────────────────────────────
-  app.get('/fees/summary', { preHandler: [authenticate, requireRole('school_admin')] },
+  // ── Fee collection summary by class ───────────────────────────────────────
+  app.get('/fees/summary', { preHandler: READ },
     async (request: any, reply: any) => {
       const { termId } = request.query as any
       if (!termId) return reply.status(400).send({ error: 'termId is required' })
 
       const tdb = tenantDb(request.schoolId)
 
+      // Each side aggregated separately — no row multiplication
       const summary = await tdb.query`
-        SELECT
-          fs.class_level,
-          SUM(fs.amount) AS fee_per_student,
-          COUNT(DISTINCT u.id) AS student_count,
-          SUM(fs.amount) * COUNT(DISTINCT u.id) AS total_expected,
-          COALESCE(SUM(fp.amount_paid), 0) AS total_collected,
-          SUM(fs.amount) * COUNT(DISTINCT u.id) - COALESCE(SUM(fp.amount_paid), 0) AS total_outstanding
-        FROM fee_structures fs
-        JOIN users u ON u.class_level = fs.class_level
-          AND u.school_id = ${request.schoolId}::uuid
-          AND u.role = 'student' AND u.is_active = true
-        LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
-          AND fp.student_id = u.id
-          AND fp.school_id = ${request.schoolId}::uuid
-        WHERE fs.school_id = ${request.schoolId}::uuid
-        AND fs.term_id = ${termId}::uuid
-        GROUP BY fs.class_level
-        ORDER BY fs.class_level
+        WITH fees AS (
+          SELECT class_level, SUM(amount) AS fee_per_student
+          FROM fee_structures
+          WHERE school_id = ${request.schoolId}::uuid AND term_id = ${termId}::uuid
+          GROUP BY class_level
+        ),
+        counts AS (
+          SELECT class_level, COUNT(*) AS student_count
+          FROM users
+          WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
+          GROUP BY class_level
+        ),
+        paid AS (
+          SELECT u.class_level, SUM(fp.amount_paid) AS collected
+          FROM fee_payments_effective fp
+          JOIN fee_structures fs ON fs.id = fp.fee_structure_id
+          JOIN users u ON u.id = fp.student_id
+          WHERE fp.school_id = ${request.schoolId}::uuid AND fs.term_id = ${termId}::uuid
+          GROUP BY u.class_level
+        ),
+        waived AS (
+          SELECT u.class_level, SUM(w.amount) AS waived
+          FROM fee_waivers w
+          JOIN users u ON u.id = w.student_id
+          WHERE w.school_id = ${request.schoolId}::uuid AND w.term_id = ${termId}::uuid
+            AND w.status = 'approved'
+          GROUP BY u.class_level
+        )
+        SELECT f.class_level,
+               f.fee_per_student,
+               COALESCE(c.student_count, 0) AS student_count,
+               f.fee_per_student * COALESCE(c.student_count, 0) AS total_expected,
+               COALESCE(p.collected, 0) AS total_collected,
+               COALESCE(w.waived, 0) AS total_waived,
+               f.fee_per_student * COALESCE(c.student_count, 0)
+                 - COALESCE(p.collected, 0) - COALESCE(w.waived, 0) AS total_outstanding
+        FROM fees f
+        LEFT JOIN counts c USING (class_level)
+        LEFT JOIN paid   p USING (class_level)
+        LEFT JOIN waived w USING (class_level)
+        ORDER BY f.class_level
       ` as any[]
 
       return reply.send({ summary })
     })
 
-  // ── Send fee reminder SMS to parents of students with outstanding balance ──
-  app.post('/fees/remind-sms', { preHandler: [authenticate, requireRole('school_admin')] },
+  // ── Fee reminder SMS to parents of students with an outstanding balance ───
+  app.post('/fees/remind-sms', { preHandler: WRITE },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -321,44 +434,75 @@ export async function feeRoutes(app: FastifyInstance) {
       let students: any[]
       if (d.classArm) {
         students = await tdb.query`
-          SELECT u.full_name AS student_name, p.phone AS parent_phone,
-                 SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) AS balance
-          FROM users u
-          JOIN fee_structures fs ON fs.class_level = u.class_level
-            AND fs.term_id = ${d.termId}::uuid
-            AND fs.school_id = ${request.schoolId}::uuid
-          LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
-            AND fp.student_id = u.id
-          LEFT JOIN parent_student_links psl ON psl.student_id = u.id
+          WITH bill AS (
+            SELECT COALESCE(SUM(amount), 0) AS total FROM fee_structures
+            WHERE school_id = ${request.schoolId}::uuid AND term_id = ${d.termId}::uuid
+              AND class_level = ${d.classLevel}
+          ),
+          kids AS (
+            SELECT id, full_name FROM users
+            WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
+              AND class_level = ${d.classLevel} AND class_arm = ${d.classArm}
+          ),
+          paid AS (
+            SELECT fp.student_id, SUM(fp.amount_paid) AS paid
+            FROM fee_payments_effective fp
+            JOIN fee_structures fs ON fs.id = fp.fee_structure_id
+            WHERE fp.school_id = ${request.schoolId}::uuid AND fs.term_id = ${d.termId}::uuid
+            GROUP BY fp.student_id
+          ),
+          waived AS (
+            SELECT student_id, SUM(amount) AS waived FROM fee_waivers
+            WHERE school_id = ${request.schoolId}::uuid AND term_id = ${d.termId}::uuid
+              AND status = 'approved'
+            GROUP BY student_id
+          )
+          SELECT k.full_name AS student_name, p.phone AS parent_phone,
+                 b.total - COALESCE(pd.paid, 0) - COALESCE(w.waived, 0) AS balance
+          FROM kids k
+          CROSS JOIN bill b
+          LEFT JOIN paid pd  ON pd.student_id = k.id
+          LEFT JOIN waived w ON w.student_id = k.id
+          LEFT JOIN parent_student_links psl ON psl.student_id = k.id
             AND psl.school_id = ${request.schoolId}::uuid
           LEFT JOIN users p ON p.id = psl.parent_id
-          WHERE u.school_id = ${request.schoolId}::uuid
-          AND u.role = 'student' AND u.is_active = true
-          AND u.class_level = ${d.classLevel}
-          AND u.class_arm = ${d.classArm}
-          GROUP BY u.id, u.full_name, p.phone
-          HAVING SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) > 0
+          WHERE b.total - COALESCE(pd.paid, 0) - COALESCE(w.waived, 0) > 0
         ` as any[]
       } else {
         students = await tdb.query`
-          SELECT u.full_name AS student_name, p.phone AS parent_phone,
-                 SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) AS balance
-          FROM users u
-          JOIN fee_structures fs ON fs.class_level = u.class_level
-            AND fs.term_id = ${d.termId}::uuid
-            AND fs.school_id = ${request.schoolId}::uuid
-          LEFT JOIN fee_payments fp ON fp.fee_structure_id = fs.id
-            AND fp.student_id = u.id
-            AND fp.school_id = ${request.schoolId}::uuid
-          JOIN parent_student_links psl ON psl.student_id = u.id
+          WITH bill AS (
+            SELECT COALESCE(SUM(amount), 0) AS total FROM fee_structures
+            WHERE school_id = ${request.schoolId}::uuid AND term_id = ${d.termId}::uuid
+              AND class_level = ${d.classLevel}
+          ),
+          kids AS (
+            SELECT id, full_name FROM users
+            WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
+              AND class_level = ${d.classLevel}
+          ),
+          paid AS (
+            SELECT fp.student_id, SUM(fp.amount_paid) AS paid
+            FROM fee_payments_effective fp
+            JOIN fee_structures fs ON fs.id = fp.fee_structure_id
+            WHERE fp.school_id = ${request.schoolId}::uuid AND fs.term_id = ${d.termId}::uuid
+            GROUP BY fp.student_id
+          ),
+          waived AS (
+            SELECT student_id, SUM(amount) AS waived FROM fee_waivers
+            WHERE school_id = ${request.schoolId}::uuid AND term_id = ${d.termId}::uuid
+              AND status = 'approved'
+            GROUP BY student_id
+          )
+          SELECT k.full_name AS student_name, p.phone AS parent_phone,
+                 b.total - COALESCE(pd.paid, 0) - COALESCE(w.waived, 0) AS balance
+          FROM kids k
+          CROSS JOIN bill b
+          LEFT JOIN paid pd  ON pd.student_id = k.id
+          LEFT JOIN waived w ON w.student_id = k.id
+          LEFT JOIN parent_student_links psl ON psl.student_id = k.id
             AND psl.school_id = ${request.schoolId}::uuid
-          JOIN users p ON p.id = psl.parent_id
-            AND p.phone IS NOT NULL
-          WHERE u.school_id = ${request.schoolId}::uuid
-          AND u.role = 'student' AND u.is_active = true
-          AND u.class_level = ${d.classLevel}
-          GROUP BY u.id, u.full_name, p.phone
-          HAVING SUM(fs.amount) - COALESCE(SUM(fp.amount_paid), 0) > 0
+          LEFT JOIN users p ON p.id = psl.parent_id
+          WHERE b.total - COALESCE(pd.paid, 0) - COALESCE(w.waived, 0) > 0
         ` as any[]
       }
 
@@ -379,11 +523,19 @@ export async function feeRoutes(app: FastifyInstance) {
         }
       }
 
+      const tdb2 = tenantDb(request.schoolId)
+      await tdb2.transaction(async (tx: any) => {
+        await logFinance(tx, request, request.schoolId, {
+          action: 'reminders.sms_sent', entityType: 'settings', entityId: null,
+          after: { termId: d.termId, classLevel: d.classLevel, classArm: d.classArm ?? null, sent, skipped },
+        })
+      })
+
       return reply.send({
         sent,
         skipped,
         total: students.length,
-        message: `SMS sent to ${sent} parent(s). ${skipped} skipped (no phone number).`
+        message: `SMS sent to ${sent} parent(s). ${skipped} skipped (no phone number).`,
       })
     })
 }

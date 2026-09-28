@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import * as bcrypt from 'bcryptjs'
+import { randomBytes } from 'crypto'
 import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 
@@ -272,6 +273,59 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         RETURNING id, full_name, email, phone
       ` as any[]
       return reply.status(201).send({ proprietor: rows[0], tempPassword })
+    })
+
+  // ── Bursar accounts (fallback for schools with NO active Proprietor) ──────
+  app.get('/superadmin/schools/:id/bursars', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const rows = await db()`
+        SELECT id, full_name, email, phone, is_active, created_at, last_login_at
+        FROM users WHERE school_id = ${id}::uuid AND role = 'bursar'
+        ORDER BY created_at ASC
+      ` as any[]
+      return reply.send({ bursars: rows })
+    })
+
+  app.post('/superadmin/schools/:id/bursars', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const { full_name, email, phone } = request.body as any
+      if (!full_name || !email) {
+        return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'full_name and email are required.' })
+      }
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailPattern.test(email)) {
+        return reply.status(400).send({ error: 'INVALID_EMAIL', message: 'Not a valid email address.' })
+      }
+      const schoolRows = await db()`SELECT id FROM schools WHERE id = ${id}::uuid` as any[]
+      if (!schoolRows[0]) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
+
+      const prop = await db()`
+        SELECT 1 FROM users WHERE school_id = ${id}::uuid AND role = 'proprietor' AND is_active = true
+      ` as any[]
+      if (prop[0]) {
+        return reply.status(409).send({ error: 'HAS_PROPRIETOR', message: 'This school has an active Proprietor, who should create the Bursar account.' })
+      }
+
+      const existing = await db()`SELECT id FROM users WHERE email = ${email.toLowerCase()}` as any[]
+      if (existing.length > 0) {
+        return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
+      }
+
+      const tempPassword = randomBytes(9).toString('base64url')
+      const passwordHash = await bcrypt.hash(tempPassword, 12)
+      const rows = await db()`
+        INSERT INTO users (school_id, full_name, email, phone, password_hash, role, is_active, must_change_password)
+        VALUES (${id}::uuid, ${full_name}, ${email.toLowerCase()}, ${phone ?? null}, ${passwordHash}, 'bursar', true, true)
+        RETURNING id, full_name, email, phone
+      ` as any[]
+      await db()`
+        INSERT INTO fee_audit_log (school_id, actor_id, actor_role, action, entity_type, entity_id, after_data)
+        VALUES (${id}::uuid, ${request.user?.id ?? null}::uuid, 'super_admin', 'bursar.created', 'user',
+                ${rows[0].id}::uuid, ${db().json({ fullName: full_name, email: email.toLowerCase() })})
+      `
+      return reply.status(201).send({ bursar: rows[0], tempPassword })
     })
 
   // ── Deactivate/reactivate a proprietor account ────────────────────────────

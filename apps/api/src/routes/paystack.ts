@@ -3,12 +3,13 @@ import { z } from 'zod'
 import { createHmac } from 'crypto'
 import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { nextReceiptNo, logFinance } from '../lib/finance'
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY
 const PAYSTACK_BASE = 'https://api.paystack.co'
 
 // ── Paystack API helper ───────────────────────────────────────────────────────
-async function paystackRequest(method: string, path: string, body?: any) {
+export async function paystackRequest(method: string, path: string, body?: any) {
   const res = await fetch(`${PAYSTACK_BASE}${path}`, {
     method,
     headers: {
@@ -20,13 +21,46 @@ async function paystackRequest(method: string, path: string, body?: any) {
   return res.json()
 }
 
-// ── Generate receipt number ───────────────────────────────────────────────────
-async function generateReceiptNo(schoolId: string): Promise<string> {
-  const rows = await db()`
-    SELECT COUNT(*) AS total FROM fee_payments WHERE school_id = ${schoolId}::uuid
-  ` as any[]
-  const count = Number(rows[0]?.total ?? 0) + 1
-  return `RCP-${String(count).padStart(5, '0')}-${new Date().getFullYear()}`
+// ── Settle a pending Paystack fee payment (idempotent) ────────────────────────
+// Shared by the webhook and the verify endpoint: whichever arrives first settles
+// the payment and issues ONE receipt; the second finds it settled and does nothing.
+async function settleFeePayment(schoolId: string, reference: string, paidKobo: number) {
+  const tdb = tenantDb(schoolId)
+  return tdb.transaction(async (tx: any) => {
+    const rows = await tx`
+      SELECT id, amount_paid, receipt_number, status FROM fee_payments
+      WHERE paystack_reference = ${reference} AND school_id = ${schoolId}::uuid
+      FOR UPDATE
+    ` as any[]
+    const row = rows[0]
+    if (!row) return { found: false, receiptNo: null as string | null, status: null as string | null }
+    if (row.status !== 'pending') {
+      return { found: true, receiptNo: row.receipt_number as string, status: row.status as string }
+    }
+
+    const expectedKobo = Math.round(Number(row.amount_paid) * 100)
+    const actual = paidKobo / 100
+    const receiptNo = await nextReceiptNo(tx, schoolId)
+
+    // Paystack's charged amount is the truth; record exactly what was received
+    await tx`
+      UPDATE fee_payments
+      SET status = 'success', receipt_number = ${receiptNo},
+          payment_date = CURRENT_DATE, amount_paid = ${actual}
+      WHERE id = ${row.id}::uuid
+    `
+    let action = 'payment.paystack_confirmed'
+    if (expectedKobo !== paidKobo) action = 'payment.paystack_amount_mismatch'
+    await logFinance(tx, null, schoolId, {
+      action,
+      entityType: 'fee_payment',
+      entityId: row.id,
+      before: { status: 'pending', amount: Number(row.amount_paid) },
+      after: { status: 'success', amount: actual, receiptNo },
+      reason: reference,
+    })
+    return { found: true, receiptNo, status: 'success' }
+  })
 }
 
 export async function paystackRoutes(app: FastifyInstance) {
@@ -379,38 +413,30 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
 
   // Verify fee payment
-  app.get('/paystack/fees/verify', { preHandler: [authenticate] },
+  app.get('/paystack/fees/verify', { preHandler: [authenticate, requireRole('parent', 'bursar', 'school_admin')] },
     async (request: any, reply: any) => {
       const { reference } = request.query as any
       if (!reference) return reply.status(400).send({ error: 'reference required' })
 
-      const paystackRes = await paystackRequest('GET', `/transaction/verify/${reference}`)
-
+      const paystackRes = await paystackRequest('GET', `/transaction/verify/${encodeURIComponent(reference)}`)
       if (!paystackRes.status || paystackRes.data.status !== 'success') {
         return reply.send({ success: false, message: 'Payment not confirmed yet' })
       }
 
       const meta = paystackRes.data.metadata
-      const schoolId = meta.school_id
-      const tdb = tenantDb(schoolId)
+      if (meta?.type !== 'fee_payment' || meta.school_id !== request.schoolId) {
+        return reply.status(403).send({ error: 'FORBIDDEN' })
+      }
 
-      // Generate receipt number
-      const receiptNo = await generateReceiptNo(schoolId)
-
-      // Update fee payment to success
-      await tdb.query`
-        UPDATE fee_payments
-        SET status = 'success', receipt_number = ${receiptNo}, payment_date = CURRENT_DATE
-        WHERE paystack_reference = ${reference}
-        AND school_id = ${schoolId}::uuid
-      `
+      const r = await settleFeePayment(request.schoolId, reference, Number(paystackRes.data.amount))
+      if (!r.found) return reply.status(404).send({ error: 'NOT_FOUND' })
 
       return reply.send({
-        success: true,
-        receiptNo,
+        success: r.status === 'success',
+        receiptNo: r.receiptNo,
         studentName: meta.student_name,
         feeName: meta.fee_name,
-        message: `Payment confirmed! Receipt: ${receiptNo}`,
+        message: `Payment confirmed! Receipt: ${r.receiptNo}`,
       })
     })
 
@@ -455,17 +481,8 @@ export async function paystackRoutes(app: FastifyInstance) {
         console.log('[PAYSTACK WEBHOOK] Subscription activated for school:', meta.school_id, 'tier:', tier)
 
       } else if (meta?.type === 'fee_payment') {
-        // Confirm fee payment
-        const tdb = tenantDb(meta.school_id)
-        const receiptNo = await generateReceiptNo(meta.school_id)
-
-        await tdb.query`
-          UPDATE fee_payments
-          SET status = 'success', receipt_number = ${receiptNo}, payment_date = CURRENT_DATE
-          WHERE paystack_reference = ${reference}
-          AND school_id = ${meta.school_id}::uuid
-        `
-        console.log('[PAYSTACK WEBHOOK] Fee payment confirmed:', receiptNo)
+        const r = await settleFeePayment(meta.school_id, reference, Number(event.data.amount))
+        console.log('[PAYSTACK WEBHOOK] Fee payment', reference, r)
       }
     }
 

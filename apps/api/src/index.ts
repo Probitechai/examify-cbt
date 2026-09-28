@@ -18,6 +18,7 @@ import { resultRoutes } from './routes/results'
 import { schoolRoutes } from './routes/schools'
 import { attendanceRoutes } from './routes/attendance'
 import { feeRoutes } from './routes/fees'
+import { financeRoutes } from './routes/finance'
 import { parentRoutes } from './routes/parents'
 import { conductRoutes } from './routes/conduct'
 import { announcementRoutes } from './routes/announcements'
@@ -52,6 +53,7 @@ const NODE_ENV = process.env.NODE_ENV ?? 'development'
 
 const app = Fastify({
   logger: NODE_ENV !== 'production',
+  trustProxy: true, // Railway sits in front; gives real client IPs for the fee audit log
 })
 
 async function start() {
@@ -82,6 +84,7 @@ async function start() {
   await app.register(schoolRoutes, { prefix: '/api' })
   await app.register(attendanceRoutes, { prefix: '/api' })
   await app.register(feeRoutes, { prefix: '/api' })
+  await app.register(financeRoutes, { prefix: '/api' })
   await app.register(parentRoutes, { prefix: '/api' })
   await app.register(conductRoutes, { prefix: '/api' })
   await app.register(announcementRoutes, { prefix: '/api' })

@@ -83,7 +83,11 @@ export function loginCredentialsEmail(params: {
   role: string
 }): { subject: string; html: string } {
   const { schoolName, fullName, email, password, loginUrl, role } = params
-  const roleLabel = role === 'teacher' ? 'Teacher' : role === 'school_admin' ? 'Administrator' : 'Student'
+  const roleLabel = role === 'teacher' ? 'Teacher'
+    : role === 'school_admin' ? 'Administrator'
+    : role === 'bursar' ? 'Bursar'
+    : role === 'proprietor' ? 'Proprietor'
+    : 'Student'
 
   const content = `
     <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 16px;">Welcome to Examify, ${fullName.split(' ')[0]}! 👋</h1>

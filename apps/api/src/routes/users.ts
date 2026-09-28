@@ -24,6 +24,7 @@ export async function userRoutes(app: FastifyInstance) {
   app.post('/users', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const schema = z.object({
+        // NEVER add 'bursar' or 'proprietor' here — only the Proprietor / super_admin create those
         role: z.enum(['school_admin', 'teacher', 'student', 'parent']),
         email: z.string().email(),
         fullName: z.string().min(1),
@@ -126,11 +127,29 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.send({ imported, errors })
     })
 
+  // Accounts the School Admin must never change: only the Proprietor (or super_admin)
+  // manages these. Otherwise an Admin could deactivate the Bursar to regain fee
+  // write access, or lock the Proprietor out.
+  const PROTECTED_ROLES = ['bursar', 'proprietor', 'super_admin']
+
   app.patch('/users/:id/status', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const { isActive } = request.body as any
+      if (typeof isActive !== 'boolean') return reply.status(400).send({ error: 'VALIDATION_ERROR' })
       const tdb = tenantDb(request.schoolId)
+
+      const target = await tdb.query`
+        SELECT role FROM users WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      if (!target[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+      if (PROTECTED_ROLES.includes(target[0].role)) {
+        return reply.status(403).send({ error: 'PROTECTED_ACCOUNT', message: 'Only the Proprietor can change this account.' })
+      }
+      if (id === request.user.id && isActive === false) {
+        return reply.status(400).send({ error: 'CANNOT_DEACTIVATE_SELF' })
+      }
+
       await tdb.query`
         UPDATE users SET is_active = ${isActive}
         WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
