@@ -1,24 +1,46 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { createHmac } from 'crypto'
 import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { nextReceiptNo, logFinance } from '../lib/finance'
+import { paystackRequest, paystackMode, schoolUrl, validSignature, usableSubaccount } from '../lib/paystack'
 
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY
-const PAYSTACK_BASE = 'https://api.paystack.co'
+export { paystackRequest }
 
-// ── Paystack API helper ───────────────────────────────────────────────────────
-export async function paystackRequest(method: string, path: string, body?: any) {
-  const res = await fetch(`${PAYSTACK_BASE}${path}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${PAYSTACK_SECRET}`,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
+const TIER_PRICES_KOBO: Record<string, number> = {
+  basic: 5000000,     // ₦50,000
+  standard: 7500000,  // ₦75,000
+  premium: 12000000,  // ₦120,000
+}
+
+// ── Settle a subscription payment (idempotent) ────────────────────────────────
+// Shared by the webhook and the verify endpoint. Only a PENDING payment for the
+// same school and the full price activates the plan, so an old reference can't
+// be replayed to extend a subscription. Renewing early adds to the time left.
+async function settleSubscription(reference: string, data: any): Promise<{ ok: boolean; reason?: string; tier?: string; termName?: string; expiresAt?: string }> {
+  const meta = data?.metadata ?? {}
+  if (meta.type !== 'subscription') return { ok: false, reason: 'NOT_A_SUBSCRIPTION' }
+  return db().begin(async (tx: any) => {
+    const rows = await tx`
+      SELECT id, school_id, tier, term_name, amount, status FROM subscription_payments
+      WHERE paystack_reference = ${reference} FOR UPDATE
+    ` as any[]
+    const p = rows[0]
+    if (!p) return { ok: false, reason: 'NOT_FOUND' }
+    if (p.school_id !== meta.school_id) return { ok: false, reason: 'SCHOOL_MISMATCH' }
+    if (p.status !== 'pending') return { ok: p.status === 'success', reason: 'ALREADY_SETTLED', tier: p.tier, termName: p.term_name }
+    if (Math.round(Number(p.amount) * 100) !== Number(data.amount)) return { ok: false, reason: 'AMOUNT_MISMATCH' }
+    const [s] = await tx`SELECT subscription_expires_at FROM schools WHERE id = ${p.school_id}::uuid FOR UPDATE` as any[]
+    const start = new Date(Math.max(Date.now(), s?.subscription_expires_at ? new Date(s.subscription_expires_at).getTime() : 0))
+    start.setMonth(start.getMonth() + 4)   // one term
+    const expiresAt = start.toISOString()
+    await tx`UPDATE subscription_payments SET status = 'success', paid_at = now() WHERE id = ${p.id}::uuid`
+    await tx`
+      UPDATE schools SET subscription_tier = ${p.tier}, subscription_expires_at = ${expiresAt}, subscription_term = ${p.term_name}
+      WHERE id = ${p.school_id}::uuid
+    `
+    return { ok: true, tier: p.tier, termName: p.term_name, expiresAt }
   })
-  return res.json()
 }
 
 // ── Settle a pending Paystack fee payment (idempotent) ────────────────────────
@@ -64,6 +86,17 @@ async function settleFeePayment(schoolId: string, reference: string, paidKobo: n
 }
 
 export async function paystackRoutes(app: FastifyInstance) {
+  // Keep the raw JSON body (only for routes in this plugin) so the webhook
+  // signature can be checked against exactly what Paystack signed.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req: any, body: any, done: any) => {
+    req.rawBody = body
+    if (body === '' || body == null) {
+      const err: any = new Error("Body cannot be empty when content-type is set to 'application/json'")
+      err.statusCode = 400; err.code = 'FST_ERR_CTP_EMPTY_JSON_BODY'
+      return done(err, undefined)
+    }
+    try { done(null, JSON.parse(body)) } catch (e: any) { e.statusCode = 400; done(e, undefined) }
+  })
 
   // ── SCHOOL SUBSCRIPTION ───────────────────────────────────────────────────
 
@@ -79,11 +112,8 @@ export async function paystackRoutes(app: FastifyInstance) {
 
       const d = body.data
 
-      const TIER_PRICES: Record<string, number> = {
-        basic: 5000000,     // ₦50,000 in kobo
-        standard: 7500000,  // ₦75,000 in kobo
-        premium: 12000000,  // ₦120,000 in kobo
-        enterprise: 0,      // Custom pricing
+      if (!TIER_PRICES_KOBO[d.tier]) {
+        return reply.status(400).send({ error: 'CUSTOM_PRICING', message: 'Enterprise is priced per school. Please contact Examify to arrange it.' })
       }
 
       const TIER_NAMES: Record<string, string> = {
@@ -105,7 +135,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const school = schoolRows[0]
       if (!school) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
 
-      const amount = TIER_PRICES[d.tier]
+      const amount = TIER_PRICES_KOBO[d.tier]
       const reference = `SUB-${request.schoolId.slice(0, 8)}-${Date.now()}`
 
       // Initialize with Paystack
@@ -121,7 +151,7 @@ export async function paystackRoutes(app: FastifyInstance) {
           tier: d.tier,
           term_name: d.termName,
         },
-        callback_url: `${process.env.FRONTEND_URL ?? 'https://examify-cbt-web.vercel.app'}/admin/subscription/callback`,
+        callback_url: `${schoolUrl(request.school.subdomain)}/subscription/callback`,
       })
 
       if (!paystackRes.status) {
@@ -158,42 +188,29 @@ export async function paystackRoutes(app: FastifyInstance) {
       const { reference } = request.query as any
       if (!reference) return reply.status(400).send({ error: 'reference required' })
 
-      const paystackRes = await paystackRequest('GET', `/transaction/verify/${reference}`)
+      const paystackRes = await paystackRequest('GET', `/transaction/verify/${encodeURIComponent(String(reference))}`)
 
       if (!paystackRes.status || paystackRes.data.status !== 'success') {
         return reply.send({ success: false, message: paystackRes.data?.gateway_response ?? 'Payment not successful' })
       }
+      if (paystackRes.data.metadata?.school_id !== request.schoolId) {
+        return reply.status(403).send({ success: false, error: 'FORBIDDEN', message: 'This payment belongs to another school.' })
+      }
 
-      const meta = paystackRes.data.metadata
-      const schoolId = meta.school_id
-      const tier = meta.tier
-      const termName = meta.term_name
-
-      // Update subscription payment record
-      await db()`
-        UPDATE subscription_payments
-        SET status = 'success', paid_at = now()
-        WHERE paystack_reference = ${reference}
-      `
-
-      // Update school subscription tier and expiry (one term = ~4 months)
-      const expiresAt = new Date()
-      expiresAt.setMonth(expiresAt.getMonth() + 4)
-
-      await db()`
-        UPDATE schools
-        SET subscription_tier = ${tier},
-            subscription_expires_at = ${expiresAt.toISOString()},
-            subscription_term = ${termName}
-        WHERE id = ${schoolId}::uuid
-      `
+      const r = await settleSubscription(String(reference), paystackRes.data)
+      if (!r.ok) {
+        const message = r.reason === 'AMOUNT_MISMATCH'
+          ? 'The amount paid does not match the plan price. Please contact Examify support.'
+          : 'This payment could not be applied. Please contact Examify support.'
+        return reply.send({ success: false, message })
+      }
 
       return reply.send({
         success: true,
-        tier,
-        termName,
-        expiresAt: expiresAt.toISOString(),
-        message: `Your school has been upgraded to the ${tier} plan for ${termName}.`,
+        tier: r.tier,
+        termName: r.termName,
+        expiresAt: r.expiresAt,
+        message: `Your school is on the ${r.tier} plan for ${r.termName}.`,
       })
     })
 
@@ -274,6 +291,7 @@ export async function paystackRoutes(app: FastifyInstance) {
           paystack_subaccount_code = ${subRes.data.subaccount_code},
           paystack_subaccount_bank = ${d.bankName},
           paystack_subaccount_account_number = ${d.accountNumber},
+          paystack_subaccount_mode = ${paystackMode()},
           payment_preference = 'direct'
         WHERE id = ${request.schoolId}::uuid
       `
@@ -293,9 +311,12 @@ export async function paystackRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
 
       if (body.data.preference === 'direct') {
-        const rows = await db()`SELECT paystack_subaccount_code FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
+        const rows = await db()`SELECT paystack_subaccount_code, paystack_subaccount_mode FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
         if (!rows[0]?.paystack_subaccount_code) {
           return reply.status(400).send({ error: 'NO_SUBACCOUNT', message: 'Set up your bank account first before switching to direct payments.' })
+        }
+        if ((rows[0].paystack_subaccount_mode ?? 'test') !== paystackMode()) {
+          return reply.status(400).send({ error: 'SUBACCOUNT_NEEDS_SETUP', message: 'Your bank account was set up before live payments started. Please enter it again.' })
         }
       }
 
@@ -307,10 +328,21 @@ export async function paystackRoutes(app: FastifyInstance) {
   app.get('/paystack/payment-preference', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
       const rows = await db()`
-        SELECT payment_preference, paystack_subaccount_code, paystack_subaccount_bank, paystack_subaccount_account_number
+        SELECT payment_preference, paystack_subaccount_code, paystack_subaccount_bank, paystack_subaccount_account_number,
+               paystack_subaccount_mode
         FROM schools WHERE id = ${request.schoolId}::uuid
       ` as any[]
-      return reply.send(rows[0] ?? {})
+      const r = rows[0] ?? {}
+      // A bank account set up in test mode doesn't exist on live Paystack: ask for it again
+      const needsSetup = !!r.paystack_subaccount_code && (r.paystack_subaccount_mode ?? 'test') !== paystackMode()
+      if (needsSetup) {
+        return reply.send({
+          payment_preference: 'probitechai', paystack_subaccount_code: null,
+          paystack_subaccount_bank: null, paystack_subaccount_account_number: null,
+          needs_bank_setup: true, paystack_mode: paystackMode(),
+        })
+      }
+      return reply.send({ ...r, needs_bank_setup: false, paystack_mode: paystackMode() })
     })
   // ── STUDENT FEE PAYMENTS ──────────────────────────────────────────────────
 
@@ -341,7 +373,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const feeRows = await tdb.query`
         SELECT fs.name AS fee_name, fs.amount AS fee_amount,
                u.full_name AS student_name, u.email AS student_email,
-               s.name AS school_name, s.payment_preference, s.paystack_subaccount_code
+               s.name AS school_name, s.payment_preference, s.paystack_subaccount_code, s.paystack_subaccount_mode
         FROM fee_structures fs
         JOIN users u ON u.id = ${d.studentId}::uuid AND u.school_id = ${request.schoolId}::uuid
         JOIN schools s ON s.id = ${request.schoolId}::uuid
@@ -362,7 +394,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const amountKobo = Math.round(d.amount * 100)
       const reference = `FEE-${d.studentId.slice(0, 8)}-${Date.now()}`
 
-      const isDirect = fee.payment_preference === 'direct' && fee.paystack_subaccount_code
+      const subaccount = usableSubaccount(fee)
       const paystackPayload: any = {
         email: parentEmail,
         amount: amountKobo,
@@ -377,11 +409,11 @@ export async function paystackRoutes(app: FastifyInstance) {
           fee_name: fee.fee_name,
           school_name: fee.school_name,
         },
-        callback_url: `https://${request.school.subdomain}.examify.ng/parent`,
+        callback_url: `${schoolUrl(request.school.subdomain)}/parent`,
       }
 
-      if (isDirect) {
-        paystackPayload.subaccount = fee.paystack_subaccount_code
+      if (subaccount) {
+        paystackPayload.subaccount = subaccount
         paystackPayload.transaction_charge = Math.round(amountKobo * PLATFORM_MARKUP_PERCENT)
         paystackPayload.bearer = 'subaccount'
       }
@@ -445,12 +477,8 @@ export async function paystackRoutes(app: FastifyInstance) {
   // ── PAYSTACK WEBHOOK ─────────────────────────────────────────────────────
   // Paystack calls this URL when payment events happen
   app.post('/webhooks/paystack', async (request: any, reply: any) => {
-    // Verify webhook signature
-    const hash = createHmac('sha512', PAYSTACK_SECRET ?? '')
-      .update(JSON.stringify(request.body))
-      .digest('hex')
-
-    if (hash !== request.headers['x-paystack-signature']) {
+    // Verify the signature against the exact bytes Paystack sent
+    if (!validSignature(request.rawBody ?? '', request.headers['x-paystack-signature'])) {
       return reply.status(401).send({ error: 'Invalid signature' })
     }
 
@@ -462,25 +490,8 @@ export async function paystackRoutes(app: FastifyInstance) {
       const reference = event.data.reference
 
       if (meta?.type === 'subscription') {
-        // Activate school subscription
-        const tier = meta.tier
-        const expiresAt = new Date()
-        expiresAt.setMonth(expiresAt.getMonth() + 4)
-
-        await db()`
-          UPDATE subscription_payments
-          SET status = 'success', paid_at = now()
-          WHERE paystack_reference = ${reference}
-        `
-
-        await db()`
-          UPDATE schools
-          SET subscription_tier = ${tier},
-              subscription_expires_at = ${expiresAt.toISOString()},
-              subscription_term = ${meta.term_name}
-          WHERE id = ${meta.school_id}::uuid
-        `
-        console.log('[PAYSTACK WEBHOOK] Subscription activated for school:', meta.school_id, 'tier:', tier)
+        const r = await settleSubscription(reference, event.data)
+        console.log('[PAYSTACK WEBHOOK] Subscription', reference, r)
 
       } else if (meta?.type === 'fee_payment') {
         const r = await settleFeePayment(meta.school_id, reference, Number(event.data.amount))

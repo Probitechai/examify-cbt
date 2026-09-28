@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [paymentPreference, setPaymentPreference] = useState('probitechai')
   const [subaccountBank, setSubaccountBank] = useState('')
   const [subaccountAccountNumber, setSubaccountAccountNumber] = useState('')
+  const [needsBankSetup, setNeedsBankSetup] = useState(false)
   const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
   const [selectedBankCode, setSelectedBankCode] = useState('')
   const [newAccountNumber, setNewAccountNumber] = useState('')
@@ -111,6 +112,7 @@ export default function SettingsPage() {
       setPaymentPreference(data.payment_preference ?? 'probitechai')
       setSubaccountBank(data.paystack_subaccount_bank ?? '')
       setSubaccountAccountNumber(data.paystack_subaccount_account_number ?? '')
+      setNeedsBankSetup(!!data.needs_bank_setup)
     } catch {}
   }
 
@@ -306,6 +308,11 @@ export default function SettingsPage() {
           Choose how online fee payments from parents reach your school.
         </p>
 
+        {needsBankSetup && !paymentSuccess && (
+          <p style={{ fontSize: '0.825rem', color: '#92400e', background: '#fffbeb', border: '1px solid #b45309', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '1rem' }}>
+            Examify now takes real (live) payments. Your bank account was set up during testing, so please enter it again below to keep receiving fees directly. Until you do, online payments go through Probitechai.
+          </p>
+        )}
         {paymentSuccess && (
           <p style={{ fontSize: '0.825rem', color: '#0f4a32', background: '#e8f5ee', padding: '0.6rem 0.75rem', borderRadius: '8px', marginBottom: '1rem' }}>{paymentSuccess}</p>
         )}

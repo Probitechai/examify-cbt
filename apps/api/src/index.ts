@@ -44,6 +44,7 @@ import { hostelRoutes } from './routes/hostels'
 import { hostel2Routes } from './routes/hostels2'
 import { transportRoutes } from './routes/transport'
 import { transport2Routes } from './routes/transport2'
+import { paystackMode } from './lib/paystack'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -112,7 +113,7 @@ async function start() {
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()
-    return { status: dbOk ? 'ok' : 'degraded', db: dbOk }
+    return { status: dbOk ? 'ok' : 'degraded', db: dbOk, paystack: paystackMode() }
   })
 
   app.setErrorHandler((error, _request, reply) => {
@@ -130,6 +131,8 @@ async function start() {
     await app.listen({ port: PORT, host: '0.0.0.0' })
     console.log(`\n Examify API running on port ${PORT}`)
     console.log(`   Mode: ${NODE_ENV}`)
+    console.log(`   Paystack: ${paystackMode()}`)
+    if (NODE_ENV === 'production' && paystackMode() !== 'live') console.warn('   WARNING: Paystack is not using a live key')
     console.log(`   Health: http://localhost:${PORT}/health\n`)
   } catch (err) {
     app.log.error(err)

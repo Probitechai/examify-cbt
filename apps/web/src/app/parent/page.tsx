@@ -40,6 +40,27 @@ export default function ParentDashboard() {
   const [learning, setLearning] = useState<any>(null)
   const [sectionLoading, setSectionLoading] = useState(false)
   const [announcements, setAnnouncements] = useState<any[]>([])
+  const [payNotice, setPayNotice] = useState<{ tone: 'ok' | 'wait' | 'err'; text: string } | null>(null)
+
+  // Back from Paystack: confirm the payment straight away (the webhook also does this)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const reference = q.get('reference') || q.get('trxref')
+    if (!reference) return
+    window.history.replaceState(null, '', window.location.pathname)
+    setPayNotice({ tone: 'wait', text: 'Confirming your payment with Paystack…' })
+    apiFetch(`${API}/paystack/fees/verify?reference=${encodeURIComponent(reference)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setPayNotice({ tone: 'ok', text: `Payment received. Receipt ${d.receiptNo}${d.feeName ? ` for ${d.feeName}` : ''}${d.studentName ? ` (${d.studentName})` : ''}.` })
+          loadDashboard()
+        } else {
+          setPayNotice({ tone: 'wait', text: 'Paystack hasn’t confirmed this payment yet. If you were charged, your receipt will appear here within a few minutes.' })
+        }
+      })
+      .catch(() => setPayNotice({ tone: 'err', text: 'We couldn’t confirm your payment just now. If you were charged, your receipt will appear shortly; contact the school if it doesn’t.' }))
+  }, [])
 
   useEffect(() => { checkAuth(router, 'parent') }, [])
 
@@ -143,6 +164,19 @@ export default function ParentDashboard() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '1.5rem' }}>
+
+        {payNotice && (
+          <div style={{
+            marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: '10px', fontSize: '0.875rem',
+            display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center',
+            background: payNotice.tone === 'ok' ? '#e8f5ee' : payNotice.tone === 'err' ? '#fef2f2' : '#fffbeb',
+            border: `1px solid ${payNotice.tone === 'ok' ? '#1a6b4a' : payNotice.tone === 'err' ? '#b91c1c' : '#b45309'}`,
+            color: payNotice.tone === 'ok' ? '#0f4a32' : payNotice.tone === 'err' ? '#b91c1c' : '#92400e',
+          }}>
+            <span>{payNotice.text}</span>
+            <button onClick={() => setPayNotice(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'inherit' }}>✕</button>
+          </div>
+        )}
 
         {dashboard.length === 0 ? (
           <div style={{ background: 'white', borderRadius: '14px', padding: '3rem', textAlign: 'center', marginTop: '2rem' }}>
