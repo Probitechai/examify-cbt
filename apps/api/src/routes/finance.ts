@@ -138,17 +138,17 @@ export async function financeRoutes(app: FastifyInstance) {
 
         if (d.feeStructureId) {
           const fs = await tx`
-            SELECT id FROM fee_structures
-            WHERE id = ${d.feeStructureId}::uuid AND school_id = ${request.schoolId}::uuid
-              AND term_id = ${d.termId}::uuid AND class_level = ${st[0].class_level}
+            SELECT fee_structure_id FROM student_fee_bill
+            WHERE fee_structure_id = ${d.feeStructureId}::uuid AND student_id = ${d.studentId}::uuid
+              AND school_id = ${request.schoolId}::uuid AND term_id = ${d.termId}::uuid
           ` as any[]
           if (!fs[0]) return { error: 'FEE_ITEM_NOT_IN_STUDENT_BILL' }
         }
 
         const bill = await tx`
-          SELECT COALESCE(SUM(amount), 0) AS total FROM fee_structures
+          SELECT COALESCE(SUM(amount), 0) AS total FROM student_fee_bill
           WHERE school_id = ${request.schoolId}::uuid AND term_id = ${d.termId}::uuid
-            AND class_level = ${st[0].class_level}
+            AND student_id = ${d.studentId}::uuid
         ` as any[]
         const prior = await tx`
           SELECT COALESCE(SUM(amount), 0) AS total FROM fee_waivers
@@ -446,9 +446,9 @@ export async function financeRoutes(app: FastifyInstance) {
             AND (${classLevel}::text IS NULL OR class_level = ${classLevel}::text)
         ),
         bills AS (
-          SELECT class_level, SUM(amount) AS total FROM fee_structures
+          SELECT student_id, SUM(amount) AS total FROM student_fee_bill
           WHERE school_id = ${request.schoolId}::uuid AND term_id = ${termId}::uuid
-          GROUP BY class_level
+          GROUP BY student_id
         ),
         paid AS (
           SELECT fp.student_id, SUM(fp.amount_paid) AS paid
@@ -478,7 +478,7 @@ export async function financeRoutes(app: FastifyInstance) {
                COALESCE(b.total, 0) - COALESCE(pd.paid, 0) - COALESCE(w.waived, 0) AS balance,
                pr.parent_names, pr.parent_phones
         FROM kids k
-        LEFT JOIN bills b   ON b.class_level = k.class_level
+        LEFT JOIN bills b   ON b.student_id = k.id
         LEFT JOIN paid pd   ON pd.student_id = k.id
         LEFT JOIN waived w  ON w.student_id = k.id
         LEFT JOIN parents pr ON pr.student_id = k.id
@@ -539,9 +539,9 @@ export async function financeRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
       const items = await tdb.query`
         WITH counts AS (
-          SELECT class_level, COUNT(*) AS n FROM users
-          WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
-          GROUP BY class_level
+          SELECT fee_structure_id, COUNT(*) AS n FROM student_fee_bill
+          WHERE school_id = ${request.schoolId}::uuid AND term_id = ${termId}::uuid AND is_active = true
+          GROUP BY fee_structure_id
         ),
         paid AS (
           SELECT fee_structure_id, SUM(amount_paid) AS collected, COUNT(DISTINCT student_id) AS payers
@@ -555,7 +555,7 @@ export async function financeRoutes(app: FastifyInstance) {
                COALESCE(p.collected, 0) AS collected,
                COALESCE(p.payers, 0) AS payers
         FROM fee_structures fs
-        LEFT JOIN counts c ON c.class_level = fs.class_level
+        LEFT JOIN counts c ON c.fee_structure_id = fs.id
         LEFT JOIN paid p   ON p.fee_structure_id = fs.id
         WHERE fs.school_id = ${request.schoolId}::uuid AND fs.term_id = ${termId}::uuid
         ORDER BY fs.class_level, fs.is_mandatory DESC, fs.name

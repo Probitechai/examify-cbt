@@ -94,9 +94,10 @@ export default function LedgerPage() {
             {open === r.studentId && (
               <tr><td colSpan={7} style={{ ...S.td, background: '#fafaf8', padding: '1rem' }}>
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', fontSize: '0.8rem' }}>
-                  {r.feeDetails.map((f: any) => (
-                    <span key={f.feeId}>{f.feeName}: <strong>{money(f.paid)}</strong> / {money(f.amount)}</span>
-                  ))}
+                  {r.feeDetails.map((f: any) => f.enrolled === false
+                    ? <span key={f.feeId} style={{ color: '#a0a09a' }}>{f.feeName}: not taking</span>
+                    : <span key={f.feeId}>{f.feeName}: <strong>{money(f.paid)}</strong> / {money(f.amount)}</span>
+                  )}
                 </div>
                 <PaymentHistory student={{ id: r.studentId, full_name: r.studentName, admission_no: r.admissionNo, class_level: classLevel, class_arm: r.classArm }}
                   termId={t.termId} canWrite={!readOnly} onChanged={load} />
@@ -112,6 +113,7 @@ export default function LedgerPage() {
             student={{ id: paying.studentId, full_name: paying.studentName, admission_no: paying.admissionNo, class_level: classLevel, class_arm: paying.classArm }}
             termId={t.termId} feeItems={structures}
             balances={Object.fromEntries(paying.feeDetails.map((f: any) => [f.feeId, f.balance]))}
+            enrolled={Object.fromEntries(paying.feeDetails.map((f: any) => [f.feeId, f.enrolled !== false]))}
             onCancel={() => setPaying(null)}
             onDone={rc => { setReceipt(rc); setPaying(null); load() }} />
         </Modal>

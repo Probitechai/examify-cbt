@@ -343,9 +343,11 @@ export async function paystackRoutes(app: FastifyInstance) {
                u.full_name AS student_name, u.email AS student_email,
                s.name AS school_name, s.payment_preference, s.paystack_subaccount_code
         FROM fee_structures fs
-        JOIN users u ON u.id = ${d.studentId}::uuid
+        JOIN users u ON u.id = ${d.studentId}::uuid AND u.school_id = ${request.schoolId}::uuid
         JOIN schools s ON s.id = ${request.schoolId}::uuid
-        WHERE fs.id = ${d.feeStructureId}::uuid
+        WHERE fs.id = ${d.feeStructureId}::uuid AND fs.school_id = ${request.schoolId}::uuid
+          AND EXISTS (SELECT 1 FROM student_fee_bill b
+                      WHERE b.fee_structure_id = fs.id AND b.student_id = ${d.studentId}::uuid)
       ` as any[]
 
       const fee = feeRows[0]

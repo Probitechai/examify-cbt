@@ -7,6 +7,7 @@ import {
   call, errorText, money, S, Banner, Pill, Field, Table, PageHeader, TermPicker, Modal,
   useTerms, useFinanceAccess, AccessBanner,
 } from '@/components/finance/ui'
+import { EnrollmentModal } from '@/components/finance/enrollment'
 
 export default function FeeStructuresPage() {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function FeeStructuresPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', amount: '', classLevel: 'JSS1', allClasses: false, mandatory: true })
   const [saving, setSaving] = useState(false)
+  const [managing, setManaging] = useState<string | null>(null)
 
   useEffect(() => { checkAuth(router, 'bursar') }, [])
 
@@ -84,16 +86,25 @@ export default function FeeStructuresPage() {
         {rows.map(r => (
           <tr key={r.id}>
             <td style={S.td}>{r.class_level}</td>
-            <td style={S.td}>{r.name} {!r.is_mandatory && <Pill>Optional</Pill>}</td>
+            <td style={S.td}>
+              {r.name} {!r.is_mandatory && <Pill>Optional</Pill>}
+              {!r.is_mandatory && <span style={{ fontSize: '0.75rem', color: '#6b6b65', marginLeft: '0.4rem' }}>{r.enrolled_count} student{Number(r.enrolled_count) === 1 ? '' : 's'}</span>}
+            </td>
             <td style={{ ...S.td, ...S.num }}>{money(r.amount)}</td>
-            <td style={{ ...S.td, textAlign: 'right' }}>{!readOnly && <button style={S.btnDanger} onClick={() => remove(r)}>Delete</button>}</td>
+            <td style={{ ...S.td, textAlign: 'right' }}>
+              <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                {!readOnly && !r.is_mandatory && <button style={S.btnSmall} onClick={() => setManaging(r.id)}>Students</button>}
+                {!readOnly && <button style={S.btnDanger} onClick={() => remove(r)}>Delete</button>}
+              </div>
+            </td>
           </tr>
         ))}
         {classLevel && rows.length > 0 && (
           <tr><td style={{ ...S.td, fontWeight: 700 }} colSpan={2}>Total per {classLevel} student</td><td style={{ ...S.td, ...S.num, fontWeight: 700 }}>{money(total)}</td><td style={S.td}></td></tr>
         )}
       </Table>
-      <p style={{ fontSize: '0.78rem', color: '#a0a09a' }}>A fee item that already has payments against it can't be deleted. Add a new item instead.</p>
+      <p style={{ fontSize: '0.78rem', color: '#a0a09a' }}>A fee item that already has payments against it can't be deleted. Add a new item instead. <strong>Optional</strong> items are billed only to the students you tick under <strong>Students</strong>.</p>
+      {managing && <EnrollmentModal structureId={managing} onClose={() => setManaging(null)} onSaved={load} />}
 
       {showAdd && (
         <Modal title="Add a fee item" onClose={() => setShowAdd(false)}>
@@ -113,6 +124,7 @@ export default function FeeStructuresPage() {
             <label style={{ fontSize: '0.86rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input type="checkbox" checked={form.mandatory} onChange={e => setForm({ ...form, mandatory: e.target.checked })} /> Mandatory for every student
             </label>
+            {!form.mandatory && <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginTop: '-0.4rem' }}>Optional items start with nobody on them. After adding, click <strong>Students</strong> to choose who takes it.</p>}
             {msg?.tone === 'error' && <Banner tone="error">{msg.text}</Banner>}
             <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button style={S.btnGhost} onClick={() => setShowAdd(false)}>Cancel</button>

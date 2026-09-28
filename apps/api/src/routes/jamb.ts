@@ -11,6 +11,13 @@ const AI_MODEL = process.env.JAMB_AI_MODEL ?? 'claude-haiku-4-5-20251001'
 const AI_DAILY_LIMIT = Number(process.env.JAMB_AI_DAILY_LIMIT ?? 20)   // AI quizzes + new notes per student per day
 const AI_QUIZ_SIZE = 10
 
+// postgres.js can hand back uuid[] columns as '{a,b}' text depending on the query path
+function uuidList(v: any): string[] {
+  if (Array.isArray(v)) return v
+  if (typeof v === 'string') return v.replace(/^\{|\}$/g, '').split(',').map(x => x.trim()).filter(Boolean)
+  return []
+}
+
 // ── Access guards ───────────────────────────────────────────────────────────
 async function studentClassLevel(request: any): Promise<string> {
   const tdb = tenantDb(request.schoolId)
@@ -391,5 +398,361 @@ export async function jambRoutes(app: FastifyInstance) {
         `
       })
       return reply.send({ questions: saved })
+    })
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MOCK EXAMS — server picks past questions, keeps the clock and marks the paper
+  // ═══════════════════════════════════════════════════════════════════════════
+  const MOCK = {
+    full: { english: 60, other: 40, minutes: 120, label: 'Full UTME mock' },
+    short: { english: 15, other: 10, minutes: 30, label: 'Quick mock' },
+  } as const
+  const GRACE_MS = 60 * 1000   // late autosaves/submits accepted within a minute of the deadline
+
+  async function mySubjects(request: any): Promise<any[]> {
+    const tdb = tenantDb(request.schoolId)
+    const prof = await tdb.query`
+      SELECT selected_subjects FROM jamb_student_profiles
+      WHERE student_id = ${request.user.id}::uuid AND school_id = ${request.schoolId}::uuid
+    ` as any[]
+    const ids: string[] = uuidList(prof[0]?.selected_subjects)
+    if (ids.length === 0) return []
+    return await db()`
+      SELECT js.id, js.name, js.is_compulsory,
+             (SELECT COUNT(*) FROM jamb_past_questions q WHERE q.subject_id = js.id) AS available
+      FROM jamb_subjects js WHERE js.id = ANY(${ids}::uuid[])
+      ORDER BY js.is_compulsory DESC, js.name
+    ` as any[]
+  }
+
+  const needed = (mode: 'full' | 'short', s: any) => (s.is_compulsory ? MOCK[mode].english : MOCK[mode].other)
+
+  // Mark a paper and close it. Uses only answers already stored on the attempt.
+  async function finalize(tdb: any, attempt: any) {
+    const qmap: Record<string, string[]> = attempt.question_ids
+    const all = Object.values(qmap).flat()
+    const key = await db()`SELECT id, correct_option FROM jamb_past_questions WHERE id = ANY(${all}::uuid[])` as any[]
+    const correctOf: Record<string, string> = {}
+    for (const k of key) correctOf[k.id] = k.correct_option
+    const subs = await db()`SELECT id, name FROM jamb_subjects WHERE id = ANY(${uuidList(attempt.subjects)}::uuid[])` as any[]
+    const nameOf: Record<string, string> = {}
+    for (const x of subs) nameOf[x.id] = x.name
+    const answers = attempt.answers ?? {}
+
+    let correct = 0, total = 0, utme = 0
+    const bySubject = Object.entries(qmap).map(([sid, ids]) => {
+      const c = ids.filter(id => answers[id] && answers[id] === correctOf[id]).length
+      const t = ids.length
+      const score = t > 0 ? Math.round((c / t) * 100) : 0
+      correct += c; total += t; utme += score
+      return { subjectId: sid, name: nameOf[sid] ?? '', correct: c, total: t, answered: ids.filter(id => answers[id]).length, score }
+    })
+    const rows = await tdb.query`
+      UPDATE jamb_mock_attempts
+      SET submitted_at = now(), correct = ${correct}, total = ${total},
+          score_by_subject = ${db().json(bySubject)}, utme_score = ${utme}
+      WHERE id = ${attempt.id}::uuid AND submitted_at IS NULL
+      RETURNING *
+    ` as any[]
+    return rows[0] ?? attempt
+  }
+
+  async function loadAttempt(request: any, id: string) {
+    const tdb = tenantDb(request.schoolId)
+    const rows = await tdb.query`
+      SELECT * FROM jamb_mock_attempts
+      WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid AND student_id = ${request.user.id}::uuid
+    ` as any[]
+    let a = rows[0] ?? null
+    // Out of time and never submitted: mark it now with what was saved
+    if (a && !a.submitted_at && Date.now() > new Date(a.ends_at).getTime() + GRACE_MS) a = await finalize(tdb, a)
+    return a
+  }
+
+  // Paper for sitting the exam (no answers or explanations)
+  async function paperView(a: any) {
+    const qmap: Record<string, string[]> = a.question_ids
+    const all = Object.values(qmap).flat()
+    const qs = await db()`
+      SELECT id, question, option_a, option_b, option_c, option_d FROM jamb_past_questions WHERE id = ANY(${all}::uuid[])
+    ` as any[]
+    const byId: Record<string, any> = {}
+    for (const q of qs) byId[q.id] = q
+    const subs = await db()`SELECT id, name, is_compulsory FROM jamb_subjects WHERE id = ANY(${uuidList(a.subjects)}::uuid[])` as any[]
+    const compulsory = new Set(subs.filter((x: any) => x.is_compulsory).map((x: any) => x.id))
+    const ordered = Object.entries(qmap).sort(([x], [y]) => Number(compulsory.has(y)) - Number(compulsory.has(x)))
+    return {
+      id: a.id, mode: a.mode, status: 'in_progress',
+      startedAt: a.started_at, endsAt: a.ends_at, serverNow: new Date().toISOString(),
+      answers: a.answers ?? {},
+      subjects: ordered.map(([sid, ids]) => {
+        const sj = subs.find((x: any) => x.id === sid)
+        return { id: sid, name: sj?.name ?? '', questions: ids.map(id => byId[id]).filter(Boolean) }
+      }),
+    }
+  }
+
+  // Marked paper for review
+  async function reviewView(a: any) {
+    const qmap: Record<string, string[]> = a.question_ids
+    const all = Object.values(qmap).flat()
+    const qs = await db()`
+      SELECT id, question, option_a, option_b, option_c, option_d, correct_option, explanation, year
+      FROM jamb_past_questions WHERE id = ANY(${all}::uuid[])
+    ` as any[]
+    const byId: Record<string, any> = {}
+    for (const q of qs) byId[q.id] = q
+    const scores: any[] = a.score_by_subject ?? []
+    return {
+      id: a.id, mode: a.mode, status: 'submitted',
+      startedAt: a.started_at, submittedAt: a.submitted_at,
+      utmeScore: a.utme_score, correct: a.correct, total: a.total,
+      subjects: scores.map(sc => ({
+        ...sc,
+        questions: (qmap[sc.subjectId] ?? []).map(id => ({ ...byId[id], yourAnswer: (a.answers ?? {})[id] ?? null })).filter((q: any) => q.id),
+      })),
+    }
+  }
+
+  app.get('/jamb/mock/status', { preHandler: STUDENT },
+    async (request: any, reply: any) => {
+      const subjects = await mySubjects(request)
+      const tdb = tenantDb(request.schoolId)
+      const open = await tdb.query`
+        SELECT id FROM jamb_mock_attempts
+        WHERE school_id = ${request.schoolId}::uuid AND student_id = ${request.user.id}::uuid AND submitted_at IS NULL
+      ` as any[]
+      let openAttempt = null
+      if (open[0]) {
+        const a = await loadAttempt(request, open[0].id)
+        if (a && !a.submitted_at) openAttempt = { id: a.id, mode: a.mode, endsAt: a.ends_at }
+      }
+      const history = await tdb.query`
+        SELECT id, mode, started_at, submitted_at, utme_score, correct, total, score_by_subject
+        FROM jamb_mock_attempts
+        WHERE school_id = ${request.schoolId}::uuid AND student_id = ${request.user.id}::uuid AND submitted_at IS NOT NULL
+        ORDER BY submitted_at DESC LIMIT 20
+      ` as any[]
+      const modes = (['full', 'short'] as const).map(m => ({
+        mode: m, label: MOCK[m].label, minutes: MOCK[m].minutes,
+        questions: subjects.reduce((n, sj) => n + needed(m, sj), 0),
+        available: subjects.length === 4 && subjects.every(sj => Number(sj.available) >= needed(m, sj)),
+      }))
+      return reply.send({
+        subjects: subjects.map(sj => ({ id: sj.id, name: sj.name, available: Number(sj.available), neededFull: needed('full', sj), neededShort: needed('short', sj) })),
+        modes, openAttempt, history,
+      })
+    })
+
+  app.post('/jamb/mock/start', { preHandler: STUDENT },
+    async (request: any, reply: any) => {
+      const body = z.object({ mode: z.enum(['full', 'short']) }).safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const mode = body.data.mode
+      const tdb = tenantDb(request.schoolId)
+
+      // Resume an unfinished mock instead of starting another
+      const open = await tdb.query`
+        SELECT id FROM jamb_mock_attempts
+        WHERE school_id = ${request.schoolId}::uuid AND student_id = ${request.user.id}::uuid AND submitted_at IS NULL
+      ` as any[]
+      if (open[0]) {
+        const a = await loadAttempt(request, open[0].id)
+        if (a && !a.submitted_at) return reply.send({ resumed: true, attempt: await paperView(a) })
+      }
+
+      const subjects = await mySubjects(request)
+      if (subjects.length !== 4) return reply.status(400).send({ error: 'SUBJECTS_NOT_SET', message: 'Choose your four JAMB subjects first.' })
+      const short = subjects.filter(sj => Number(sj.available) < needed(mode, sj))
+      if (short.length) {
+        return reply.status(409).send({
+          error: 'NOT_ENOUGH_QUESTIONS',
+          message: `There aren't enough past questions yet for a ${MOCK[mode].label.toLowerCase()} in ${short.map(x => x.name).join(', ')}.`,
+        })
+      }
+
+      const qmap: Record<string, string[]> = {}
+      for (const sj of subjects) {
+        const rows = await db()`
+          SELECT id FROM jamb_past_questions WHERE subject_id = ${sj.id}::uuid ORDER BY RANDOM() LIMIT ${needed(mode, sj)}
+        ` as any[]
+        qmap[sj.id] = rows.map((r: any) => r.id)
+      }
+      const endsAt = new Date(Date.now() + MOCK[mode].minutes * 60 * 1000)
+      let created: any[] = []
+      try {
+        created = await tdb.query`
+          INSERT INTO jamb_mock_attempts (school_id, student_id, mode, subjects, question_ids, ends_at)
+          VALUES (${request.schoolId}::uuid, ${request.user.id}::uuid, ${mode}, ${subjects.map(x => x.id)}::uuid[],
+                  ${db().json(qmap)}, ${endsAt})
+          RETURNING *
+        ` as any[]
+      } catch {
+        return reply.status(409).send({ error: 'MOCK_IN_PROGRESS', message: 'You already have a mock in progress.' })
+      }
+      return reply.status(201).send({ resumed: false, attempt: await paperView(created[0]) })
+    })
+
+  app.get('/jamb/mock/:id', { preHandler: STUDENT },
+    async (request: any, reply: any) => {
+      const a = await loadAttempt(request, String((request.params as any).id))
+      if (!a) return reply.status(404).send({ error: 'NOT_FOUND' })
+      return reply.send({ attempt: a.submitted_at ? await reviewView(a) : await paperView(a) })
+    })
+
+  const answersSchema = z.record(z.string().uuid(), z.enum(['a', 'b', 'c', 'd']))
+
+  // Autosave (merges). Only questions on this paper are kept.
+  app.patch('/jamb/mock/:id/answers', { preHandler: STUDENT },
+    async (request: any, reply: any) => {
+      const body = z.object({ answers: answersSchema }).safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const a = await loadAttempt(request, String((request.params as any).id))
+      if (!a) return reply.status(404).send({ error: 'NOT_FOUND' })
+      if (a.submitted_at) return reply.status(410).send({ error: 'TIME_UP', message: 'This mock has ended.' })
+      const onPaper = new Set(Object.values(a.question_ids as Record<string, string[]>).flat())
+      const merged = { ...(a.answers ?? {}) }
+      for (const [qid, opt] of Object.entries(body.data.answers)) if (onPaper.has(qid)) merged[qid] = opt
+      const tdb = tenantDb(request.schoolId)
+      await tdb.query`
+        UPDATE jamb_mock_attempts SET answers = ${db().json(merged)}
+        WHERE id = ${a.id}::uuid AND submitted_at IS NULL
+      `
+      return reply.send({ saved: true, answered: Object.keys(merged).length })
+    })
+
+  app.post('/jamb/mock/:id/submit', { preHandler: STUDENT },
+    async (request: any, reply: any) => {
+      const body = z.object({ answers: answersSchema.optional() }).safeParse(request.body ?? {})
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      let a = await loadAttempt(request, String((request.params as any).id))
+      if (!a) return reply.status(404).send({ error: 'NOT_FOUND' })
+      const tdb = tenantDb(request.schoolId)
+      if (!a.submitted_at) {
+        if (body.data.answers) {
+          const onPaper = new Set(Object.values(a.question_ids as Record<string, string[]>).flat())
+          const merged = { ...(a.answers ?? {}) }
+          for (const [qid, opt] of Object.entries(body.data.answers)) if (onPaper.has(qid)) merged[qid] = opt
+          a = { ...a, answers: merged }
+          await tdb.query`UPDATE jamb_mock_attempts SET answers = ${db().json(merged)} WHERE id = ${a.id}::uuid AND submitted_at IS NULL`
+        }
+        a = await finalize(tdb, a)
+      }
+      return reply.send({ attempt: await reviewView(a) })
+    })
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAFF VIEW OF SS3 JAMB PROGRESS
+  // Proprietor & School Admin: every SS3 student. Teacher: SS3 arms they are
+  // assigned to (subject assignment or class teacher; a blank arm = all arms).
+  // ═══════════════════════════════════════════════════════════════════════════
+  async function staffScope(request: any, reply: FastifyReply): Promise<{ all: boolean; arms: string[] } | null> {
+    const role = request.user?.role
+    if (role === 'proprietor' || role === 'school_admin') return { all: true, arms: [] }
+    if (role !== 'teacher') { reply.status(403).send({ error: 'FORBIDDEN' }); return null }
+    const tdb = tenantDb(request.schoolId)
+    const rows = await tdb.query`
+      SELECT class_arm FROM teacher_subject_assignments
+      WHERE school_id = ${request.schoolId}::uuid AND teacher_id = ${request.user.id}::uuid AND upper(class_level) = 'SS3'
+      UNION
+      SELECT class_arm FROM class_teachers
+      WHERE school_id = ${request.schoolId}::uuid AND teacher_id = ${request.user.id}::uuid AND upper(class_level) = 'SS3'
+    ` as any[]
+    if (rows.some((r: any) => !r.class_arm)) return { all: true, arms: [] }
+    return { all: false, arms: rows.map((r: any) => r.class_arm) }
+  }
+
+  app.get('/jamb/cohort', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const scope = await staffScope(request, reply)
+      if (!scope) return
+      const tdb = tenantDb(request.schoolId)
+      const all = scope.all
+      const arms = scope.arms
+      const students = await tdb.query`
+        SELECT u.id, u.full_name, u.admission_no, u.class_arm,
+               p.selected_subjects, p.total_xp, p.current_streak, p.longest_streak,
+               GREATEST(p.last_study_date,
+                        (SELECT MAX(m.submitted_at)::date FROM jamb_mock_attempts m
+                          WHERE m.student_id = u.id AND m.school_id = u.school_id AND m.submitted_at IS NOT NULL)) AS last_study_date,
+               p.total_questions_attempted, p.total_correct,
+               (SELECT COUNT(*) FROM jamb_mock_attempts m WHERE m.student_id = u.id AND m.school_id = u.school_id AND m.submitted_at IS NOT NULL) AS mocks_taken,
+               (SELECT MAX(utme_score) FROM jamb_mock_attempts m WHERE m.student_id = u.id AND m.school_id = u.school_id AND m.mode = 'full' AND m.submitted_at IS NOT NULL) AS best_full_mock,
+               (SELECT utme_score FROM jamb_mock_attempts m WHERE m.student_id = u.id AND m.school_id = u.school_id AND m.submitted_at IS NOT NULL ORDER BY m.submitted_at DESC LIMIT 1) AS latest_mock,
+               (SELECT mode FROM jamb_mock_attempts m WHERE m.student_id = u.id AND m.school_id = u.school_id AND m.submitted_at IS NOT NULL ORDER BY m.submitted_at DESC LIMIT 1) AS latest_mock_mode
+        FROM users u
+        LEFT JOIN jamb_student_profiles p ON p.student_id = u.id AND p.school_id = u.school_id
+        WHERE u.school_id = ${request.schoolId}::uuid AND u.role = 'student' AND u.is_active = true
+          AND upper(u.class_level) = 'SS3'
+          AND (${all} OR u.class_arm = ANY(${arms}::text[]))
+        ORDER BY u.class_arm, u.full_name
+      ` as any[]
+
+      const mastery = await tdb.query`
+        SELECT jtp.student_id, jt.subject_id, ROUND(AVG(jtp.mastery_pct)) AS avg_mastery, COUNT(*) AS topics_practised
+        FROM jamb_topic_progress jtp JOIN jamb_topics jt ON jt.id = jtp.topic_id
+        WHERE jtp.school_id = ${request.schoolId}::uuid
+        GROUP BY jtp.student_id, jt.subject_id
+      ` as any[]
+      const subjects = await db()`SELECT id, name FROM jamb_subjects` as any[]
+      const nameOf: Record<string, string> = {}
+      for (const x of subjects) nameOf[x.id] = x.name
+
+      return reply.send({
+        scope: all ? 'all' : 'assigned',
+        arms,
+        students: students.map((s: any) => ({
+          id: s.id, fullName: s.full_name, admissionNo: s.admission_no, classArm: s.class_arm,
+          started: uuidList(s.selected_subjects).length > 0,
+          subjects: uuidList(s.selected_subjects).map((id: string) => {
+            const m = mastery.find((x: any) => x.student_id === s.id && x.subject_id === id)
+            return { id, name: nameOf[id] ?? '', mastery: m ? Number(m.avg_mastery) : null, topicsPractised: m ? Number(m.topics_practised) : 0 }
+          }),
+          xp: Number(s.total_xp ?? 0), streak: Number(s.current_streak ?? 0), lastStudied: s.last_study_date,
+          questions: Number(s.total_questions_attempted ?? 0),
+          accuracy: Number(s.total_questions_attempted ?? 0) > 0 ? Math.round(Number(s.total_correct) / Number(s.total_questions_attempted) * 100) : null,
+          mocksTaken: Number(s.mocks_taken ?? 0),
+          bestFullMock: s.best_full_mock === null ? null : Number(s.best_full_mock),
+          latestMock: s.latest_mock === null ? null : Number(s.latest_mock), latestMockMode: s.latest_mock_mode,
+        })),
+      })
+    })
+
+  app.get('/jamb/cohort/:studentId', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const scope = await staffScope(request, reply)
+      if (!scope) return
+      const sid = String((request.params as any).studentId)
+      const tdb = tenantDb(request.schoolId)
+      const st = await tdb.query`
+        SELECT id, full_name, admission_no, class_arm FROM users
+        WHERE id = ${sid}::uuid AND school_id = ${request.schoolId}::uuid AND role = 'student' AND upper(class_level) = 'SS3'
+      ` as any[]
+      if (!st[0]) return reply.status(404).send({ error: 'NOT_FOUND' })
+      if (!scope.all && !scope.arms.includes(st[0].class_arm)) return reply.status(403).send({ error: 'NOT_YOUR_CLASS' })
+
+      const topics = await tdb.query`
+        SELECT js.name AS subject, jt.name AS topic, jtp.mastery_pct, jtp.questions_attempted, jtp.questions_correct, jtp.last_attempted_at
+        FROM jamb_topic_progress jtp
+        JOIN jamb_topics jt ON jt.id = jtp.topic_id
+        JOIN jamb_subjects js ON js.id = jt.subject_id
+        WHERE jtp.student_id = ${sid}::uuid AND jtp.school_id = ${request.schoolId}::uuid
+        ORDER BY js.name, jtp.mastery_pct ASC
+      ` as any[]
+      const mocks = await tdb.query`
+        SELECT id, mode, submitted_at, utme_score, correct, total, score_by_subject
+        FROM jamb_mock_attempts
+        WHERE student_id = ${sid}::uuid AND school_id = ${request.schoolId}::uuid AND submitted_at IS NOT NULL
+        ORDER BY submitted_at DESC LIMIT 20
+      ` as any[]
+      const recent = await tdb.query`
+        SELECT q.completed_at, q.session_type, q.score, q.total_questions, js.name AS subject, jt.name AS topic
+        FROM jamb_quiz_sessions q
+        LEFT JOIN jamb_subjects js ON js.id = q.subject_id
+        LEFT JOIN jamb_topics jt ON jt.id = q.topic_id
+        WHERE q.student_id = ${sid}::uuid AND q.school_id = ${request.schoolId}::uuid
+        ORDER BY q.completed_at DESC LIMIT 15
+      ` as any[]
+      return reply.send({ student: st[0], topics, mocks, recent })
     })
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { useFinanceAccess, AccessBanner } from '@/components/finance/ui'
+import { EnrollmentModal } from '@/components/finance/enrollment'
 
 function hdrs() {
   return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
@@ -11,7 +12,7 @@ function hdrs() {
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; is_active: boolean }
-interface FeeStructure { id: string; name: string; amount: number; class_level: string; is_mandatory: boolean }
+interface FeeStructure { id: string; name: string; amount: number; class_level: string; is_mandatory: boolean; enrolled_count?: number }
 interface LedgerRow {
   studentId: string
   studentName: string
@@ -101,6 +102,7 @@ export default function FeesPage() {
 
   // Read-only while the school has an active Bursar (unless the Proprietor granted temporary access)
   const { access, readOnly } = useFinanceAccess()
+  const [managing, setManaging] = useState<string | null>(null)
 
   useEffect(() => { loadSessions() }, [])
 
@@ -206,8 +208,8 @@ export default function FeesPage() {
           transferReference: transferReference || undefined,
         })
       })
-      if (!res.ok) throw new Error('Failed')
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to record payment'); return }
       setLastReceipt(data.receiptNo)
       setLastReceipt(data.receiptNo)
       setSuccess(`Payment recorded! Receipt No: ${data.receiptNo}`)
@@ -379,6 +381,15 @@ export default function FeesPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18' }}>{formatAmount(f.amount)}</span>
+                    {!f.is_mandatory && (
+                      <span style={{ fontSize: '0.75rem', color: '#6b6b65' }}>{f.enrolled_count ?? 0} student(s)</span>
+                    )}
+                    {!readOnly && !f.is_mandatory && (
+                    <button onClick={() => setManaging(f.id)}
+                      style={{ padding: '0.3rem 0.75rem', background: '#f7f7f5', border: '1px solid #e5e5e0', borderRadius: '6px', fontSize: '0.78rem', color: '#3a3a36', cursor: 'pointer' }}>
+                      Students
+                    </button>
+                    )}
                     {!readOnly && (
                     <button onClick={() => handleDeleteStructure(f.id, f.name)}
                       style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.78rem', color: '#dc2626', cursor: 'pointer' }}>
@@ -698,6 +709,7 @@ export default function FeesPage() {
           </div>
         </div>
       )}
+      {managing && <EnrollmentModal structureId={managing} onClose={() => setManaging(null)} onSaved={loadStructures} />}
     </div>
   )
 }

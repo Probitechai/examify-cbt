@@ -709,6 +709,17 @@ export default function JambPrepPage() {
               })}
             </div>
 
+            {/* Mock exam */}
+            <button onClick={() => router.push('/student/jamb/mock')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', marginBottom: '1.5rem', background: 'linear-gradient(135deg, #0f4a32, #1a6b4a)', border: 'none', borderRadius: '14px', cursor: 'pointer', textAlign: 'left' as const }}>
+              <span style={{ fontSize: '1.75rem' }}>📝</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'white' }}>Mock Exam</p>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>Timed UTME-style paper in your four subjects, scored out of 400</p>
+              </div>
+              <span style={{ color: 'white', fontSize: '1.25rem' }}>›</span>
+            </button>
+
             {/* Daily goal */}
             {profile && (
               <div style={{ background: 'white', borderRadius: '14px', padding: '1.25rem', border: '1px solid #e5e5e0' }}>

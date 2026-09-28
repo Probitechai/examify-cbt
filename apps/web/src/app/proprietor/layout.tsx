@@ -12,6 +12,7 @@ const NAV = [
   { href: '/proprietor/results', icon: '📈', label: 'Results', group: 'academics' },
   { href: '/proprietor/attendance', icon: '📋', label: 'Attendance', group: 'academics' },
   { href: '/proprietor/conduct', icon: '🗒️', label: 'Conduct Reports', group: 'academics' },
+  { href: '/proprietor/jamb-progress', icon: '🎯', label: 'JAMB Progress (SS3)', group: 'academics' },
   { href: '/proprietor/admissions', icon: '🎓', label: 'Admissions', group: 'operations' },
   { href: '/proprietor/hostels', icon: '🏠', label: 'Hostel Management', group: 'operations' },
   { href: '/proprietor/hostel-operations', icon: '🗝️', label: 'Hostel Operations', group: 'operations' },

@@ -55,12 +55,13 @@ export function printReceipt(r: ReceiptData, schoolName: string) {
 }
 
 // ── Record a manual payment ──────────────────────────────────────────────────
-export function PaymentForm({ student, termId, feeItems, defaultFeeId, balances, onDone, onCancel }: {
+export function PaymentForm({ student, termId, feeItems, defaultFeeId, balances, enrolled, onDone, onCancel }: {
   student: StudentRef
   termId: string
   feeItems: FeeItem[]
   defaultFeeId?: string
   balances?: Record<string, number>   // feeId -> amount still owed on that item
+  enrolled?: Record<string, boolean>  // feeId -> is the student on this item's bill (optional items)
   onDone: (receipt: ReceiptData) => void
   onCancel?: () => void
 }) {
@@ -87,7 +88,8 @@ export function PaymentForm({ student, termId, feeItems, defaultFeeId, balances,
 
   const needsRef = method !== 'cash'
   const fee = feeItems.find(f => f.id === feeId)
-  const owing = balances && feeId in balances ? balances[feeId] : null
+  const notTaking = !!fee && fee.is_mandatory === false && enrolled !== undefined && enrolled[feeId] === false
+  const owing = !notTaking && balances && feeId in balances ? balances[feeId] : null
 
   async function submit() {
     setError('')
@@ -95,6 +97,11 @@ export function PaymentForm({ student, termId, feeItems, defaultFeeId, balances,
     if (!feeId) { setError('Choose the fee item being paid.'); return }
     if (!amt || amt <= 0) { setError('Enter the amount received.'); return }
     if (needsRef && !reference.trim()) { setError('Enter the teller, transfer or POS reference.'); return }
+    let enrol = false
+    if (notTaking) {
+      if (!confirm(`${student.full_name} isn't taking “${fee?.name}” yet. Add them to it and record this payment?`)) return
+      enrol = true
+    }
     if (owing !== null && amt > owing) {
       const msg = owing <= 0
         ? `${fee?.name ?? 'This item'} is already fully paid. Record ${money(amt)} against it anyway?`
@@ -109,6 +116,7 @@ export function PaymentForm({ student, termId, feeItems, defaultFeeId, balances,
           feeStructureId: feeId, studentId: student.id, amountPaid: amt, paymentMethod: method,
           paymentDate: date, transferReference: reference.trim() || undefined,
           payerName: payerName || undefined, payerBank: payerBank || undefined, notes: notes || undefined,
+          enrol: enrol || undefined,
         }),
       })
       if (!r.ok) { setError(errorText(r.data)); return }
@@ -136,13 +144,14 @@ export function PaymentForm({ student, termId, feeItems, defaultFeeId, balances,
               {feeItems.map(f => {
                 const b = balances?.[f.id]
                 let tail = ''
-                if (b !== undefined) tail = b > 0 ? ` · ${money(b)} owing` : ' · paid'
+                if (f.is_mandatory === false && enrolled && enrolled[f.id] === false) tail = ' · optional, not taking'
+                else if (b !== undefined) tail = b > 0 ? ` · ${money(b)} owing` : ' · paid'
                 return <option key={f.id} value={f.id}>{f.name} — {money(f.amount)}{tail}</option>
               })}
             </select>
           </Field>
         </div>
-        <Field label="Amount received (₦)" hint={owing !== null ? (owing > 0 ? `Still owed on this item: ${money(owing)}` : 'This item is fully paid.') : undefined}>
+        <Field label="Amount received (₦)" hint={notTaking ? 'Optional item this student isn’t taking. You’ll be asked to add them to it.' : owing !== null ? (owing > 0 ? `Still owed on this item: ${money(owing)}` : 'This item is fully paid.') : undefined}>
           <input style={S.input} type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
         </Field>
         <Field label="Payment date">

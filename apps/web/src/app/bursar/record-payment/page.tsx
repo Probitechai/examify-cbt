@@ -61,6 +61,7 @@ export default function RecordPaymentPage() {
         <div style={S.card}>
           <PaymentForm key={`${student.id}-${historyKey}`} student={student} termId={t.termId} feeItems={items}
             balances={balance ? Object.fromEntries(balance.feeDetails.map((f: any) => [f.feeId, f.balance])) : undefined}
+            enrolled={balance ? Object.fromEntries(balance.feeDetails.map((f: any) => [f.feeId, f.enrolled !== false])) : undefined}
             onDone={r => { setReceipt(r); setHistoryKey(k => k + 1); loadStudent(); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
         </div>
       )}

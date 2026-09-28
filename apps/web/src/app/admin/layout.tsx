@@ -45,6 +45,7 @@ const NAV: NavItem[] = [
   { href: '/admin/exams',         icon: '📋', label: 'Exams Management', group: 'cbt' },
   { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable',   group: 'cbt' },
   { href: '/admin/results',       icon: '📈', label: 'Exam Results',     group: 'cbt' },
+  { href: '/admin/jamb-progress', icon: '🎯', label: 'JAMB Progress (SS3)', group: 'cbt' },
 
   { href: '/admin/results2',      icon: '📝', label: 'Result Entry',      group: 'results' },
   { href: '/admin/approvals',     icon: '✅', label: 'Result Approval',   tier: 'standard', group: 'results' },
@@ -60,6 +61,7 @@ const NAV: NavItem[] = [
   { href: '/admin/teacher-assignments', icon: '📌', label: 'Teacher Assignments', group: 'people' },
 
   { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard', group: 'finance' },
+  { href: '/admin/fee-approvals', icon: '✅', label: 'Fee Approvals',     tier: 'standard', group: 'finance' },
   { href: '/admin/subscription',  icon: '💳', label: 'Subscription',      group: 'finance' },
 
   { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard', group: 'communication' },

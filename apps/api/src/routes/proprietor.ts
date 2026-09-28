@@ -482,11 +482,9 @@ export async function proprietorRoutes(app: FastifyInstance) {
         // Fee collection for this term, across the whole school
         const feeRows = await tdb.query`
           WITH student_fees AS (
-            SELECT u.id AS student_id, fs.id AS fee_id, fs.amount
-            FROM users u
-            JOIN fee_structures fs ON fs.class_level = u.class_level
-              AND fs.term_id = ${term.id}::uuid AND fs.school_id = ${request.schoolId}::uuid
-            WHERE u.school_id = ${request.schoolId}::uuid AND u.role = 'student' AND u.is_active = true
+            SELECT b.student_id, b.fee_structure_id AS fee_id, b.amount
+            FROM student_fee_bill b
+            WHERE b.school_id = ${request.schoolId}::uuid AND b.term_id = ${term.id}::uuid AND b.is_active = true
           ),
           payments AS (
             SELECT fp.student_id, fp.fee_structure_id, SUM(fp.amount_paid) AS paid

@@ -2,10 +2,10 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { checkAuth } from '@/lib/auth'
-import { ApprovalsPanel } from '@/components/finance/approvals'
+import { JambCohort } from '@/components/jamb/cohort'
 
-export default function ApprovalsPage() {
+export default function JambProgressPage() {
   const router = useRouter()
   useEffect(() => { checkAuth(router, 'proprietor') }, [])
-  return <ApprovalsPanel />
+  return <JambCohort />
 }

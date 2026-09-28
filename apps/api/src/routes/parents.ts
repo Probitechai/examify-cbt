@@ -119,10 +119,10 @@ export async function parentRoutes(app: FastifyInstance) {
           // Fee summary
           const feeRows = await tdb.query`
             SELECT
-              (SELECT COALESCE(SUM(fs.amount), 0) FROM fee_structures fs
-                WHERE fs.school_id = ${request.schoolId}::uuid
-                AND fs.term_id = ${activeTerm.term_id}::uuid
-                AND fs.class_level = ${student.class_level}) AS total_fees,
+              (SELECT COALESCE(SUM(b.amount), 0) FROM student_fee_bill b
+                WHERE b.school_id = ${request.schoolId}::uuid
+                AND b.term_id = ${activeTerm.term_id}::uuid
+                AND b.student_id = ${student.id}::uuid) AS total_fees,
               (SELECT COALESCE(SUM(fp.amount_paid), 0) FROM fee_payments_effective fp
                 JOIN fee_structures fs ON fs.id = fp.fee_structure_id
                 WHERE fp.student_id = ${student.id}::uuid
@@ -284,16 +284,17 @@ export async function parentRoutes(app: FastifyInstance) {
       ` as any[]
 
       const structures = await tdb.query`
-        SELECT fs.id, fs.name, fs.amount, fs.is_mandatory,
+        SELECT b.fee_structure_id AS id, b.name, b.amount, b.is_mandatory,
                COALESCE(SUM(fp.amount_paid), 0) AS total_paid
-        FROM fee_structures fs
-        LEFT JOIN fee_payments_effective fp ON fp.fee_structure_id = fs.id
+        FROM student_fee_bill b
+        LEFT JOIN fee_payments_effective fp ON fp.fee_structure_id = b.fee_structure_id
           AND fp.student_id = ${studentId}::uuid
           AND fp.school_id = ${request.schoolId}::uuid
-        WHERE fs.school_id = ${request.schoolId}::uuid
-        AND fs.term_id = ${termId}::uuid
-        AND fs.class_level = ${studentRows[0]?.class_level}
-        GROUP BY fs.id ORDER BY fs.is_mandatory DESC, fs.name ASC
+        WHERE b.school_id = ${request.schoolId}::uuid
+        AND b.term_id = ${termId}::uuid
+        AND b.student_id = ${studentId}::uuid
+        GROUP BY b.fee_structure_id, b.name, b.amount, b.is_mandatory
+        ORDER BY b.is_mandatory DESC, b.name ASC
       ` as any[]
 
       const payments = await tdb.query`
