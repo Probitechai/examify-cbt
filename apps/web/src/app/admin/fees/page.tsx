@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
+import { useFinanceAccess, AccessBanner } from '@/components/finance/ui'
 
 function hdrs() {
   return { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' }
@@ -97,6 +98,9 @@ export default function FeesPage() {
   const [success, setSuccess] = useState('')
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
+
+  // Read-only while the school has an active Bursar (unless the Proprietor granted temporary access)
+  const { access, readOnly } = useFinanceAccess()
 
   useEffect(() => { loadSessions() }, [])
 
@@ -225,6 +229,8 @@ export default function FeesPage() {
         <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Set up fee structures, record payments and track outstanding balances.</p>
       </div>
 
+      <AccessBanner access={access} />
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem', width: 'fit-content' }}>
         {([
@@ -306,13 +312,15 @@ export default function FeesPage() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>{structures.length} fee item{structures.length !== 1 ? 's' : ''} for {classLevel}</p>
+            {!readOnly && (
             <button onClick={() => setShowStructureForm(true)}
               style={{ padding: '0.5rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
               + Add fee item
             </button>
+            )}
           </div>
 
-          {showStructureForm && (
+          {showStructureForm && !readOnly && (
             <div style={{ background: 'white', border: '1.5px solid #1a6b4a', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a18', marginBottom: '1rem' }}>New Fee Item</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
@@ -371,10 +379,12 @@ export default function FeesPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18' }}>{formatAmount(f.amount)}</span>
+                    {!readOnly && (
                     <button onClick={() => handleDeleteStructure(f.id, f.name)}
                       style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.78rem', color: '#dc2626', cursor: 'pointer' }}>
                       Delete
                     </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -404,7 +414,7 @@ export default function FeesPage() {
               {ledger.length > 0 && (
                 <>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-                  <button onClick={async () => {
+                  {!readOnly && <button onClick={async () => {
                     if (!window.confirm('Send fee reminder SMS to all parents with outstanding balances?')) return
                     const res = await fetch(`${API}/fees/remind-sms`, {
                       method: 'POST',
@@ -417,7 +427,7 @@ export default function FeesPage() {
                   }}
                     style={{ padding: '0.5rem 1.25rem', background: '#7e22ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
                     📱 Send fee reminder SMS
-                  </button>
+                  </button>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                   {[
@@ -459,10 +469,12 @@ export default function FeesPage() {
                           {row.isPaid ? 'PAID' : 'OWING'}
                         </span>
                       </span>
+                      {readOnly ? <span /> : (
                       <button onClick={e => { e.stopPropagation(); setPaymentStudent(row); setShowPayment(true); setPaymentFeeId(row.feeDetails[0]?.feeId ?? '') }}
                         style={{ padding: '0.375rem 0.875rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                         + Record payment
                       </button>
+                      )}
                     </div>
                     {expandedStudent === row.studentId && (
                       <div style={{ background: '#f9f9f8', borderTop: '1px solid #e5e5e0', padding: '0.875rem 1.25rem 0.875rem 3rem' }}>
@@ -540,7 +552,7 @@ export default function FeesPage() {
       )}
 
       {/* Payment modal */}
-      {showPayment && paymentStudent && (
+      {showPayment && paymentStudent && !readOnly && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' as const }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Record Payment</h2>

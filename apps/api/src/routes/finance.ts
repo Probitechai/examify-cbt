@@ -91,7 +91,7 @@ export async function financeRoutes(app: FastifyInstance) {
       const status = (request.query as any)?.status ?? null
       const tdb = tenantDb(request.schoolId)
       const reversals = await tdb.query`
-        SELECT r.id, r.status, r.reason, r.created_at, r.decided_at, r.decision_note,
+        SELECT r.id, r.status, r.reason, r.created_at, r.decided_at, r.decision_note, r.requested_by,
                fp.id AS payment_id, fp.receipt_number, fp.amount_paid, fp.payment_method, fp.payment_date,
                st.full_name AS student_name, st.admission_no, st.class_level, st.class_arm,
                rq.full_name AS requested_by_name, dc.full_name AS decided_by_name
@@ -208,7 +208,7 @@ export async function financeRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
       const waivers = await tdb.query`
         SELECT w.id, w.kind, w.amount, w.reason, w.status, w.created_at, w.decided_at, w.decision_note,
-               w.term_id, w.fee_structure_id, fs.name AS fee_name,
+               w.term_id, w.fee_structure_id, w.requested_by, fs.name AS fee_name,
                st.id AS student_id, st.full_name AS student_name, st.admission_no, st.class_level, st.class_arm,
                rq.full_name AS requested_by_name, dc.full_name AS decided_by_name
         FROM fee_waivers w
@@ -578,8 +578,14 @@ export async function financeRoutes(app: FastifyInstance) {
       const paystackTx: any[] = []
       let paystackError: string | null = null
       for (let page = 1; page <= 20; page++) {
-        const res = await paystackRequest('GET',
-          `/transaction?status=success&from=${from}&to=${to}T23:59:59&perPage=100&page=${page}`)
+        let res: any = null
+        try {
+          res = await paystackRequest('GET',
+            `/transaction?status=success&from=${from}&to=${to}T23:59:59&perPage=100&page=${page}`)
+        } catch (err: any) {
+          paystackError = 'Could not reach Paystack: ' + (err?.message ?? 'network error')
+          break
+        }
         if (!res?.status) {
           paystackError = res?.message ?? 'Paystack request failed'
           break

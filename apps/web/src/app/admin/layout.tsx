@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
+import { ROLE_HOME } from '@/lib/auth'
 import styles from './admin.layout.module.css'
 
 const TIER_ORDER: Record<string, number> = { basic: 1, standard: 2, premium: 3, enterprise: 4 }
@@ -91,9 +92,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
 
-    if (!isLoading && !user) router.replace('/login')
-    if (!isLoading && user && user.role === 'student') router.replace('/student')
-    if (!isLoading && user && user.role === 'parent') router.replace('/parent')
+    if (isLoading) return
+    if (!user) { router.replace('/login'); return }
+    // Allow-list: every other role is sent to its own portal
+    if (!['school_admin', 'teacher'].includes(user.role)) router.replace(ROLE_HOME[user.role] ?? '/login')
   }, [user, isLoading])
 
    useEffect(() => {

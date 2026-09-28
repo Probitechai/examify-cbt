@@ -98,6 +98,17 @@ export async function apiFetch(
   return res
 }
 
+// ── Where each role lands after login / when it opens a portal it can't use ──
+export const ROLE_HOME: Record<string, string> = {
+  student: '/student',
+  parent: '/parent',
+  super_admin: '/superadmin',
+  proprietor: '/proprietor',
+  bursar: '/bursar',
+  school_admin: '/admin',
+  teacher: '/admin',
+}
+
 // ── FIX 2: page-load guard — call inside useEffect on every protected page ────
 // Usage:  useEffect(() => { checkAuth(router) }, [])
 export function checkAuth(
@@ -117,12 +128,7 @@ export function checkAuth(
     const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole]
     const p = parseJWT(token)
     if (p?.role && !allowed.includes(p.role)) {
-      const map: Record<string, string> = {
-        student: '/student', parent: '/parent',
-        school_admin: '/admin', teacher: '/admin',
-        super_admin: '/superadmin', proprietor: '/proprietor',
-      }
-      router.replace(map[p.role] ?? '/login')
+      router.replace(ROLE_HOME[p.role] ?? '/login')
     }
   }
 }

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
+import { ROLE_HOME } from '@/lib/auth'
 
 export default function ChangePasswordPage() {
   const router = useRouter()
@@ -46,11 +47,7 @@ export default function ChangePasswordPage() {
         setAuth(token, { ...user, mustChangePassword: false })
       }
 
-      router.replace(
-        user?.role === 'student'     ? '/student'     :
-        user?.role === 'parent'      ? '/parent'      :
-        user?.role === 'super_admin' ? '/superadmin'  : '/admin'
-      )
+      router.replace(ROLE_HOME[user?.role ?? ''] ?? '/admin')
     } catch {
       setError('Network error. Please check your connection.')
     } finally {

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
+import { ROLE_HOME } from '@/lib/auth'
 import styles from './login.module.css'
 
 
@@ -68,11 +69,7 @@ export default function LoginPage() {
       router.replace('/change-password')
       return
     }
-      router.replace(
-        user.role === 'student'     ? '/student'     :
-        user.role === 'parent'      ? '/parent'      :
-        user.role === 'super_admin' ? '/superadmin'  : '/admin'
-      )
+      router.replace(ROLE_HOME[user.role] ?? '/admin')
     }
   }, [user, isLoading, router])
 
