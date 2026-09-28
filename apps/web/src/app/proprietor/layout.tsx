@@ -25,6 +25,7 @@ const NAV = [
   { href: '/proprietor/finance-audit', icon: '🔍', label: 'Finance Audit Log', group: 'finance' },
   { href: '/proprietor/finance-access', icon: '🔑', label: 'Emergency Access & Threshold', group: 'finance' },
   { href: '/proprietor/subscription', icon: '💳', label: 'Subscription & Billing', group: 'business' },
+  { href: '/proprietor/settlements', icon: '🏦', label: 'Online Fee Settlements', group: 'business' },
   { href: '/proprietor/settings', icon: '⚙️', label: 'School Settings', group: 'business' },
   { href: '/proprietor/admins', icon: '👤', label: 'Admin Accounts', group: 'business' },
   { href: '/proprietor/bursars', icon: '🧮', label: 'Bursar Accounts', group: 'business' },

@@ -14,6 +14,7 @@ const NAV = [
   { href: '/bursar/debtors', icon: '⚠️', label: 'Debtors', group: 'collections' },
   { href: '/bursar/reversals', icon: '↩️', label: 'Reversals', group: 'collections' },
   { href: '/bursar/reconciliation', icon: '🔁', label: 'Paystack Reconciliation', group: 'collections' },
+  { href: '/bursar/settlements', icon: '🏦', label: 'Online Settlements', group: 'collections' },
   { href: '/bursar/reports/collection', icon: '📈', label: 'Collection Summary', group: 'reports' },
   { href: '/bursar/reports/cash-book', icon: '📘', label: 'Cash Book', group: 'reports' },
   { href: '/bursar/reports/by-item', icon: '🗂️', label: 'By Fee Item', group: 'reports' },

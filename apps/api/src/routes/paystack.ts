@@ -4,6 +4,7 @@ import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { nextReceiptNo, logFinance } from '../lib/finance'
 import { paystackRequest, paystackMode, schoolUrl, validSignature, usableSubaccount } from '../lib/paystack'
+import { recordCollection, routingMetadata } from '../lib/settlements'
 
 export { paystackRequest }
 
@@ -46,7 +47,8 @@ async function settleSubscription(reference: string, data: any): Promise<{ ok: b
 // ── Settle a pending Paystack fee payment (idempotent) ────────────────────────
 // Shared by the webhook and the verify endpoint: whichever arrives first settles
 // the payment and issues ONE receipt; the second finds it settled and does nothing.
-async function settleFeePayment(schoolId: string, reference: string, paidKobo: number) {
+async function settleFeePayment(schoolId: string, reference: string, data: any) {
+  const paidKobo = Number(data?.amount)
   const tdb = tenantDb(schoolId)
   return tdb.transaction(async (tx: any) => {
     const rows = await tx`
@@ -81,6 +83,8 @@ async function settleFeePayment(schoolId: string, reference: string, paidKobo: n
       after: { status: 'success', amount: actual, receiptNo },
       reason: reference,
     })
+    // Settlement ledger: what came in, Paystack's fee, Probitechai's share, what the school is owed
+    await recordCollection(tx, { schoolId, source: 'school_fee', reference, feePaymentId: row.id, data })
     return { found: true, receiptNo, status: 'success' }
   })
 }
@@ -162,7 +166,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       await db()`
         INSERT INTO subscription_payments (
           school_id, amount, tier, term_name, paystack_reference,
-          paystack_access_code, status
+          paystack_access_code, status, paystack_mode
         )
         VALUES (
           ${request.schoolId}::uuid,
@@ -171,7 +175,8 @@ export async function paystackRoutes(app: FastifyInstance) {
           ${d.termName},
           ${reference},
           ${paystackRes.data.access_code},
-          'pending'
+          'pending',
+          ${paystackMode()}
         )
       `
 
@@ -228,7 +233,6 @@ export async function paystackRoutes(app: FastifyInstance) {
     })
   // ── DIRECT PAYMENT SETUP (subaccounts) ────────────────────────────────────
 
-  const PLATFORM_MARKUP_PERCENT = 0.004 // 0.4%
 
   // Get list of Nigerian banks (for the bank selection dropdown)
   app.get('/paystack/banks', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
@@ -270,7 +274,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const d = body.data
 
       const schoolRows = await db()`
-        SELECT name FROM schools WHERE id = ${request.schoolId}::uuid
+        SELECT name, platform_fee_percent FROM schools WHERE id = ${request.schoolId}::uuid
       ` as any[]
       const school = schoolRows[0]
       if (!school) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
@@ -279,7 +283,8 @@ export async function paystackRoutes(app: FastifyInstance) {
         business_name: school.name,
         settlement_bank: d.bankCode,
         account_number: d.accountNumber,
-        percentage_charge: PLATFORM_MARKUP_PERCENT * 100, // Paystack expects this as a percentage number, e.g. 0.4
+        // Default split on Paystack's side; each payment also sets its own charge from the school's current rate
+        percentage_charge: Number(school.platform_fee_percent ?? 0.4),
       })
 
       if (!subRes.status) {
@@ -373,7 +378,8 @@ export async function paystackRoutes(app: FastifyInstance) {
       const feeRows = await tdb.query`
         SELECT fs.name AS fee_name, fs.amount AS fee_amount,
                u.full_name AS student_name, u.email AS student_email,
-               s.name AS school_name, s.payment_preference, s.paystack_subaccount_code, s.paystack_subaccount_mode
+               s.name AS school_name, s.payment_preference, s.paystack_subaccount_code, s.paystack_subaccount_mode,
+               s.platform_fee_percent
         FROM fee_structures fs
         JOIN users u ON u.id = ${d.studentId}::uuid AND u.school_id = ${request.schoolId}::uuid
         JOIN schools s ON s.id = ${request.schoolId}::uuid
@@ -395,6 +401,7 @@ export async function paystackRoutes(app: FastifyInstance) {
       const reference = `FEE-${d.studentId.slice(0, 8)}-${Date.now()}`
 
       const subaccount = usableSubaccount(fee)
+      const routing = routingMetadata(fee, subaccount, amountKobo)
       const paystackPayload: any = {
         email: parentEmail,
         amount: amountKobo,
@@ -408,13 +415,14 @@ export async function paystackRoutes(app: FastifyInstance) {
           student_name: fee.student_name,
           fee_name: fee.fee_name,
           school_name: fee.school_name,
+          ...routing,
         },
         callback_url: `${schoolUrl(request.school.subdomain)}/parent`,
       }
 
       if (subaccount) {
         paystackPayload.subaccount = subaccount
-        paystackPayload.transaction_charge = Math.round(amountKobo * PLATFORM_MARKUP_PERCENT)
+        paystackPayload.transaction_charge = routing.platform_fee_kobo   // Probitechai's share, per school rate
         paystackPayload.bearer = 'subaccount'
       }
 
@@ -462,7 +470,7 @@ export async function paystackRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: 'FORBIDDEN' })
       }
 
-      const r = await settleFeePayment(request.schoolId, reference, Number(paystackRes.data.amount))
+      const r = await settleFeePayment(request.schoolId, reference, paystackRes.data)
       if (!r.found) return reply.status(404).send({ error: 'NOT_FOUND' })
 
       return reply.send({
@@ -494,7 +502,7 @@ export async function paystackRoutes(app: FastifyInstance) {
         console.log('[PAYSTACK WEBHOOK] Subscription', reference, r)
 
       } else if (meta?.type === 'fee_payment') {
-        const r = await settleFeePayment(meta.school_id, reference, Number(event.data.amount))
+        const r = await settleFeePayment(meta.school_id, reference, event.data)
         console.log('[PAYSTACK WEBHOOK] Fee payment', reference, r)
       }
     }

@@ -5,6 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { requireTier } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { paystackRequest, schoolUrl, usableSubaccount } from '../lib/paystack'
+import { recordCollection, routingMetadata } from '../lib/settlements'
 
 export async function admissionRoutes(app: FastifyInstance) {
 
@@ -688,7 +689,7 @@ export async function admissionRoutes(app: FastifyInstance) {
     if (!school) return reply.status(400).send({ error: 'school subdomain required' })
 
     const schoolRows = await db()`
-      SELECT id, name, subdomain, payment_preference, paystack_subaccount_code, paystack_subaccount_mode
+      SELECT id, name, subdomain, payment_preference, paystack_subaccount_code, paystack_subaccount_mode, platform_fee_percent
       FROM schools WHERE subdomain = ${school} AND is_active = true
     ` as any[]
     if (!schoolRows[0]) return reply.status(404).send({ error: 'School not found' })
@@ -730,6 +731,8 @@ export async function admissionRoutes(app: FastifyInstance) {
 
     const reference = `ADMSN-${applicantId.slice(0,8)}-${Date.now()}`
     const amountKobo = Math.round(amount * 100)
+    const subaccount = usableSubaccount(schoolRows[0])
+    const routing = routingMetadata(schoolRows[0], subaccount, amountKobo)
     const payload: any = {
       email: app.parent_email,
       amount: amountKobo,
@@ -742,14 +745,14 @@ export async function admissionRoutes(app: FastifyInstance) {
         applicant_id: applicantId,
         applicant_name: `${app.first_name} ${app.last_name}`,
         application_number: app.application_number,
+        ...routing,
       },
       callback_url: `${schoolUrl(schoolRows[0].subdomain)}/admissions/pay/${applicantId}/callback?school=${school}`,
     }
     // Schools on direct payment receive acceptance fees in their own account, like school fees
-    const subaccount = usableSubaccount(schoolRows[0])
     if (subaccount) {
       payload.subaccount = subaccount
-      payload.transaction_charge = Math.round(amountKobo * 0.004)
+      payload.transaction_charge = routing.platform_fee_kobo
       payload.bearer = 'subaccount'
     }
     const paystackRes = await paystackRequest('POST', '/transaction/initialize', payload)
@@ -808,12 +811,15 @@ export async function admissionRoutes(app: FastifyInstance) {
       return reply.send({ success: true, applicantName: meta.applicant_name, applicationNumber: meta.application_number, message: 'Payment already confirmed. Your offer has been accepted.' })
     }
 
-    await tdb.query`
-      UPDATE admission_applications
-      SET status = 'accepted', acceptance_fee_paid = true,
-          acceptance_fee_paid_at = now(), updated_at = now()
-      WHERE applicant_id = ${applicantId}::uuid AND school_id = ${schoolId}::uuid
-    `
+    await tdb.transaction(async (tx: any) => {
+      await tx`
+        UPDATE admission_applications
+        SET status = 'accepted', acceptance_fee_paid = true,
+            acceptance_fee_paid_at = now(), updated_at = now()
+        WHERE applicant_id = ${applicantId}::uuid AND school_id = ${schoolId}::uuid
+      `
+      await recordCollection(tx, { schoolId, source: 'admission_fee', reference: String(reference), data: paystackRes.data })
+    })
 
     await tdb.query`
       INSERT INTO admission_activity_log (school_id, application_id, action, notes)
