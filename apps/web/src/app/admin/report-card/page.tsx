@@ -143,6 +143,7 @@ export default function ReportCardPage() {
       const params = new URLSearchParams({ termId: selectedTerm, studentId: selectedStudent })
       const res = await apiFetch(`${API}/results/report-card?${params}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message || 'Failed to load report card'); return }
       setReportCard(data.reportCard)
     } catch { setError('Failed to load report card') } finally { setLoading(false) }
   }

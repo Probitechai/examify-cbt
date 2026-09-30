@@ -469,12 +469,60 @@ export async function resultRoutes(app: FastifyInstance) {
     })
 
   // ── Report card ───────────────────────────────────────────────────────────
-  app.get('/results/report-card', { preHandler: [authenticate] },
+  // Who may open a report card:
+  //   School Admin, Proprietor: any student in their school
+  //   Teacher: students in a class/arm they teach or are class teacher for
+  //   Parent: their own linked children. Student: themselves.
+  // Parents and students see approved results only.
+  app.get('/results/report-card', { preHandler: [authenticate, requireRole('school_admin', 'proprietor', 'teacher', 'parent', 'student')] },
     async (request: any, reply: any) => {
       const { termId, studentId } = request.query as any
-      if (!termId || !studentId) return reply.status(400).send({ error: 'termId and studentId are required' })
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!termId || !studentId || !uuid.test(String(termId)) || !uuid.test(String(studentId))) {
+        return reply.status(400).send({ error: 'termId and studentId are required' })
+      }
 
       const tdb = tenantDb(request.schoolId)
+      const role = request.user.role
+
+      // The student must belong to this school
+      const studentRows = await tdb.query`
+        SELECT full_name, admission_no, class_level, class_arm
+        FROM users WHERE id = ${studentId}::uuid AND school_id = ${request.schoolId}::uuid AND role = 'student'
+      ` as any[]
+      if (!studentRows[0]) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })
+      const stu = studentRows[0]
+
+      let allowed = role === 'school_admin' || role === 'proprietor'
+      if (role === 'student') allowed = studentId === request.user.id
+      if (role === 'parent') {
+        const link = await tdb.query`
+          SELECT 1 FROM parent_student_links
+          WHERE parent_id = ${request.user.id}::uuid AND student_id = ${studentId}::uuid
+            AND school_id = ${request.schoolId}::uuid
+          LIMIT 1
+        ` as any[]
+        allowed = link.length > 0
+      }
+      if (role === 'teacher') {
+        const scope = await tdb.query`
+          SELECT 1 FROM teacher_subject_assignments
+          WHERE school_id = ${request.schoolId}::uuid AND teacher_id = ${request.user.id}::uuid
+            AND class_level = ${stu.class_level}
+            AND (class_arm IS NULL OR class_arm = '' OR class_arm = ${stu.class_arm ?? ''})
+          UNION ALL
+          SELECT 1 FROM class_teachers
+          WHERE school_id = ${request.schoolId}::uuid AND teacher_id = ${request.user.id}::uuid
+            AND class_level = ${stu.class_level} AND class_arm = ${stu.class_arm ?? ''}
+          LIMIT 1
+        ` as any[]
+        allowed = scope.length > 0
+      }
+      if (!allowed) {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'You can only view report cards for students you teach or are linked to.' })
+      }
+
+      const approvedOnly = role === 'parent' || role === 'student'
       const config = await getConfig(tdb, request.schoolId)
 
       const results = await tdb.query`
@@ -483,18 +531,14 @@ export async function resultRoutes(app: FastifyInstance) {
         FROM student_results sr
         WHERE sr.term_id = ${termId}::uuid AND sr.student_id = ${studentId}::uuid
         AND sr.school_id = ${request.schoolId}::uuid
+        AND (${!approvedOnly} OR sr.approved_at IS NOT NULL)
         ORDER BY sr.subject ASC
-      ` as any[]
-
-      const studentRows = await tdb.query`
-        SELECT full_name, admission_no, class_level, class_arm
-        FROM users WHERE id = ${studentId}::uuid
       ` as any[]
 
       const termRows = await tdb.query`
         SELECT t.name AS term_name, t.term_number, s.name AS session_name, t.start_date, t.end_date
         FROM terms t JOIN academic_sessions s ON s.id = t.session_id
-        WHERE t.id = ${termId}::uuid
+        WHERE t.id = ${termId}::uuid AND t.school_id = ${request.schoolId}::uuid
       ` as any[]
 
       const schoolRows = await tdb.query`
@@ -512,6 +556,7 @@ export async function resultRoutes(app: FastifyInstance) {
           FROM student_results sr JOIN users u ON u.id = sr.student_id
           WHERE sr.term_id = ${termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
           AND u.class_level = ${classInfo.class_level} AND u.class_arm = ${classInfo.class_arm}
+          AND (${!approvedOnly} OR sr.approved_at IS NOT NULL)
           GROUP BY sr.student_id ORDER BY grand_total DESC
         ` as any[]
         const pos = classmates.findIndex((c: any) => c.student_id === studentId)
