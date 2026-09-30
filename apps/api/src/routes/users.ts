@@ -4,7 +4,8 @@ import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
-import { getStudentLimit, normalizeTier, TIER_NAMES } from '../middleware/tier'
+import { studentCapacity, limitError } from '../lib/studentLimit'
+import { normalizeTier, TIER_NAMES } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
 async function schoolLevels(schoolId: string): Promise<string[]> {
@@ -58,30 +59,23 @@ export async function userRoutes(app: FastifyInstance) {
       const passwordHash = await bcrypt.hash(d.password, 12)
       const tdb = tenantDb(request.schoolId)
 
-      // Check student limit for the school's tier
-      if (d.role === 'student') {
-        const tier = normalizeTier(request.school?.subscriptionTier)
-        const tierLimit = getStudentLimit(tier)
-        const countRows = await tdb.query`
-          SELECT COUNT(*) AS student_count FROM users
-          WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
-        ` as any[]
-        const currentCount = Number(countRows[0]?.student_count ?? 0)
-        if (currentCount >= tierLimit) {
-          return reply.status(403).send({
-            error: 'STUDENT_LIMIT_REACHED',
-            message: `Your ${TIER_NAMES[tier]} plan allows up to ${tierLimit} students. Please upgrade to add more.`,
-          })
+      // Student limit: checked and the student added in one locked transaction
+      const result = await tdb.transaction(async (tx: any) => {
+        if (d.role === 'student') {
+          const cap = await studentCapacity(tx, request.schoolId)
+          if (cap.room < 1) return { limit: limitError(cap, 1) }
         }
-      }
-
-      const rows = await tdb.query`
-        INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm, phone, date_of_birth)
-        VALUES (${request.schoolId}::uuid, ${d.role}::user_role, ${d.email.toLowerCase()}, ${d.fullName},
-                ${passwordHash}, ${d.admissionNo ?? null}, ${d.classLevel ?? null}, ${d.classArm ?? null},
-                ${d.phone ?? null}, ${d.dateOfBirth ?? null})
-        RETURNING id
-      ` as any[]
+        const rows = await tx`
+          INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm, phone, date_of_birth)
+          VALUES (${request.schoolId}::uuid, ${d.role}::user_role, ${d.email.toLowerCase()}, ${d.fullName},
+                  ${passwordHash}, ${d.admissionNo ?? null}, ${d.classLevel ?? null}, ${d.classArm ?? null},
+                  ${d.phone ?? null}, ${d.dateOfBirth ?? null})
+          RETURNING id
+        ` as any[]
+        return { rows }
+      })
+      if (result.limit) return reply.status(403).send(result.limit)
+      const rows = result.rows as any[]
 
       // Send login credentials email (fire and forget — don't block the response)
       const { subject, html } = loginCredentialsEmail({
@@ -97,6 +91,26 @@ export async function userRoutes(app: FastifyInstance) {
       )
 
       return reply.status(201).send({ userId: rows[0].id })
+    })
+
+  // How many more students the plan allows; with `emails`, also how many of them are new
+  app.post('/users/student-capacity', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const emails: string[] = Array.isArray(request.body?.emails)
+        ? [...new Set<string>(request.body.emails.filter((e: any) => typeof e === 'string').map((e: string) => e.trim().toLowerCase()))]
+        : []
+      const tdb = tenantDb(request.schoolId)
+      const cap = await tdb.transaction((tx: any) => studentCapacity(tx, request.schoolId))
+      let newStudents = 0
+      if (emails.length) {
+        const found = await tdb.query`
+          SELECT lower(email) AS email FROM users WHERE school_id = ${request.schoolId}::uuid AND lower(email) = ANY(${emails})
+        ` as any[]
+        newStudents = emails.length - found.length
+      }
+      const fits = newStudents <= cap.room
+      return reply.send({ ...cap, plan: TIER_NAMES[normalizeTier(cap.tier)], newStudents, fits,
+        message: fits ? null : limitError(cap, newStudents).message })
     })
 
   app.post('/users/bulk', { preHandler: [authenticate, requireRole('school_admin')] },
@@ -118,31 +132,57 @@ export async function userRoutes(app: FastifyInstance) {
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
 
       const tdb = tenantDb(request.schoolId)
-      let imported = 0
       const errors: string[] = []
       const levels = await schoolLevels(request.schoolId)
 
+      // Rows that would really add a student: a known class, an email not already
+      // in the school, and not repeated earlier in the same file
+      const existing = new Set((await tdb.query`
+        SELECT lower(email) AS email FROM users WHERE school_id = ${request.schoolId}::uuid
+      ` as any[]).map(r => r.email))
+      const seen = new Set<string>()
+      const toAdd: any[] = []
+      let skipped = 0
       for (const s of body.data.students) {
+        const email = s.email.toLowerCase()
         if (!levels.includes(s.classLevel)) {
           errors.push(`${s.email}: “${s.classLevel}” isn’t one of this school’s classes`)
           continue
         }
-        try {
-          const passwordHash = await bcrypt.hash(s.password, 12)
-          await tdb.query`
-            INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm, phone, date_of_birth)
-            VALUES (${request.schoolId}::uuid, 'student'::user_role, ${s.email.toLowerCase()}, ${s.fullName},
-                    ${passwordHash}, ${s.admissionNo ?? null}, ${s.classLevel}, ${s.classArm},
-                    ${s.phone ?? null}, ${s.dateOfBirth ?? null})
-            ON CONFLICT (school_id, email) DO NOTHING
-          `
-          imported++
-        } catch (err: any) {
-          errors.push(`${s.email}: ${err.message}`)
-        }
+        if (existing.has(email) || seen.has(email)) { skipped++; continue }
+        seen.add(email)
+        toAdd.push({ ...s, email })
       }
 
-      return reply.send({ imported, errors })
+      // Passwords hashed before the transaction so the school isn't locked for long
+      for (const s of toAdd) s.passwordHash = await bcrypt.hash(s.password, 12)
+
+      const result = await tdb.transaction(async (tx: any) => {
+        const cap = await studentCapacity(tx, request.schoolId)
+        if (toAdd.length > cap.room) return { limit: limitError(cap, toAdd.length) }
+        let imported = 0
+        for (const s of toAdd) {
+          try {
+            // a savepoint per row, so one bad row doesn't undo the rest
+            const rows = await tx.savepoint((sp: any) => sp`
+              INSERT INTO users (school_id, role, email, full_name, password_hash, admission_no, class_level, class_arm, phone, date_of_birth)
+              VALUES (${request.schoolId}::uuid, 'student'::user_role, ${s.email}, ${s.fullName},
+                      ${s.passwordHash}, ${s.admissionNo ?? null}, ${s.classLevel}, ${s.classArm},
+                      ${s.phone ?? null}, ${s.dateOfBirth ?? null})
+              ON CONFLICT (school_id, email) DO NOTHING
+              RETURNING id
+            `) as any[]
+            if (rows.length) imported++
+            else skipped++
+          } catch (err: any) {
+            errors.push(`${s.email}: ${err.message}`)
+          }
+        }
+        return { imported }
+      })
+      if (result.limit) return reply.status(403).send({ ...result.limit, imported: 0, errors })
+
+      return reply.send({ imported: result.imported, skipped, errors })
     })
 
   // Accounts the School Admin must never change: only the Proprietor (or super_admin)
@@ -168,10 +208,22 @@ export async function userRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'CANNOT_DEACTIVATE_SELF' })
       }
 
-      await tdb.query`
-        UPDATE users SET is_active = ${isActive}
-        WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
-      `
+      const result = await tdb.transaction(async (tx: any) => {
+        // Switching a student back on counts towards the plan's limit
+        if (isActive && target[0].role === 'student') {
+          const [u] = await tx`SELECT is_active FROM users WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid` as any[]
+          if (u && !u.is_active) {
+            const cap = await studentCapacity(tx, request.schoolId)
+            if (cap.room < 1) return { limit: limitError(cap, 1) }
+          }
+        }
+        await tx`
+          UPDATE users SET is_active = ${isActive}
+          WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+        `
+        return {}
+      })
+      if (result.limit) return reply.status(403).send(result.limit)
       return reply.send({ updated: true })
     })
       app.delete('/users/:id', { preHandler: [authenticate, requireRole('school_admin')] },

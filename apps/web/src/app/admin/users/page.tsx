@@ -38,6 +38,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'student' | 'teacher' | 'parent' | 'admin'>('student')
   const [togglingUser, setTogglingUser] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState('')
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -118,13 +119,17 @@ export default function UsersPage() {
       alert("You can't deactivate your own account from here.")
       return
     }
-    setTogglingUser(id)
+    setTogglingUser(id); setStatusError('')
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}/status`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}/status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !currentlyActive })
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setStatusError(data.message ?? 'Could not change this account.')
+      }
       loadUsers()
     } catch {} finally { setTogglingUser(null) }
   }
@@ -145,6 +150,12 @@ export default function UsersPage() {
 
   return (
     <div className={styles.page}>
+      {statusError && (
+        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: 10, background: '#fef2f2', border: '1px solid #b91c1c', color: '#b91c1c', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+          <span>{statusError}</span>
+          <button onClick={() => setStatusError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>✕</button>
+        </div>
+      )}
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.title}>Students & Staff</h1>

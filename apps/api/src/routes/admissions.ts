@@ -6,6 +6,8 @@ import { requireTier } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { paystackRequest, schoolUrl, usableSubaccount } from '../lib/paystack'
 import { recordCollection, routingMetadata } from '../lib/settlements'
+import { studentCapacity, limitError } from '../lib/studentLimit'
+import { levelsFor, asSections } from '../lib/classLevels'
 
 export async function admissionRoutes(app: FastifyInstance) {
 
@@ -443,22 +445,36 @@ export async function admissionRoutes(app: FastifyInstance) {
       const passwordHash = await bcrypt.hash(d.password, 12)
       const email = `${app.first_name.toLowerCase()}.${app.last_name.toLowerCase()}@${request.school.subdomain}.examify.ng`
 
-      const studentRows = await tdb.query`
-        INSERT INTO users (
-          school_id, role, full_name, email, password_hash,
-          admission_no, class_level, class_arm, is_active
-        )
-        VALUES (
-          ${request.schoolId}::uuid, 'student',
-          ${app.first_name + ' ' + app.last_name},
-          ${email}, ${passwordHash},
-          ${d.admissionNo ?? null}, ${d.classLevel},
-          ${d.classArm ?? null}, true
-        )
-        RETURNING id, full_name, email
-      ` as any[]
+      // The class must be one the school runs
+      const [sch] = await db()`SELECT sections FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
+      const levels = levelsFor(asSections(sch?.sections))
+      if (!levels.includes(d.classLevel)) {
+        return reply.status(400).send({ error: 'UNKNOWN_CLASS', message: `“${d.classLevel}” isn’t one of this school’s classes (${levels.join(', ')}).` })
+      }
 
-      const student = studentRows[0]
+      // Student limit: checked and the student added in one locked transaction
+      const created = await tdb.transaction(async (tx: any) => {
+        const cap = await studentCapacity(tx, request.schoolId)
+        if (cap.room < 1) return { limit: limitError(cap, 1) }
+        const rows = await tx`
+          INSERT INTO users (
+            school_id, role, full_name, email, password_hash,
+            admission_no, class_level, class_arm, is_active
+          )
+          VALUES (
+            ${request.schoolId}::uuid, 'student',
+            ${app.first_name + ' ' + app.last_name},
+            ${email}, ${passwordHash},
+            ${d.admissionNo ?? null}, ${d.classLevel},
+            ${d.classArm ?? null}, true
+          )
+          RETURNING id, full_name, email
+        ` as any[]
+        return { rows }
+      })
+      if (created.limit) return reply.status(403).send(created.limit)
+
+      const student = (created.rows as any[])[0]
 
       // Create student profile from applicant data
       await tdb.query`

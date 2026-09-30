@@ -110,7 +110,7 @@ export default function ApplicationDetailPage() {
     try {
       const res = await apiFetch(`${API}/admissions/applications/${applicantId}/enroll`, {method: 'POST',body: JSON.stringify(enrollForm)})
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to enroll')
+      if (!res.ok) throw new Error(data.message ?? data.error ?? 'Failed to enroll')
       setShowEnrollModal(false)
       setSuccess(data.message)
       setTimeout(() => { setSuccess(''); router.push('/admin/admissions') }, 4000)

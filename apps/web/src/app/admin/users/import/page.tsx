@@ -114,6 +114,25 @@ export default function ImportStudentsPage() {
 
     const token = document.cookie.split(';')
       .find(c => c.trim().startsWith('examify_token='))?.split('=')[1]
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
+    }
+
+    // Check the plan's student limit for the whole file before importing anything
+    try {
+      const capRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/student-capacity`, {
+        method: 'POST', headers, body: JSON.stringify({ emails: validRows.map(r => r.email) }),
+      })
+      const cap = await capRes.json()
+      if (capRes.ok && cap.fits === false) {
+        setImported(0)
+        setErrors([cap.message])
+        setStep('done')
+        return
+      }
+    } catch {}
 
     // Import in batches of 10
     for (let i = 0; i < validRows.length; i += 10) {
@@ -141,9 +160,12 @@ export default function ImportStudentsPage() {
         })
         const data = await res.json()
         if (res.ok) {
-          successCount += data.imported ?? batch.length
+          successCount += data.imported ?? 0
+          for (const e of data.errors ?? []) importErrors.push(e)
         } else {
           importErrors.push(`Batch ${Math.floor(i/10) + 1}: ${data.message ?? 'Failed'}`)
+          // Over the plan's limit: later batches would be refused too
+          if (data.error === 'STUDENT_LIMIT_REACHED') { setImported(successCount); break }
         }
       } catch (err) {
         importErrors.push(`Batch ${Math.floor(i/10) + 1}: Network error`)
