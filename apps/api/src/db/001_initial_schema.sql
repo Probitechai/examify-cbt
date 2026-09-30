@@ -16,7 +16,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================
 
 CREATE TYPE user_role AS ENUM ('super_admin', 'school_admin', 'teacher', 'student', 'parent');
-CREATE TYPE subscription_tier AS ENUM ('starter', 'growth', 'premium', 'enterprise');
 CREATE TYPE exam_status AS ENUM ('draft', 'scheduled', 'active', 'completed', 'cancelled');
 CREATE TYPE session_status AS ENUM ('not_started', 'in_progress', 'submitted', 'timed_out');
 CREATE TYPE question_type AS ENUM ('mcq', 'true_false', 'short_answer');
@@ -34,7 +33,8 @@ CREATE TABLE schools (
   phone             text,
   email             text,
   logo_url          text,
-  subscription_tier subscription_tier NOT NULL DEFAULT 'starter',
+  subscription_tier text NOT NULL DEFAULT 'basic'
+    CONSTRAINT schools_subscription_tier_valid CHECK (subscription_tier IN ('basic', 'standard', 'premium', 'enterprise')),
   max_students      integer NOT NULL DEFAULT 200,  -- enforced on student creation
   is_active         boolean NOT NULL DEFAULT true, -- flip false to lock out on non-payment
   trial_ends_at     timestamptz,

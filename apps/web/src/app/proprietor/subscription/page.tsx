@@ -173,7 +173,7 @@ export default function ProprietorSubscriptionPage() {
       ])
       const schoolData = await schoolRes.json()
       const historyData = await historyRes.json()
-      setCurrentTier(schoolData.subscription_tier ?? 'starter')
+      setCurrentTier(schoolData.subscription_tier ?? 'basic')
       setExpiresAt(schoolData.subscription_expires_at ?? null)
       setSubscriptionTerm(schoolData.subscription_term ?? '')
       setPayments(historyData.payments ?? [])

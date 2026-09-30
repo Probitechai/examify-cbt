@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
-import { getStudentLimit } from '../middleware/tier'
+import { getStudentLimit, normalizeTier, TIER_NAMES } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
 async function schoolLevels(schoolId: string): Promise<string[]> {
@@ -60,7 +60,8 @@ export async function userRoutes(app: FastifyInstance) {
 
       // Check student limit for the school's tier
       if (d.role === 'student') {
-        const tierLimit = getStudentLimit(request.school?.subscriptionTier ?? 'starter')
+        const tier = normalizeTier(request.school?.subscriptionTier)
+        const tierLimit = getStudentLimit(tier)
         const countRows = await tdb.query`
           SELECT COUNT(*) AS student_count FROM users
           WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
@@ -69,7 +70,7 @@ export async function userRoutes(app: FastifyInstance) {
         if (currentCount >= tierLimit) {
           return reply.status(403).send({
             error: 'STUDENT_LIMIT_REACHED',
-            message: `Your ${request.school?.subscriptionTier ?? 'starter'} plan allows up to ${tierLimit} students. Please upgrade to add more.`,
+            message: `Your ${TIER_NAMES[tier]} plan allows up to ${tierLimit} students. Please upgrade to add more.`,
           })
         }
       }

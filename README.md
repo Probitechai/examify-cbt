@@ -132,7 +132,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 ```sql
 -- 1. Insert the school record
 INSERT INTO schools (name, subdomain, subscription_tier, max_students)
-VALUES ('Lagos Model School', 'lagosmodel', 'starter', 200);
+VALUES ('Lagos Model School', 'lagosmodel', 'basic', 200);
 
 -- 2. Create the school admin user (or use the POST /api/users endpoint)
 ```

@@ -6,6 +6,7 @@ import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { saveSections } from './schools'
 import { asSections } from '../lib/classLevels'
+import { isTier } from '../middleware/tier'
 
 export async function superAdminRoutes(app: FastifyInstance) {
 
@@ -138,6 +139,9 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     if (!name || !subdomain || !email || !subscription_tier || !admin_name || !admin_email) {
       return reply.status(400).send({ error: 'MISSING_FIELDS', message: 'name, subdomain, email, subscription_tier, admin_name, and admin_email are required.' })
     }
+    if (!isTier(subscription_tier)) {
+      return reply.status(400).send({ error: 'INVALID_TIER', message: 'Plan must be Basic, Standard, Premium or Enterprise.' })
+    }
 
     if (!/^[a-z0-9-]+$/.test(subdomain)) {
       return reply.status(400).send({ error: 'INVALID_SUBDOMAIN', message: 'Subdomain can only contain lowercase letters, numbers, and hyphens.' })
@@ -240,8 +244,8 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const { tier } = request.body as any
-      if (!['basic', 'standard', 'premium', 'enterprise'].includes(tier)) {
-        return reply.status(400).send({ error: 'Invalid tier' })
+      if (!isTier(tier)) {
+        return reply.status(400).send({ error: 'INVALID_TIER', message: 'Plan must be Basic, Standard, Premium or Enterprise.' })
       }
       const rows = await db()`
         UPDATE schools SET subscription_tier = ${tier}

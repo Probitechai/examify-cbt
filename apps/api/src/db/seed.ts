@@ -19,7 +19,7 @@ async function seed() {
     VALUES (
       'Greensprings Academy',
       'greensprings',
-      'growth',
+      'standard',
       500,
       'admin@greenspringsacademy.edu.ng',
       '+234-801-000-0001'

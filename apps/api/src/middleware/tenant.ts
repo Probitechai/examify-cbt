@@ -1,5 +1,6 @@
 import type { FastifyReply } from 'fastify'
 import { db } from '../db/client'
+import { normalizeTier } from './tier'
 
 export async function resolveTenant(request: any, reply: FastifyReply) {
   // OPTIONS preflight must ALWAYS get CORS headers, regardless of which
@@ -93,7 +94,7 @@ export async function resolveTenant(request: any, reply: FastifyReply) {
       name: school.name,
       subdomain: school.subdomain,
       isActive: school.is_active,
-      subscriptionTier: school.subscription_tier,
+      subscriptionTier: normalizeTier(school.subscription_tier),
       maxStudents: school.max_students,
     }
 

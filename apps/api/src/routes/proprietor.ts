@@ -5,7 +5,7 @@ import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
-import { requireTier } from '../middleware/tier'
+import { requireTier, normalizeTier } from '../middleware/tier'
 import { logFinance, tempPassword as makeTempPassword } from '../lib/finance'
 
 export async function proprietorRoutes(app: FastifyInstance) {
@@ -531,7 +531,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
           totalStudents,
           enrollmentByClass: enrollmentRows.map((r: any) => ({ classLevel: r.class_level, count: Number(r.count) })),
           totalTeachers: Number(staffRows[0]?.count ?? 0),
-          subscriptionTier: schoolRows[0]?.subscription_tier ?? 'basic',
+          subscriptionTier: normalizeTier(schoolRows[0]?.subscription_tier),
           schoolActive: schoolRows[0]?.is_active ?? true,
           schoolSince: schoolRows[0]?.created_at ?? null,
         },
