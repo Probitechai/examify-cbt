@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { tierAtLeast, FEES_TIER } from '../middleware/tier'
 
 export async function parentRoutes(app: FastifyInstance) {
 
@@ -329,7 +330,8 @@ export async function parentRoutes(app: FastifyInstance) {
           balance: Number(f.amount) - Number(f.total_paid),
         })),
         payments,
-        summary: { totalFees, totalPaid, totalWaived, balance: totalFees - totalPaid - totalWaived }
+        summary: { totalFees, totalPaid, totalWaived, balance: totalFees - totalPaid - totalWaived },
+        onlinePayments: tierAtLeast(request.school?.subscriptionTier, FEES_TIER),
       })
     })
 

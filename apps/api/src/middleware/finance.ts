@@ -1,6 +1,7 @@
 import type { FastifyReply } from 'fastify'
 import { tenantDb } from '../db/client'
 import { requireRole } from './auth'
+import { tierAtLeast, FEES_TIER, TIER_NAMES } from './tier'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Finance permission model
@@ -16,11 +17,15 @@ export const requireFinanceRead = requireRole('school_admin', 'bursar', 'proprie
 
 export type FinanceAccess = {
   canWrite: boolean
-  reason: 'bursar' | 'no_bursar' | 'emergency_grant' | 'bursar_active' | 'inactive' | 'role'
+  reason: 'bursar' | 'no_bursar' | 'emergency_grant' | 'bursar_active' | 'inactive' | 'role' | 'plan'
   grantExpiresAt: string | null
 }
 
 export async function getFinanceAccess(request: any): Promise<FinanceAccess> {
+  // Below the plan that includes fee management, fee records are view-only for everyone
+  if (!tierAtLeast(request.school?.subscriptionTier, FEES_TIER)) {
+    return { canWrite: false, reason: 'plan', grantExpiresAt: null }
+  }
   const role = request.user?.role
   if (role !== 'bursar' && role !== 'school_admin') {
     return { canWrite: false, reason: 'role', grantExpiresAt: null }
@@ -49,7 +54,10 @@ export async function getFinanceAccess(request: any): Promise<FinanceAccess> {
   return { canWrite: false, reason: 'bursar_active', grantExpiresAt: null }
 }
 
+const PLAN_MESSAGE = `Fee management needs the ${TIER_NAMES[FEES_TIER]} plan or higher. Existing fee records can still be viewed, but nothing can be added or changed until the school upgrades.`
+
 const DENY_MESSAGES: Record<string, string> = {
+  plan: PLAN_MESSAGE,
   bursar_active: 'Fee records are managed by the Bursar. If the Bursar is unavailable, ask the Proprietor for temporary access.',
   inactive: 'Your account has been deactivated.',
   role: 'Your role cannot change fee records.',
@@ -62,6 +70,9 @@ export async function requireFinanceWrite(request: any, reply: FastifyReply) {
     request.financeViaGrant = access.reason === 'emergency_grant'
     return
   }
+  if (access.reason === 'plan') {
+    return reply.status(403).send({ error: 'UPGRADE_REQUIRED', reason: 'plan', requiredTier: FEES_TIER, message: PLAN_MESSAGE })
+  }
   return reply.status(403).send({
     error: 'FINANCE_READ_ONLY',
     reason: access.reason,
@@ -72,6 +83,9 @@ export async function requireFinanceWrite(request: any, reply: FastifyReply) {
 // Approves waivers above threshold and ALL reversals.
 // "Not your own request" is checked in each handler and by a DB CHECK constraint.
 export async function requireFinanceApprover(request: any, reply: FastifyReply) {
+  if (!tierAtLeast(request.school?.subscriptionTier, FEES_TIER)) {
+    return reply.status(403).send({ error: 'UPGRADE_REQUIRED', reason: 'plan', requiredTier: FEES_TIER, message: PLAN_MESSAGE })
+  }
   const role = request.user?.role
   const tdb = tenantDb(request.schoolId)
   const rows = await tdb.query`

@@ -281,5 +281,8 @@ export function AccessBanner({ access }: { access: FinanceAccess | null }) {
   if (access.reason === 'inactive') {
     return <Banner tone="error">Your account has been deactivated.</Banner>
   }
+  if (access.reason === 'plan') {
+    return <Banner tone="warning"><strong>Fee management needs the Standard plan or higher.</strong> You can view existing fee records, but nothing can be added or changed until the school upgrades. The Proprietor can upgrade under Subscription &amp; Billing.</Banner>
+  }
   return null
 }

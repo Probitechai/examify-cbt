@@ -25,6 +25,14 @@ export function normalizeTier(v: unknown): Tier {
   return isTier(v) ? v : 'basic'
 }
 
+/** true when the school's plan is `min` or higher */
+export function tierAtLeast(tier: unknown, min: Tier): boolean {
+  return TIER_ORDER[normalizeTier(tier)] >= TIER_ORDER[min]
+}
+
+/** The plan fee management needs (fees, payments, Bursar, approvals, online payments) */
+export const FEES_TIER: Tier = 'standard'
+
 export function requireTier(minTier: Tier) {
   return async function checkTier(request: any, reply: any) {
     const schoolTier = normalizeTier(request.school?.subscriptionTier)

@@ -5,6 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { nextReceiptNo, logFinance } from '../lib/finance'
 import { paystackRequest, paystackMode, schoolUrl, validSignature, usableSubaccount } from '../lib/paystack'
 import { recordCollection, routingMetadata } from '../lib/settlements'
+import { requireTier, FEES_TIER, tierAtLeast } from '../middleware/tier'
 
 export { paystackRequest }
 
@@ -352,7 +353,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   // ── STUDENT FEE PAYMENTS ──────────────────────────────────────────────────
 
   // Initialize fee payment (called by parent portal)
-  app.post('/paystack/fees/initialize', { preHandler: [authenticate, requireRole('parent')] },
+  app.post('/paystack/fees/initialize', { preHandler: [authenticate, requireRole('parent'), requireTier(FEES_TIER)] },
     async (request: any, reply: any) => {
       const schema = z.object({
         feeStructureId: z.string().uuid(),

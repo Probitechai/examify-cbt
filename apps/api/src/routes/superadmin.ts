@@ -6,7 +6,7 @@ import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { saveSections } from './schools'
 import { asSections } from '../lib/classLevels'
-import { isTier } from '../middleware/tier'
+import { isTier, tierAtLeast, FEES_TIER, TIER_NAMES } from '../middleware/tier'
 
 export async function superAdminRoutes(app: FastifyInstance) {
 
@@ -320,8 +320,12 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       if (!emailPattern.test(email)) {
         return reply.status(400).send({ error: 'INVALID_EMAIL', message: 'Not a valid email address.' })
       }
-      const schoolRows = await db()`SELECT id FROM schools WHERE id = ${id}::uuid` as any[]
+      const schoolRows = await db()`SELECT id, subscription_tier FROM schools WHERE id = ${id}::uuid` as any[]
       if (!schoolRows[0]) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
+      if (!tierAtLeast(schoolRows[0].subscription_tier, FEES_TIER)) {
+        return reply.status(403).send({ error: 'UPGRADE_REQUIRED', requiredTier: FEES_TIER,
+          message: `Bursar accounts need the ${TIER_NAMES[FEES_TIER]} plan or higher. Move the school to ${TIER_NAMES[FEES_TIER]} first.` })
+      }
 
       const prop = await db()`
         SELECT 1 FROM users WHERE school_id = ${id}::uuid AND role = 'proprietor' AND is_active = true

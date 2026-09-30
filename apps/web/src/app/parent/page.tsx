@@ -482,7 +482,7 @@ export default function ParentDashboard() {
                             </p>
                             <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Paid: {formatAmount(f.totalPaid)} of {formatAmount(f.amount)}</p>
                           </div>
-                          {f.balance > 0 && (
+                          {f.balance > 0 && fees.onlinePayments !== false && (
                             <button
                               onClick={async () => {
                                 const token = document.cookie.split(';').find((c: string) => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
@@ -494,7 +494,7 @@ export default function ParentDashboard() {
                                 })
                                 const data = await res.json()
                                 if (data.authorizationUrl) window.location.href = data.authorizationUrl
-                                else alert('Could not initialize payment. Please try again.')
+                                else alert(data.message ?? 'Could not start the payment. Please try again.')
                               }}
                               style={{ padding: '0.4rem 0.875rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                               💳 Pay Online
