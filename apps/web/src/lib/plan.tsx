@@ -8,7 +8,7 @@ import { apiFetch, getToken } from '@/lib/auth'
 
 export type Feature =
   | 'resultApproval' | 'gradebook' | 'curriculum' | 'lessons' | 'learningPaths' | 'liveClasses'
-  | 'timetable' | 'certificates' | 'conduct' | 'fees' | 'announcements' | 'hostels' | 'transport'
+  | 'timetable' | 'certificates' | 'conduct' | 'financeControls' | 'announcements' | 'hostels' | 'transport'
   | 'hostelOperations' | 'transportOperations' | 'admissions' | 'analytics'
 
 export type Plan = {
@@ -27,18 +27,18 @@ const PATH_FEATURES: [string, Feature][] = [
   ['/admin/curriculum', 'curriculum'], ['/admin/lessons', 'lessons'], ['/admin/timetable2', 'timetable'],
   ['/admin/gradebook', 'gradebook'], ['/admin/learning-paths', 'learningPaths'], ['/admin/live-classes', 'liveClasses'],
   ['/admin/approvals', 'resultApproval'], ['/admin/conduct', 'conduct'], ['/admin/admissions', 'admissions'],
-  ['/admin/fees', 'fees'], ['/admin/fee-approvals', 'fees'], ['/admin/announcements', 'announcements'],
+  ['/admin/announcements', 'announcements'],
   ['/admin/hostels', 'hostels'], ['/admin/hostel-operations', 'hostelOperations'],
   ['/admin/transport', 'transport'], ['/admin/transport-ops', 'transportOperations'],
   ['/admin/certificates', 'certificates'], ['/admin/analytics', 'analytics'],
   ['/proprietor/curriculum', 'curriculum'], ['/proprietor/conduct', 'conduct'], ['/proprietor/admissions', 'admissions'],
   ['/proprietor/hostels', 'hostels'], ['/proprietor/hostel-operations', 'hostelOperations'],
   ['/proprietor/transport', 'transport'], ['/proprietor/transport-operations', 'transportOperations'],
+  ['/proprietor/finance-audit', 'financeControls'], ['/proprietor/finance-access', 'financeControls'],
+  ['/proprietor/bursars', 'financeControls'], ['/bursar', 'financeControls'],
   ['/student/lessons', 'lessons'], ['/student/learning-paths', 'learningPaths'],
   ['/student/live-classes', 'liveClasses'], ['/student/certificates', 'certificates'],
 ]
-// Fee screens stay open below Standard so past records can still be viewed; they show their own notice
-const PAGE_STAYS_OPEN = new Set(['/admin/fees', '/admin/fee-approvals'])
 
 /** The paid feature a screen belongs to, if any */
 export function featureForPath(path: string): Feature | null {
@@ -83,9 +83,13 @@ export function hasFeature(plan: Plan, f: Feature): boolean {
 const FEATURE_LABELS: Record<Feature, string> = {
   resultApproval: 'Result approval', gradebook: 'The gradebook', curriculum: 'Curriculum', lessons: 'Lessons',
   learningPaths: 'Learning paths', liveClasses: 'Live classes', timetable: 'The class timetable',
-  certificates: 'Certificates', conduct: 'Conduct reports', fees: 'Fee management', announcements: 'Announcements',
+  certificates: 'Certificates', conduct: 'Conduct reports', financeControls: 'Finance controls', announcements: 'Announcements',
   hostels: 'Hostel management', transport: 'Transport', hostelOperations: 'Hostel operations',
   transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
+}
+
+const FEATURE_NOTES: Partial<Record<Feature, string>> = {
+  financeControls: 'This covers the Bursar role, discounts and waivers, debtors and SMS reminders, finance reports and the finance audit log. On your plan the School Admin manages fees, and parents can still pay online.',
 }
 
 /** Shown in place of a screen the school's plan doesn't include */
@@ -101,6 +105,7 @@ export function PlanLocked({ feature, plan, upgradeHref }: { feature: Feature; p
         Your school is on the {plan.planName || 'Basic'} plan.{' '}
         {upgradeHref ? `Upgrade to ${needs} or higher to use it.` : 'Ask your school to upgrade if you need it.'}
       </p>
+      {FEATURE_NOTES[feature] && <p style={{ fontSize: '0.82rem', color: '#6b6b65', lineHeight: 1.5, marginTop: '0.75rem' }}>{FEATURE_NOTES[feature]}</p>}
       {upgradeHref && (
         <Link href={upgradeHref} style={{ display: 'inline-block', marginTop: '1.25rem', padding: '0.6rem 1.25rem', borderRadius: 8, background: '#1a6b4a', color: 'white', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}>
           See plans
@@ -114,8 +119,7 @@ export function PlanLocked({ feature, plan, upgradeHref }: { feature: Feature; p
 export function PlanGate({ pathname, upgradeHref, children }: { pathname: string; upgradeHref?: string; children: React.ReactNode }) {
   const plan = usePlan()
   const feature = featureForPath(pathname)
-  const staysOpen = [...PAGE_STAYS_OPEN].some(p => pathname === p || pathname.startsWith(p + '/'))
-  if (!feature || staysOpen) return <>{children}</>
+  if (!feature) return <>{children}</>
   if (!plan.loaded) return null
   if (!hasFeature(plan, feature)) return <PlanLocked feature={feature} plan={plan} upgradeHref={upgradeHref} />
   return <>{children}</>

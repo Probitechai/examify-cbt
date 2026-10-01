@@ -61,8 +61,8 @@ const NAV: NavItem[] = [
   { href: '/admin/admissions',    icon: '🎓', label: 'Admissions',        tier: 'premium', group: 'people' },
   { href: '/admin/teacher-assignments', icon: '📌', label: 'Teacher Assignments', group: 'people' },
 
-  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    tier: 'standard', group: 'finance' },
-  { href: '/admin/fee-approvals', icon: '✅', label: 'Fee Approvals',     tier: 'standard', group: 'finance' },
+  { href: '/admin/fees',          icon: '💰', label: 'Fee Management',    group: 'finance' },
+  { href: '/admin/fee-approvals', icon: '✅', label: 'Fee Approvals',     group: 'finance' },
   { href: '/admin/subscription',  icon: '💳', label: 'Subscription',      group: 'finance' },
 
   { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard', group: 'communication' },

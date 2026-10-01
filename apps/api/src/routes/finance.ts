@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireFinanceRead, requireFinanceWrite, requireFinanceApprover } from '../middleware/finance'
+import { gateRoutes } from '../middleware/tier'
 import { logFinance } from '../lib/finance'
 import { paystackRequest } from './paystack'
 
@@ -17,6 +18,11 @@ import { paystackRequest } from './paystack'
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
 
 export async function financeRoutes(app: FastifyInstance) {
+  // On every plan: student lookup, reversals and their approval, the approvals list.
+  // Standard and up: discounts and waivers, debtors, reports, reconciliation, audit log.
+  gateRoutes(app, (url: string) =>
+    /\/finance\/(waivers|debtors|reports|reconciliation|audit-log)/.test(url) ? 'financeControls' : null)
+
   const READ = [authenticate, requireFinanceRead]
   const WRITE = [authenticate, requireRole('school_admin', 'bursar'), requireFinanceWrite]
   const APPROVE = [authenticate, requireRole('proprietor', 'school_admin'), requireFinanceApprover]

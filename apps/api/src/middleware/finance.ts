@@ -1,13 +1,15 @@
 import type { FastifyReply } from 'fastify'
 import { tenantDb } from '../db/client'
 import { requireRole } from './auth'
-import { tierAtLeast, FEES_TIER, TIER_NAMES } from './tier'
+import { tierAtLeast, FINANCE_CONTROLS_TIER, TIER_NAMES } from './tier'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Finance permission model
 //   READ    : school_admin, bursar, proprietor
 //   WRITE   : bursar always; school_admin only when the school has NO active
-//             bursar, or holds an unexpired emergency grant from the proprietor
+//             bursar, or holds an unexpired emergency grant from the proprietor.
+//             Below the plan with finance controls there is no Bursar role:
+//             the School Admin manages fees and a Bursar account can only view.
 //   APPROVE : proprietor; school_admin only if the school has no active proprietor
 // All checks read the database on every request (not the 12h JWT), so a
 // deactivated user loses access immediately.
@@ -22,10 +24,7 @@ export type FinanceAccess = {
 }
 
 export async function getFinanceAccess(request: any): Promise<FinanceAccess> {
-  // Below the plan that includes fee management, fee records are view-only for everyone
-  if (!tierAtLeast(request.school?.subscriptionTier, FEES_TIER)) {
-    return { canWrite: false, reason: 'plan', grantExpiresAt: null }
-  }
+  const controls = tierAtLeast(request.school?.subscriptionTier, FINANCE_CONTROLS_TIER)
   const role = request.user?.role
   if (role !== 'bursar' && role !== 'school_admin') {
     return { canWrite: false, reason: 'role', grantExpiresAt: null }
@@ -46,6 +45,12 @@ export async function getFinanceAccess(request: any): Promise<FinanceAccess> {
   const r = rows[0] ?? {}
 
   if (!r.self_active) return { canWrite: false, reason: 'inactive', grantExpiresAt: null }
+  // No Bursar role on this plan: the School Admin manages fees
+  if (!controls) {
+    return role === 'bursar'
+      ? { canWrite: false, reason: 'plan', grantExpiresAt: null }
+      : { canWrite: true, reason: 'no_bursar', grantExpiresAt: null }
+  }
   if (role === 'bursar') return { canWrite: true, reason: 'bursar', grantExpiresAt: null }
   if (!r.has_bursar) return { canWrite: true, reason: 'no_bursar', grantExpiresAt: null }
   if (r.grant_expires_at) {
@@ -54,7 +59,7 @@ export async function getFinanceAccess(request: any): Promise<FinanceAccess> {
   return { canWrite: false, reason: 'bursar_active', grantExpiresAt: null }
 }
 
-const PLAN_MESSAGE = `Fee management needs the ${TIER_NAMES[FEES_TIER]} plan or higher. Existing fee records can still be viewed, but nothing can be added or changed until the school upgrades.`
+const PLAN_MESSAGE = `The Bursar role is part of the ${TIER_NAMES[FINANCE_CONTROLS_TIER]} plan. On the school's current plan the School Admin manages fees; fee records can still be viewed here.`
 
 const DENY_MESSAGES: Record<string, string> = {
   plan: PLAN_MESSAGE,
@@ -71,7 +76,7 @@ export async function requireFinanceWrite(request: any, reply: FastifyReply) {
     return
   }
   if (access.reason === 'plan') {
-    return reply.status(403).send({ error: 'UPGRADE_REQUIRED', reason: 'plan', requiredTier: FEES_TIER, message: PLAN_MESSAGE })
+    return reply.status(403).send({ error: 'UPGRADE_REQUIRED', reason: 'plan', requiredTier: FINANCE_CONTROLS_TIER, message: PLAN_MESSAGE })
   }
   return reply.status(403).send({
     error: 'FINANCE_READ_ONLY',
@@ -80,12 +85,9 @@ export async function requireFinanceWrite(request: any, reply: FastifyReply) {
   })
 }
 
-// Approves waivers above threshold and ALL reversals.
+// Approves waivers above threshold and ALL reversals (reversals on every plan).
 // "Not your own request" is checked in each handler and by a DB CHECK constraint.
 export async function requireFinanceApprover(request: any, reply: FastifyReply) {
-  if (!tierAtLeast(request.school?.subscriptionTier, FEES_TIER)) {
-    return reply.status(403).send({ error: 'UPGRADE_REQUIRED', reason: 'plan', requiredTier: FEES_TIER, message: PLAN_MESSAGE })
-  }
   const role = request.user?.role
   const tdb = tenantDb(request.schoolId)
   const rows = await tdb.query`

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { useFinanceAccess, AccessBanner } from '@/components/finance/ui'
+import { usePlan, hasFeature } from '@/lib/plan'
 import { EnrollmentModal } from '@/components/finance/enrollment'
 import { useClassLevels, useDefaultClass, useSchoolSections, SECTIONS, SECTION_NAMES, type Section } from '@/lib/classLevels'
 
@@ -106,6 +107,7 @@ export default function FeesPage() {
 
   // Read-only while the school has an active Bursar (unless the Proprietor granted temporary access)
   const { access, readOnly } = useFinanceAccess()
+  const plan = usePlan() // SMS balance reminders are a Standard finance control
   const [managing, setManaging] = useState<string | null>(null)
 
   useEffect(() => { loadSessions() }, [])
@@ -434,7 +436,7 @@ export default function FeesPage() {
               {ledger.length > 0 && (
                 <>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-                  {!readOnly && <button onClick={async () => {
+                  {!readOnly && hasFeature(plan, 'financeControls') && <button onClick={async () => {
                     if (!window.confirm('Send fee reminder SMS to all parents with outstanding balances?')) return
                     const res = await fetch(`${API}/fees/remind-sms`, {
                       method: 'POST',

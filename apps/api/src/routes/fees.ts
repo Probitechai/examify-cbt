@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { SECTION_LEVELS, levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
-import { requireTier } from '../middleware/tier'
+import { requireFeature } from '../middleware/tier'
 import { getFinanceAccess, requireFinanceRead, requireFinanceWrite } from '../middleware/finance'
 import { nextReceiptNo, logFinance } from '../lib/finance'
 import { sendSms, feeReminderSms } from '../lib/sms'
@@ -563,7 +563,7 @@ export async function feeRoutes(app: FastifyInstance) {
     })
 
   // ── Fee reminder SMS to parents of students with an outstanding balance ───
-  app.post('/fees/remind-sms', { preHandler: WRITE },
+  app.post('/fees/remind-sms', { preHandler: [...WRITE, requireFeature('financeControls')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),

@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
 import { ROLE_HOME } from '@/lib/auth'
+import { PlanGate } from '@/lib/plan'
 
 const NAV = [
   { href: '/bursar', icon: '📊', label: 'Overview' },
@@ -112,7 +113,10 @@ export default function BursarLayout({ children }: { children: React.ReactNode }
           </button>
         </div>
       </aside>
-      <main style={{ flex: 1, background: '#f7f7f5', overflowY: 'auto' as const }}>{children}</main>
+      <main style={{ flex: 1, background: '#f7f7f5', overflowY: 'auto' as const }}>
+        {/* The Bursar role is part of Standard; on Basic the School Admin manages fees */}
+        <PlanGate pathname={pathname}>{children}</PlanGate>
+      </main>
     </div>
   )
 }

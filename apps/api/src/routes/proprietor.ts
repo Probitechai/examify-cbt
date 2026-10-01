@@ -5,7 +5,7 @@ import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
-import { requireTier, normalizeTier, FEES_TIER } from '../middleware/tier'
+import { requireFeature, normalizeTier } from '../middleware/tier'
 import { logFinance, tempPassword as makeTempPassword } from '../lib/finance'
 
 export async function proprietorRoutes(app: FastifyInstance) {
@@ -174,7 +174,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
       return reply.send({ bursars })
     })
 
-  app.post('/proprietor/bursars', { preHandler: [authenticate, requireRole('proprietor'), requireTier(FEES_TIER)] },
+  app.post('/proprietor/bursars', { preHandler: [authenticate, requireRole('proprietor'), requireFeature('financeControls')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         fullName: z.string().min(1),
@@ -359,7 +359,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
       return reply.send({ grants })
     })
 
-  app.post('/proprietor/finance-grants', { preHandler: [authenticate, requireRole('proprietor'), requireTier(FEES_TIER)] },
+  app.post('/proprietor/finance-grants', { preHandler: [authenticate, requireRole('proprietor'), requireFeature('financeControls')] },
     async (request: any, reply: any) => {
       const body = z.object({
         adminId: z.string().uuid(),
@@ -423,7 +423,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
       return reply.send({ threshold: Number(rows[0]?.threshold ?? 0) })
     })
 
-  app.patch('/proprietor/finance-settings', { preHandler: [authenticate, requireRole('proprietor'), requireTier(FEES_TIER)] },
+  app.patch('/proprietor/finance-settings', { preHandler: [authenticate, requireRole('proprietor'), requireFeature('financeControls')] },
     async (request: any, reply: any) => {
       const body = z.object({ threshold: z.number().min(0).max(100_000_000) }).safeParse(request.body)
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })

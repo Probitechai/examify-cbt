@@ -30,8 +30,13 @@ export function tierAtLeast(tier: unknown, min: Tier): boolean {
   return TIER_ORDER[normalizeTier(tier)] >= TIER_ORDER[min]
 }
 
-/** The plan fee management needs (fees, payments, Bursar, approvals, online payments) */
-export const FEES_TIER: Tier = 'standard'
+/**
+ * Core fee management (fee items, payments, receipts, reversals, online payment)
+ * is on every plan. The plan below adds the finance controls: a dedicated
+ * Bursar, discounts and waivers, debtors and SMS reminders, finance reports,
+ * the finance audit log, and emergency access and the approval threshold.
+ */
+export const FINANCE_CONTROLS_TIER: Tier = 'standard'
 
 export function requireTier(minTier: Tier) {
   return async function checkTier(request: any, reply: any) {
@@ -61,7 +66,7 @@ export const FEATURE_TIERS = {
   timetable:           'standard',
   certificates:        'standard',
   conduct:             'standard',
-  fees:                'standard',
+  financeControls:     'standard', // Bursar, discounts, debtors + SMS, finance reports, audit log, emergency access
   announcements:       'standard',
   hostels:             'standard',
   transport:           'standard',
@@ -76,7 +81,7 @@ export const FEATURE_NAMES: Record<Feature, string> = {
   resultApproval: 'Result approval', gradebook: 'Gradebook', curriculum: 'Curriculum',
   lessons: 'Lessons', learningPaths: 'Learning paths', liveClasses: 'Live classes',
   timetable: 'Class timetable', certificates: 'Certificates', conduct: 'Conduct reports',
-  fees: 'Fee management', announcements: 'Announcements', hostels: 'Hostel management',
+  financeControls: 'Finance controls', announcements: 'Announcements', hostels: 'Hostel management',
   transport: 'Transport', hostelOperations: 'Hostel operations',
   transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
 }

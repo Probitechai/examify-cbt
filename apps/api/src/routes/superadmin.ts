@@ -6,7 +6,7 @@ import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { saveSections } from './schools'
 import { asSections } from '../lib/classLevels'
-import { isTier, tierAtLeast, FEES_TIER, TIER_NAMES } from '../middleware/tier'
+import { isTier, tierAtLeast, FINANCE_CONTROLS_TIER, TIER_NAMES } from '../middleware/tier'
 
 export async function superAdminRoutes(app: FastifyInstance) {
 
@@ -322,9 +322,9 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       }
       const schoolRows = await db()`SELECT id, subscription_tier FROM schools WHERE id = ${id}::uuid` as any[]
       if (!schoolRows[0]) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
-      if (!tierAtLeast(schoolRows[0].subscription_tier, FEES_TIER)) {
-        return reply.status(403).send({ error: 'UPGRADE_REQUIRED', requiredTier: FEES_TIER,
-          message: `Bursar accounts need the ${TIER_NAMES[FEES_TIER]} plan or higher. Move the school to ${TIER_NAMES[FEES_TIER]} first.` })
+      if (!tierAtLeast(schoolRows[0].subscription_tier, FINANCE_CONTROLS_TIER)) {
+        return reply.status(403).send({ error: 'UPGRADE_REQUIRED', requiredTier: FINANCE_CONTROLS_TIER,
+          message: `Bursar accounts need the ${TIER_NAMES[FINANCE_CONTROLS_TIER]} plan or higher. Move the school to ${TIER_NAMES[FINANCE_CONTROLS_TIER]} first.` })
       }
 
       const prop = await db()`

@@ -282,7 +282,7 @@ export function AccessBanner({ access }: { access: FinanceAccess | null }) {
     return <Banner tone="error">Your account has been deactivated.</Banner>
   }
   if (access.reason === 'plan') {
-    return <Banner tone="warning"><strong>Fee management needs the Standard plan or higher.</strong> You can view existing fee records, but nothing can be added or changed until the school upgrades. The Proprietor can upgrade under Subscription &amp; Billing.</Banner>
+    return <Banner tone="warning"><strong>The Bursar role is part of the Standard plan.</strong> On the school&rsquo;s current plan the School Admin manages fees; you can view fee records here. The Proprietor can upgrade under Subscription &amp; Billing.</Banner>
   }
   return null
 }
