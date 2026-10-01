@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { acceptedFromText, hasBlank, ACCEPTED_HELP } from '@/lib/questions'
 import SubjectSelector from '../../../components/SubjectSelector'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 
@@ -88,6 +89,9 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
     if ((form.type === 'short_answer' || form.type === 'fill_blank') && !form.shortAnswer.trim()) {
       setError('Correct answer is required'); return
     }
+    if (form.type === 'fill_blank' && !hasBlank(form.questionText)) {
+      setError('Mark the blank in the question with ___ (three underscores).'); return
+    }
 
     setSaving(true)
     setError('')
@@ -96,6 +100,7 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
       let options = null
       let correctAnswer = ''
       let apiType = form.type as string
+      let explanation: string | undefined
 
       if (form.type === 'mcq') {
         options = [
@@ -108,14 +113,11 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
       } else if (form.type === 'true_false') {
         options = [{ key: 'True', text: 'True' }, { key: 'False', text: 'False' }]
         correctAnswer = form.correctAnswer
-      } else if (form.type === 'fill_blank') {
-        correctAnswer = form.shortAnswer.trim()
-        apiType = 'short_answer'
-      } else if (form.type === 'short_answer') {
-        correctAnswer = form.shortAnswer.trim()
+      } else if (form.type === 'fill_blank' || form.type === 'short_answer') {
+        correctAnswer = acceptedFromText(form.shortAnswer)
       } else if (form.type === 'essay') {
-        correctAnswer = 'ESSAY'
-        apiType = 'short_answer'
+        correctAnswer = ''
+        explanation = form.shortAnswer.trim() || undefined
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, {
@@ -135,6 +137,7 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
           correctAnswer,
           marks: form.marks,
           difficulty: form.difficulty,
+          explanation,
         })
       })
 
@@ -273,11 +276,11 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
           {/* Short Answer / Fill in the Blank */}
           {(form.type === 'short_answer' || form.type === 'fill_blank') && (
             <div>
-              <label style={labelStyle}>{form.type === 'fill_blank' ? 'Correct word/phrase for the blank' : 'Correct answer'}</label>
-              <input style={inputStyle} value={form.shortAnswer} onChange={e => set('shortAnswer', e.target.value)}
-                placeholder={form.type === 'fill_blank' ? 'e.g. Lagos, photosynthesis, 42' : 'e.g. H₂O, osmosis, 1914'} />
+              <label style={labelStyle}>{form.type === 'fill_blank' ? 'Accepted answers for the blank' : 'Accepted answers'}</label>
+              <textarea style={{ ...inputStyle, resize: 'vertical' as const }} rows={2} value={form.shortAnswer} onChange={e => set('shortAnswer', e.target.value)}
+                placeholder={form.type === 'fill_blank' ? 'e.g. Abuja\nFCT Abuja' : 'e.g. H2O\nwater'} />
               <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>
-                ℹ️ Student answer must match exactly (not case sensitive)
+                ℹ️ {ACCEPTED_HELP}
               </p>
             </div>
           )}
@@ -290,7 +293,7 @@ export default function AddQuestionModal({ onClose, onSaved }: Props) {
                 Students will see a large text area to write their answer. You will need to mark essay answers manually in the Results section after the exam.
               </p>
               <div style={{ marginTop: '0.75rem' }}>
-                <label style={labelStyle}>Marking guide <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional — for your reference)</span></label>
+                <label style={labelStyle}>Marking guide <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional — shown to the teacher while marking)</span></label>
                 <textarea style={{ ...inputStyle, resize: 'vertical' as const }} rows={2}
                   value={form.shortAnswer} onChange={e => set('shortAnswer', e.target.value)}
                   placeholder="e.g. Award 2 marks for mentioning X, 2 marks for Y, 1 mark for Z..." />

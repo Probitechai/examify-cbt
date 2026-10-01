@@ -2,19 +2,32 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { QUESTION_TYPES, acceptedAnswers } from '../lib/grading'
 
+// short_answer and fill_blank: correctAnswer holds the accepted answers, separated by "|".
+// essay: no correct answer; explanation holds the marking guide the teacher sees.
 const questionSchema = z.object({
-  type: z.enum(['mcq', 'true_false', 'short_answer']).default('mcq'),
+  type: z.enum(QUESTION_TYPES).default('mcq'),
   subject: z.string().min(1),
   classLevel: z.string().min(1),
   topic: z.string().optional(),
   questionText: z.string().min(1),
   options: z.array(z.object({ key: z.string(), text: z.string() })).optional(),
-  correctAnswer: z.string().min(1),
+  correctAnswer: z.string().max(2000).optional().default(''),
   explanation: z.string().optional(),
   marks: z.number().positive().default(1),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+}).superRefine((d, ctx) => {
+  const need = (message: string, path = 'correctAnswer') => ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [path] })
+  if (d.type === 'mcq') {
+    if (!d.options || d.options.length < 2) need('A multiple-choice question needs at least two options.', 'options')
+    else if (!d.options.some(o => o.key === d.correctAnswer)) need('Choose which option is correct.')
+  }
+  if (d.type === 'true_false' && !['True', 'False'].includes(d.correctAnswer)) need('Choose True or False.')
+  if ((d.type === 'short_answer' || d.type === 'fill_blank') && !acceptedAnswers(d.correctAnswer).length) need('Enter the correct answer.')
+  if (d.type === 'fill_blank' && !/_{3,}/.test(d.questionText)) need('Mark the blank in the question with ___ (three underscores).', 'questionText')
 })
+const firstIssue = (e: z.ZodError) => e.issues[0]?.message ?? 'Check the question details.'
 
 export async function questionRoutes(app: FastifyInstance) {
 
@@ -37,9 +50,12 @@ export async function questionRoutes(app: FastifyInstance) {
   app.post('/questions', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
     async (request: any, reply: any) => {
       const body = questionSchema.safeParse(request.body)
-      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: body.error.flatten() })
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', message: firstIssue(body.error), issues: body.error.flatten() })
 
       const d = body.data
+      // Keep accepted answers tidy: "Abuja | FCT Abuja" → "Abuja|FCT Abuja"
+      if (d.type === 'short_answer' || d.type === 'fill_blank') d.correctAnswer = d.correctAnswer.split('|').map(x => x.trim()).filter(Boolean).join('|')
+      if (d.type === 'essay') { d.correctAnswer = ''; d.options = undefined }
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
         INSERT INTO questions (school_id, created_by, type, subject, class_level, topic,

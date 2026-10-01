@@ -16,6 +16,9 @@ interface ExamResult {
   session_id: string
   tab_switches: number
   time_away_seconds: number
+  marking_status: 'complete' | 'pending'
+  auto_score: number | null
+  has_essay_marks: boolean
 }
 
 // "1m 20s", "45s"
@@ -32,6 +35,7 @@ interface Stats {
   submitted: number
   passed: number
   avgScore: number
+  toMark?: number
 }
 
 interface Exam {
@@ -55,6 +59,43 @@ export default function AdminResultsPage() {
   const [sort, setSort] = useState<'percentage' | 'name'>('percentage')
   const [exporting, setExporting] = useState(false)
   const [away, setAway] = useState<{ name: string; data: any | null } | null>(null)
+  // Essay marking
+  const [marking, setMarking] = useState<{ sessionId: string; data: any | null; error?: string } | null>(null)
+  const [markForm, setMarkForm] = useState<Record<string, { marks: string; comment: string }>>({})
+  const [markSaving, setMarkSaving] = useState(false)
+  const [markMsg, setMarkMsg] = useState('')
+
+  async function openMarking(r: ExamResult) {
+    setMarking({ sessionId: r.session_id, data: null }); setMarkMsg('')
+    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/sessions/${r.session_id}/marking`)
+    const data = await res.json().catch(() => null)
+    if (!res.ok) { setMarking({ sessionId: r.session_id, data: null, error: data?.message ?? 'Could not open this paper.' }); return }
+    setMarkForm(Object.fromEntries(data.essays.map((e: any) => [e.questionId, { marks: e.given ? String(e.given.marks) : '', comment: e.given?.comment ?? '' }])))
+    setMarking({ sessionId: r.session_id, data })
+  }
+
+  async function saveMarks() {
+    if (!marking?.data) return
+    const marks: Record<string, { marks: number; comment: string | null }> = {}
+    for (const e of marking.data.essays) {
+      const f = markForm[e.questionId]
+      if (!e.answer.trim() || !f || f.marks.trim() === '') continue
+      const n = Number(f.marks)
+      if (!Number.isFinite(n) || n < 0 || n > e.maxMarks) { setMarkMsg(`Question ${e.number}: give a mark from 0 to ${e.maxMarks}.`); return }
+      marks[e.questionId] = { marks: n, comment: f.comment.trim() || null }
+    }
+    setMarkSaving(true); setMarkMsg('')
+    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/sessions/${marking.sessionId}/marking`, { method: 'POST', body: JSON.stringify({ marks }) })
+    const data = await res.json().catch(() => null)
+    setMarkSaving(false)
+    if (!res.ok) { setMarkMsg(data?.message ?? 'Could not save the marks.'); return }
+    if (data.markingStatus === 'complete') {
+      setMarking(null)
+      if (selectedExam) loadResults(selectedExam)
+    } else {
+      setMarkMsg(`Saved. ${data.stillToMark} essay answer${data.stillToMark === 1 ? '' : 's'} still to mark before the final score is worked out.`)
+    }
+  }
 
   async function openAway(r: ExamResult) {
     setAway({ name: r.student_name, data: null })
@@ -106,7 +147,7 @@ export default function AdminResultsPage() {
       r.class_level ?? '',
       r.class_arm ?? '',
       r.score ?? '',
-      r.percentage ? `${Math.round(r.percentage * 10) / 10}%` : '',
+      r.marking_status === 'pending' ? 'Essays to mark' : r.percentage != null ? `${Math.round(r.percentage * 10) / 10}%` : '',
       r.passed === true ? 'Pass' : r.passed === false ? 'Fail' : '',
       r.status ?? '',
       r.submitted_at ? new Date(r.submitted_at).toLocaleString('en-NG') : '',
@@ -147,7 +188,7 @@ export default function AdminResultsPage() {
   const filteredResults = results
     .filter(r => {
       if (filter === 'passed') return r.passed
-      if (filter === 'failed') return !r.passed && r.status === 'submitted'
+      if (filter === 'failed') return r.passed === false && r.status === 'submitted'
       return true
     })
     .sort((a, b) => sort === 'name'
@@ -235,6 +276,11 @@ export default function AdminResultsPage() {
             </div>
           </div>
 
+          {(stats?.toMark ?? 0) > 0 && (
+            <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', color: '#5b21b6' }}>
+              ✎ <strong>{stats!.toMark} paper{stats!.toMark === 1 ? ' has' : 's have'} essay answers to mark.</strong> Their scores, the pass rate and the average are worked out once you’ve marked them. Click <em>Mark essays</em> on a student.
+            </div>
+          )}
           {results.length === 0 ? (
             <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📊</div>
@@ -255,17 +301,26 @@ export default function AdminResultsPage() {
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.admission_no ?? '—'}</span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>{r.class_level} {r.class_arm}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    {r.status === 'submitted' ? (
+                    {r.status === 'submitted' && r.marking_status === 'pending' ? (
+                      <button onClick={() => openMarking(r)}
+                        style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '20px', border: '1px solid #c4b5fd', background: '#f5f3ff', color: '#6d28d9', cursor: 'pointer' }}>
+                        ✎ Mark essays
+                      </button>
+                    ) : r.status === 'submitted' ? (
                       <>
                         <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden', maxWidth: 80 }}>
                           <div style={{ width: `${r.percentage}%`, height: '100%', background: getScoreColor(r.percentage), borderRadius: 3 }} />
                         </div>
                         <span style={{ fontSize: '0.825rem', fontWeight: 600, color: getScoreColor(r.percentage), minWidth: 36 }}>{Math.round(r.percentage * 10) / 10}%</span>
+                        {r.has_essay_marks && (
+                          <button onClick={() => openMarking(r)} title="Change essay marks"
+                            style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: 6, border: '1px solid var(--border)', background: 'white', color: 'var(--text-secondary)', cursor: 'pointer' }}>✎</button>
+                        )}
                       </>
                     ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
                   </span>
                   <span>
-                    {r.status === 'submitted' && (
+                    {r.status === 'submitted' && r.marking_status !== 'pending' && (
                       <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', background: r.passed ? 'var(--brand-light)' : 'var(--danger-light)', color: r.passed ? 'var(--brand-dark)' : 'var(--danger)' }}>
                         {r.passed ? 'Pass' : 'Fail'}
                       </span>
@@ -289,6 +344,48 @@ export default function AdminResultsPage() {
             </div>
           )}
         </>
+      )}
+      {marking && (
+        <div onClick={() => setMarking(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 14, padding: '1.5rem', width: 720, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            {marking.error ? <p style={{ color: 'var(--danger)' }}>{marking.error}</p> : !marking.data ? <p style={{ color: 'var(--text-secondary)' }}>Loading…</p> : (
+              <>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Mark essays: {marking.data.student.name}</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.25rem 0 1rem' }}>
+                  {marking.data.exam.title} · {marking.data.student.classLevel} {marking.data.student.classArm ?? ''} ·
+                  {' '}{marking.data.autoScore} mark{marking.data.autoScore === 1 ? '' : 's'} from the questions marked automatically, out of {marking.data.exam.totalMarks} in total
+                </p>
+                {marking.data.essays.map((e: any) => (
+                  <div key={e.questionId} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', marginBottom: '0.9rem' }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>Question {e.number} <span style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>· out of {e.maxMarks}</span></p>
+                    <p style={{ fontSize: '0.88rem', margin: '0.3rem 0 0.6rem', whiteSpace: 'pre-wrap' }}>{e.questionText}</p>
+                    {e.guide && <p style={{ fontSize: '0.8rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '0.5rem 0.7rem', marginBottom: '0.6rem', color: '#78350f', whiteSpace: 'pre-wrap' }}><strong>Marking guide:</strong> {e.guide}</p>}
+                    <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '0.7rem 0.85rem', fontSize: '0.88rem', whiteSpace: 'pre-wrap', maxHeight: 260, overflowY: 'auto', lineHeight: 1.55 }}>
+                      {e.answer.trim() ? e.answer : <em style={{ color: 'var(--text-tertiary)' }}>Not answered (scores 0 automatically)</em>}
+                    </div>
+                    {e.answer.trim() && (
+                      <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Mark</label>
+                        <input type="number" min={0} max={e.maxMarks} step={0.5} value={markForm[e.questionId]?.marks ?? ''}
+                          onChange={ev => setMarkForm(f => ({ ...f, [e.questionId]: { ...(f[e.questionId] ?? { comment: '' }), marks: ev.target.value } }))}
+                          style={{ width: 80, padding: '0.4rem 0.5rem', border: '1.5px solid var(--border)', borderRadius: 6 }} />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>/ {e.maxMarks}</span>
+                        <input placeholder="Comment for the student (optional)" value={markForm[e.questionId]?.comment ?? ''}
+                          onChange={ev => setMarkForm(f => ({ ...f, [e.questionId]: { ...(f[e.questionId] ?? { marks: '' }), comment: ev.target.value } }))}
+                          style={{ flex: 1, minWidth: 200, padding: '0.4rem 0.6rem', border: '1.5px solid var(--border)', borderRadius: 6 }} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {markMsg && <p style={{ fontSize: '0.85rem', color: markMsg.startsWith('Saved') ? '#1a6b4a' : 'var(--danger)', marginBottom: '0.6rem' }}>{markMsg}</p>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                  <button onClick={() => setMarking(null)} style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: '1px solid var(--border)', background: 'white', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+                  <button onClick={saveMarks} disabled={markSaving} style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: '#1a6b4a', color: 'white', fontWeight: 600, cursor: 'pointer' }}>{markSaving ? 'Saving…' : 'Save marks'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
       {away && (
         <div onClick={() => setAway(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>

@@ -172,3 +172,9 @@
 .shortAnswerInput { padding: 0.875rem 1rem; background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius-md); font-size: 1rem; color: var(--text-primary); outline: none; transition: border-color 0.15s; font-family: var(--font-body); width: 100%; }
 .shortAnswerInput:focus { border-color: var(--brand); background: white; }
 .shortAnswerInput:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* Essay answers and fill-in-the-blank */
+.essayInput { padding: 0.875rem 1rem; background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius-md); font-size: 1rem; line-height: 1.6; color: var(--text-primary); outline: none; transition: border-color 0.15s; font-family: var(--font-body); width: 100%; resize: vertical; min-height: 220px; box-sizing: border-box; }
+.essayInput:focus { border-color: var(--brand); background: white; }
+.essayInput:disabled { opacity: 0.7; cursor: not-allowed; }
+.blank { display: inline-block; min-width: 5.5em; border-bottom: 2px solid var(--brand); margin: 0 0.2em; vertical-align: baseline; }

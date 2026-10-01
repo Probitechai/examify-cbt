@@ -1,4 +1,5 @@
 'use client'
+import { typedIsCorrect, showAccepted } from '@/lib/questions'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '../../../../hooks/useAuth'
@@ -15,6 +16,13 @@ function readBackup(sid: string): Record<string, string> {
 }
 function writeBackup(sid: string, a: Record<string, string>) { try { localStorage.setItem(backupKey(sid), JSON.stringify(a)) } catch {} }
 function clearBackup(sid: string) { try { localStorage.removeItem(backupKey(sid)) } catch {} }
+
+// Question text with the blank (___) shown as a line to fill
+function withBlank(text: string) {
+  const parts = String(text ?? '').split(/_{3,}/)
+  if (parts.length === 1) return text
+  return parts.flatMap((p, i) => i === 0 ? [p] : [<span key={i} className={styles.blank} aria-label="blank">&nbsp;</span>, p])
+}
 
 export default function ExamEngine() {
   const router = useRouter()
@@ -40,6 +48,7 @@ export default function ExamEngine() {
   const sessionIdRef = useRef<string>()
   const tabCountRef = useRef(0)
   const answersRef = useRef<Record<string, string>>({})
+  const typingTimerRef = useRef<any>()
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -165,6 +174,16 @@ export default function ExamEngine() {
     if (sessionIdRef.current) writeBackup(sessionIdRef.current, updated)
     setAnswers(updated)
     if (sessionIdRef.current) autoSave(updated, sessionIdRef.current)
+  }
+
+  // Typed answers: kept on the device at once, sent to the server after a short pause
+  function typeAnswer(questionId: string, text: string) {
+    const updated = { ...answersRef.current, [questionId]: text }
+    answersRef.current = updated
+    if (sessionIdRef.current) writeBackup(sessionIdRef.current, updated)
+    setAnswers(updated)
+    clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => { if (sessionIdRef.current) autoSave(answersRef.current, sessionIdRef.current) }, 1500)
   }
 
   async function handleSubmit(autoSubmit = false) {
@@ -346,7 +365,13 @@ export default function ExamEngine() {
           <div className={styles.resultBadge}>{result?.passed ? '🎉' : '📝'}</div>
           <h1 className={styles.resultTitle}>Exam Submitted</h1>
 
-          {result ? (
+          {result?.pending ? (
+            <p className={styles.resultNote}>
+              You scored <strong>{result.autoScore}</strong> mark{result.autoScore === 1 ? '' : 's'} on the questions marked by the computer.
+              Your teacher will mark your {result.essaysToMark === 1 ? 'essay answer' : `${result.essaysToMark} essay answers`}, and your final score
+              (out of {result.totalMarks}) will appear on your dashboard once that’s done.
+            </p>
+          ) : result ? (
             <>
               <div className={styles.scoreCircle}>
                 <span className={styles.scoreNum}>{Math.round(result.percentage)}%</span>
@@ -364,18 +389,31 @@ export default function ExamEngine() {
                     {questions.map((q: any, i: number) => {
                       const studentAnswer = answers[q.id]
                       const options = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options ?? [])
-                      const isShortAnswer = q.type === 'short_answer' || options.length === 0
-                     
+                      const isShortAnswer = q.type === 'short_answer' || q.type === 'fill_blank' || (q.type !== 'essay' && options.length === 0)
+                      if (q.type === 'essay') {
+                        const m = session?.essayMarks?.[q.id]
+                        return (
+                          <div key={q.id} className={styles.reviewItem}>
+                            <div className={styles.reviewNum}>✎</div>
+                            <div className={styles.reviewContent}>
+                              <p className={styles.reviewQ}>{i + 1}. {q.question_text}</p>
+                              <p className={styles.reviewAnswer} style={{ whiteSpace: 'pre-wrap' }}>Your answer: <strong>{studentAnswer || 'Not answered'}</strong></p>
+                              <p className={styles.reviewCorrectAnswer}>
+                                {m ? <>Teacher’s mark: <strong>{m.marks} / {Number(q.marks)}</strong>{m.comment ? ` — ${m.comment}` : ''}</> : 'Marked by your teacher'}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      }
+
                       let isCorrect = false
                       let yourAnswerDisplay = 'Not answered'
                       let correctAnswerDisplay = ''
 
                       if (isShortAnswer) {
-                        const studentTrimmed = (studentAnswer ?? '').toString().trim().toUpperCase()
-                        const correctTrimmed = (q.correct_answer ?? '').toString().trim().toUpperCase()
-                        isCorrect = studentTrimmed.length > 0 && studentTrimmed === correctTrimmed
+                        isCorrect = typedIsCorrect(studentAnswer, q.correct_answer)
                         yourAnswerDisplay = studentAnswer ? studentAnswer.toString() : 'Not answered'
-                        correctAnswerDisplay = q.correct_answer ?? ''
+                        correctAnswerDisplay = showAccepted(q.correct_answer)
                       } else {
                         const correctOption = options.find((o: any) => o.key === q.correct_answer)
                         const studentOption = options.find((o: any) => o.key === studentAnswer)
@@ -480,7 +518,9 @@ export default function ExamEngine() {
             <img src={currentQuestion.imageUrl} alt="Question" className={styles.questionImage} />
           )}
           <p className={styles.questionText}>
-            {currentQuestion?.questionText ?? currentQuestion?.question_text}
+            {currentQuestion?.type === 'fill_blank'
+              ? withBlank(currentQuestion?.questionText ?? currentQuestion?.question_text)
+              : (currentQuestion?.questionText ?? currentQuestion?.question_text)}
           </p>
     <div className={styles.options}>
             {(currentQuestion?.options ?? []).map((opt: any) => {
@@ -497,14 +537,31 @@ export default function ExamEngine() {
                 </button>
               )
             })}
-            {currentQuestion?.type === 'short_answer' && (
+            {currentQuestion?.type === 'essay' && (
               <div className={styles.shortAnswerWrap}>
-                <p className={styles.shortAnswerHint}>Type your answer below:</p>
+                <p className={styles.shortAnswerHint}>Write your answer below. Your teacher will mark it.</p>
+                <textarea
+                  className={styles.essayInput}
+                  value={answers[currentQuestion.id] ?? ''}
+                  onChange={e => typeAnswer(currentQuestion.id, e.target.value)}
+                  disabled={examState === 'submitting'}
+                  maxLength={20000}
+                  rows={12}
+                  placeholder="Write your answer here…"
+                />
+                <p className={styles.shortAnswerHint} style={{ textAlign: 'right', marginTop: '0.35rem' }}>
+                  {(answers[currentQuestion.id] ?? '').trim().split(/\s+/).filter(Boolean).length} words
+                </p>
+              </div>
+            )}
+            {(currentQuestion?.type === 'short_answer' || currentQuestion?.type === 'fill_blank') && (
+              <div className={styles.shortAnswerWrap}>
+                <p className={styles.shortAnswerHint}>{currentQuestion?.type === 'fill_blank' ? 'Type the missing word or phrase:' : 'Type your answer below:'}</p>
                 <input
                   className={styles.shortAnswerInput}
                   type="text"
                   value={answers[currentQuestion.id] ?? ''}
-                  onChange={e => selectAnswer(currentQuestion.id, e.target.value)}
+                  onChange={e => typeAnswer(currentQuestion.id, e.target.value)}
                   disabled={examState === 'submitting'}
                   placeholder="Type your answer here…"
                   autoComplete="off"

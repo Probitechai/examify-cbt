@@ -1,5 +1,7 @@
 'use client'
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { QUESTION_TYPE_LABELS } from '@/lib/questions'
+import { acceptedFromText, hasBlank, ACCEPTED_HELP } from '@/lib/questions'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
@@ -73,7 +75,7 @@ export default function QuestionsPage() {
     return true
   })
 
-  const typeLabel: Record<string, string> = { mcq: 'MCQ', true_false: 'True/False', short_answer: 'Short Answer', essay: 'Essay' }
+  const typeLabel: Record<string, string> = QUESTION_TYPE_LABELS
 
   return (
     <div style={{ padding: '1.5rem', fontFamily: 'system-ui' }}>
@@ -150,22 +152,22 @@ function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void 
     if (!qText.trim()) { setError('Question text is required'); return }
     if (type === 'mcq' && (!optA.trim() || !optB.trim())) { setError('Options A and B are required'); return }
     if ((type === 'short_answer' || type === 'fill_blank') && !answer.trim()) { setError('Correct answer is required'); return }
+    if (type === 'fill_blank' && !hasBlank(qText)) { setError('Mark the blank in the question with ___ (three underscores).'); return }
     setSaving(true); setError('')
     try {
-      let options = null, correctAnswer = '', apiType = type as string
+      let options = null, correctAnswer = '', apiType = type as string, explanation: string | undefined
       if (type === 'mcq') {
         options = [{ key: 'A', text: optA }, { key: 'B', text: optB }, ...(optC ? [{ key: 'C', text: optC }] : []), ...(optD ? [{ key: 'D', text: optD }] : [])]
         correctAnswer = correct
       } else if (type === 'true_false') {
         options = [{ key: 'True', text: 'True' }, { key: 'False', text: 'False' }]
         correctAnswer = correct
-      } else if (type === 'fill_blank') { correctAnswer = answer.trim(); apiType = 'short_answer'
-      } else if (type === 'short_answer') { correctAnswer = answer.trim()
-      } else if (type === 'essay') { correctAnswer = 'ESSAY'; apiType = 'short_answer' }
+      } else if (type === 'fill_blank' || type === 'short_answer') { correctAnswer = acceptedFromText(answer)
+      } else if (type === 'essay') { correctAnswer = ''; explanation = answer.trim() || undefined }
 
       const finalSubject = showCustom && customSubject.trim() ? customSubject.trim() : subject
             const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/questions`, {
-        body: JSON.stringify({ type: apiType, subject: finalSubject, classLevel, topic: topic || undefined, questionText: qText, options: options || undefined, correctAnswer, marks, difficulty })
+        body: JSON.stringify({ type: apiType, subject: finalSubject, classLevel, topic: topic || undefined, questionText: qText, options: options || undefined, correctAnswer, marks, difficulty, explanation })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Failed to save')
@@ -277,9 +279,9 @@ function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void 
 
           {(type === 'short_answer' || type === 'fill_blank') && (
             <div>
-              <label style={lbl}>{type === 'fill_blank' ? 'Correct word/phrase for the blank' : 'Correct answer'}</label>
-              <input style={inp} value={answer} onChange={e => setAnswer(e.target.value)} placeholder={type === 'fill_blank' ? 'e.g. Lagos, photosynthesis, 42' : 'e.g. H₂O, osmosis, 1914'} />
-              <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>ℹ️ Not case sensitive — exact match required</p>
+              <label style={lbl}>{type === 'fill_blank' ? 'Accepted answers for the blank' : 'Accepted answers'}</label>
+              <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={answer} onChange={e => setAnswer(e.target.value)} placeholder={type === 'fill_blank' ? 'e.g. Abuja\nFCT Abuja' : 'e.g. H2O\nwater'} />
+              <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginTop: '0.375rem' }}>ℹ️ {ACCEPTED_HELP}</p>
             </div>
           )}
 
@@ -288,7 +290,7 @@ function Modal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void 
               <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#7e22ce', marginBottom: '0.375rem' }}>📄 Essay question</p>
               <p style={{ fontSize: '0.8rem', color: '#6b6b65', lineHeight: 1.5 }}>Students write a long answer. Mark manually in Results after the exam.</p>
               <div style={{ marginTop: '0.75rem' }}>
-                <label style={lbl}>Marking guide <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional)</span></label>
+                <label style={lbl}>Marking guide <span style={{ fontWeight: 400, color: '#a0a09a' }}>(optional — shown to the teacher while marking)</span></label>
                 <textarea style={{ ...inp, resize: 'vertical' as const }} rows={2} value={answer} onChange={e => setAnswer(e.target.value)} placeholder="e.g. 2 marks for X, 2 marks for Y, 1 mark for conclusion…" />
               </div>
             </div>

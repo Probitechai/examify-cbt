@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { asJson, mergeAnswers } from '../lib/json'
+import { markPaper, type ManualMark } from '../lib/grading'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail, sendBulkEmails } from '../lib/email'
 import { resultReadyEmail, examReminderEmail } from '../emails/templates'
@@ -40,6 +41,25 @@ async function closeAway(tdb: any, sessionId: string) {
   ` as any[]
   const add = rows.reduce((t: number, r: any) => t + Number(r.seconds_away ?? 0), 0)
   if (add) await tdb.query`UPDATE exam_sessions SET time_away_seconds = time_away_seconds + ${add} WHERE id = ${sessionId}::uuid`
+}
+
+// Result-ready email (fire and forget)
+function sendResultEmail(tdb: any, schoolName: string, examId: string, studentId: string,
+  score: number, totalMarks: number, percentage: number, passed: boolean) {
+  ;(async () => {
+    try {
+      const [examInfo] = await tdb.query`SELECT title, subject FROM exams WHERE id = ${examId}::uuid` as any[]
+      const [userInfo] = await tdb.query`SELECT email, full_name FROM users WHERE id = ${studentId}::uuid` as any[]
+      if (!examInfo || !userInfo) return
+      const { subject, html } = resultReadyEmail({
+        schoolName, fullName: userInfo.full_name, examTitle: examInfo.title, subject: examInfo.subject,
+        score, totalMarks, percentage, passed, loginUrl: 'https://examify-cbt-web.vercel.app/login',
+      })
+      await sendEmail({ to: userInfo.email, subject, html })
+    } catch (err: any) {
+      console.error('Failed to send result email:', err.message)
+    }
+  })()
 }
 
 export async function examRoutes(app: FastifyInstance) {
@@ -229,7 +249,8 @@ export async function examRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
 
       const sessionRows = await tdb.query`
-        SELECT id, status, question_order, answers, started_at, server_deadline, tab_switches, time_away_seconds
+        SELECT id, status, question_order, answers, started_at, server_deadline, tab_switches, time_away_seconds,
+               marking_status, manual_marks
         FROM exam_sessions
         WHERE exam_id = ${examId}::uuid
         AND student_id = ${request.user.id}::uuid
@@ -268,6 +289,11 @@ export async function examRoutes(app: FastifyInstance) {
           server_deadline: session.server_deadline,
           answers: mergeAnswers(session.answers),
           tabSwitches: Number(session.tab_switches ?? 0),
+          markingStatus: isFinished ? session.marking_status : undefined,
+          essayMarks: isFinished && session.marking_status === 'complete'
+            ? Object.fromEntries(Object.entries(asJson<Record<string, ManualMark>>(session.manual_marks, {}))
+                .map(([k, v]) => [k, { marks: v.marks, comment: v.comment ?? null }]))
+            : undefined,
           timeAwaySeconds: Number(session.time_away_seconds ?? 0),
         },
         questions: ordered,
@@ -279,7 +305,7 @@ export async function examRoutes(app: FastifyInstance) {
   app.patch('/sessions/:sessionId/answers', { preHandler: [authenticate, requireRole('student')] },
     async (request: any, reply: any) => {
       const sessionId = (request.params as any).sessionId
-      const schema = z.object({ answers: z.record(z.string()), tabSwitches: z.number().int().min(0).max(10000).optional() })
+      const schema = z.object({ answers: z.record(z.string().max(20000)), tabSwitches: z.number().int().min(0).max(10000).optional() })
       const body = schema.safeParse(request.body)
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
 
@@ -387,7 +413,7 @@ export async function examRoutes(app: FastifyInstance) {
       if (!z.string().uuid().safeParse(sessionId).success) return reply.status(404).send({ error: 'NOT_FOUND' })
       // The student's latest answers come with the submission, so nothing is lost
       // if the last automatic save didn't get through
-      const body = z.object({ answers: z.record(z.string()).optional() }).safeParse(request.body ?? {})
+      const body = z.object({ answers: z.record(z.string().max(20000)).optional() }).safeParse(request.body ?? {})
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
       const tdb = tenantDb(request.schoolId)
 
@@ -406,7 +432,7 @@ export async function examRoutes(app: FastifyInstance) {
       if (session.status !== 'in_progress') return reply.status(400).send({ error: 'ALREADY_SUBMITTED', message: 'This exam has already been submitted.' })
 
       const questionRows = await tdb.query`
-        SELECT id, correct_answer, marks FROM questions
+        SELECT id, type, correct_answer, marks FROM questions
         WHERE id = ANY(${session.question_order}::uuid[])
         AND school_id = ${request.schoolId}::uuid
       ` as any[]
@@ -426,64 +452,118 @@ export async function examRoutes(app: FastifyInstance) {
         ...(session.within_time && body.data.answers ? body.data.answers : {}),
       }
 
-      let score = 0
-      for (const q of questionRows) {
-        const studentAnswer = (finalAnswers[q.id] ?? '').trim().toUpperCase()
-        const correctAnswer = (q.correct_answer ?? '').trim().toUpperCase()
-        if (studentAnswer && studentAnswer === correctAnswer) {
-          score += Number(q.marks)
-        }
-      }
-
-      const percentage = exam.total_marks > 0 ? (score / exam.total_marks) * 100 : 0
-      const passed = percentage >= Number(exam.pass_mark)
+      // Objective questions are marked now; essays wait for a teacher, and until
+      // then the session has no final score (it's kept out of pass rates and the gradebook)
+      const paper = markPaper(questionRows, finalAnswers)
+      const pending = paper.score === null
+      const score = pending ? null : paper.score!
+      const percentage = score === null ? null : exam.total_marks > 0 ? (score / exam.total_marks) * 100 : 0
+      const passed = percentage === null ? null : percentage >= Number(exam.pass_mark)
 
       // Only one submission wins, even if the button is pressed twice
       const done = await tdb.query`
         UPDATE exam_sessions
         SET status = 'submitted', submitted_at = now(), answers = ${db().json(finalAnswers)},
-            score = ${score}, percentage = ${percentage}, passed = ${passed}
+            score = ${score}, percentage = ${percentage}, passed = ${passed},
+            auto_score = ${paper.auto}, marking_status = ${pending ? 'pending' : 'complete'}
         WHERE id = ${session.id}::uuid AND status = 'in_progress'
         RETURNING id
       ` as any[]
       if (!done[0]) return reply.status(400).send({ error: 'ALREADY_SUBMITTED', message: 'This exam has already been submitted.' })
       await closeAway(tdb, session.id)
 
-      const result = exam.show_result_after
-        ? { score, percentage: Math.round(percentage * 100) / 100, passed, totalMarks: exam.total_marks }
-        : null
+      const result = !exam.show_result_after ? null
+        : pending ? { pending: true, autoScore: paper.auto, essaysToMark: paper.waiting.length, totalMarks: exam.total_marks }
+        : { score, percentage: Math.round(percentage! * 100) / 100, passed, totalMarks: exam.total_marks }
 
-      // Send result-ready email (fire and forget)
-      ;(async () => {
-        try {
-          const examRows2 = await tdb.query`
-            SELECT title, subject FROM exams WHERE id = ${session.exam_id}::uuid
-          ` as any[]
-          const userRows = await tdb.query`
-            SELECT email, full_name FROM users WHERE id = ${request.user.id}::uuid
-          ` as any[]
-          const examInfo = examRows2[0]
-          const userInfo = userRows[0]
-          if (examInfo && userInfo) {
-            const { subject, html } = resultReadyEmail({
-              schoolName: request.school.name,
-              fullName: userInfo.full_name,
-              examTitle: examInfo.title,
-              subject: examInfo.subject,
-              score,
-              totalMarks: exam.total_marks,
-              percentage,
-              passed,
-              loginUrl: 'https://examify-cbt-web.vercel.app/login',
-            })
-            await sendEmail({ to: userInfo.email, subject, html })
-          }
-        } catch (err: any) {
-          console.error('Failed to send result email:', err.message)
-        }
-      })()
+      // The result email goes when there is a final result the school chose to show
+      if (exam.show_result_after && !pending) {
+        sendResultEmail(tdb, request.school.name, session.exam_id, request.user.id, score!, Number(exam.total_marks), percentage!, passed!)
+      }
 
       return reply.send({ submitted: true, result })
+    })
+
+  // ── Essay marking (teacher who set the exam, School Admin) ───────────────
+  async function markingContext(request: any, reply: any) {
+    const sessionId = (request.params as any).sessionId
+    if (!z.string().uuid().safeParse(sessionId).success) { reply.status(404).send({ error: 'NOT_FOUND' }); return null }
+    const tdb = tenantDb(request.schoolId)
+    const [session] = await tdb.query`
+      SELECT es.id, es.exam_id, es.status, es.answers, es.question_order, es.manual_marks, es.marking_status,
+             es.auto_score, es.student_id, u.full_name AS student_name, u.class_level, u.class_arm,
+             e.title, e.total_marks, e.pass_mark, e.show_result_after
+      FROM exam_sessions es JOIN users u ON u.id = es.student_id JOIN exams e ON e.id = es.exam_id
+      WHERE es.id = ${sessionId}::uuid AND es.school_id = ${request.schoolId}::uuid
+    ` as any[]
+    if (!session) { reply.status(404).send({ error: 'NOT_FOUND' }); return null }
+    if (request.user.role === 'teacher' && !(await isExamOwnedByTeacher(tdb, request.schoolId, request.user.id, session.exam_id))) {
+      reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only mark your own exams.' }); return null
+    }
+    if (session.status !== 'submitted') { reply.status(400).send({ error: 'NOT_SUBMITTED', message: 'This exam hasn’t been submitted yet.' }); return null }
+    const questions = await tdb.query`
+      SELECT id, type, question_text, correct_answer, marks, explanation FROM questions
+      WHERE id = ANY(${session.question_order}::uuid[]) AND school_id = ${request.schoolId}::uuid
+    ` as any[]
+    return { tdb, session, questions, answers: mergeAnswers(session.answers), manual: asJson<Record<string, ManualMark>>(session.manual_marks, {}) }
+  }
+
+  app.get('/sessions/:sessionId/marking', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+    async (request: any, reply: any) => {
+      const ctx = await markingContext(request, reply); if (!ctx) return
+      const { session, questions, answers, manual } = ctx
+      const order: string[] = session.question_order
+      const essays = order.map(id => questions.find((q: any) => q.id === id)).filter((q: any) => q && q.type === 'essay')
+      return reply.send({
+        student: { name: session.student_name, classLevel: session.class_level, classArm: session.class_arm },
+        exam: { title: session.title, totalMarks: Number(session.total_marks), passMark: Number(session.pass_mark) },
+        autoScore: Number(session.auto_score ?? 0),
+        markingStatus: session.marking_status,
+        essays: essays.map((q: any) => ({
+          questionId: q.id, number: order.indexOf(q.id) + 1, questionText: q.question_text, maxMarks: Number(q.marks),
+          guide: q.explanation ?? null, answer: answers[q.id] ?? '',
+          given: manual[q.id] ? { marks: Number(manual[q.id].marks), comment: manual[q.id].comment ?? null } : null,
+        })),
+      })
+    })
+
+  app.post('/sessions/:sessionId/marking', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+    async (request: any, reply: any) => {
+      const body = z.object({
+        marks: z.record(z.object({ marks: z.number().min(0), comment: z.string().trim().max(1000).optional().nullable() })),
+      }).safeParse(request.body)
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Give each answer a mark of 0 or more.' })
+      const ctx = await markingContext(request, reply); if (!ctx) return
+      const { tdb, session, questions, answers, manual } = ctx
+      const byId = new Map(questions.map((q: any) => [q.id, q]))
+      for (const [qid, m] of Object.entries(body.data.marks)) {
+        const q: any = byId.get(qid)
+        if (!q || q.type !== 'essay') return reply.status(400).send({ error: 'NOT_AN_ESSAY', message: 'Only essay answers are marked by hand.' })
+        if (m.marks > Number(q.marks)) return reply.status(400).send({ error: 'TOO_MANY_MARKS', message: `Question ${session.question_order.indexOf(qid) + 1} is out of ${Number(q.marks)}.` })
+        if (Math.round(m.marks * 2) !== m.marks * 2) return reply.status(400).send({ error: 'BAD_MARK', message: 'Marks can be whole or half marks.' })
+        manual[qid] = { marks: m.marks, comment: m.comment || null, by: request.user.id, at: new Date().toISOString() }
+      }
+      const paper = markPaper(questions, answers, manual)
+      const complete = paper.score === null ? false : true
+      const score = paper.score
+      const percentage = score === null ? null : Number(session.total_marks) > 0 ? (score / Number(session.total_marks)) * 100 : 0
+      const passed = percentage === null ? null : percentage >= Number(session.pass_mark)
+      const wasComplete = session.marking_status === 'complete'
+      await tdb.query`
+        UPDATE exam_sessions
+        SET manual_marks = ${db().json(manual)}, auto_score = ${paper.auto},
+            marking_status = ${complete ? 'complete' : 'pending'},
+            score = ${score}, percentage = ${percentage}, passed = ${passed},
+            marked_by = ${complete ? request.user.id : null}, marked_at = ${complete ? new Date() : null}, updated_at = now()
+        WHERE id = ${session.id}::uuid
+      `
+      if (complete && !wasComplete && session.show_result_after) {
+        sendResultEmail(tdb, request.school.name, session.exam_id, session.student_id, score!, Number(session.total_marks), percentage!, passed!)
+      }
+      return reply.send({
+        markingStatus: complete ? 'complete' : 'pending', stillToMark: paper.waiting.length,
+        score, percentage: percentage === null ? null : Math.round(percentage * 10) / 10, passed,
+      })
     })
 
   // ── Exam results (teacher/admin) ──────────────────────────────────────────
@@ -500,7 +580,8 @@ export async function examRoutes(app: FastifyInstance) {
       const results = await tdb.query`
         SELECT u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm,
                es.score, es.percentage, es.passed, es.status, es.submitted_at,
-               es.id AS session_id, es.tab_switches, es.time_away_seconds
+               es.id AS session_id, es.tab_switches, es.time_away_seconds, es.marking_status, es.auto_score,
+               (es.manual_marks <> '{}'::jsonb) AS has_essay_marks
         FROM exam_sessions es
         JOIN users u ON u.id = es.student_id
         WHERE es.exam_id = ${examId}::uuid
@@ -508,12 +589,15 @@ export async function examRoutes(app: FastifyInstance) {
         ORDER BY es.percentage DESC NULLS LAST
       ` as any[]
 
+      // Papers with essays still to mark have no final score yet and are left out of the pass rate and average
+      const final = results.filter((r: any) => r.status === 'submitted' && r.marking_status !== 'pending')
       const stats = {
         total: results.length,
-        submitted: results.filter((r: any) => r.status === 'submitted').length,
-        passed: results.filter((r: any) => r.passed).length,
-        avgScore: results.length
-          ? Math.round(results.reduce((s: number, r: any) => s + (r.percentage ?? 0), 0) / results.length * 10) / 10
+        submitted: final.length,
+        toMark: results.filter((r: any) => r.marking_status === 'pending').length,
+        passed: final.filter((r: any) => r.passed).length,
+        avgScore: final.length
+          ? Math.round(final.reduce((s: number, r: any) => s + Number(r.percentage ?? 0), 0) / final.length * 10) / 10
           : 0,
       }
 

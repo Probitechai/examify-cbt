@@ -1,5 +1,6 @@
 ﻿'use client'
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { QUESTION_TYPE_LABELS } from '@/lib/questions'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -63,7 +64,7 @@ export default function QuestionsPage() {
     return true
   })
 
-  const typeLabel: Record<string, string> = { mcq: 'MCQ', true_false: 'True/False', short_answer: 'Short Answer', essay: 'Essay' }
+  const typeLabel: Record<string, string> = QUESTION_TYPE_LABELS
   const typeBadge: Record<string, { bg: string; color: string }> = {
     mcq: { bg: '#eff6ff', color: '#1e40af' },
     true_false: { bg: '#e8f5ee', color: '#0f4a32' },

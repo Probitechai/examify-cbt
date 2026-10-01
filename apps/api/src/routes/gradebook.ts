@@ -76,7 +76,7 @@ export async function gradebookRoutes(app: FastifyInstance) {
         SELECT es.student_id, es.score, es.percentage, e.title, e.subject, e.total_marks
         FROM exam_sessions es
         JOIN exams e ON e.id = es.exam_id
-        WHERE es.school_id = ${request.schoolId}::uuid AND es.status = 'submitted'
+        WHERE es.school_id = ${request.schoolId}::uuid AND es.status = 'submitted' AND es.score IS NOT NULL
       ` as any[]
 
       return reply.send({ students, entries, assignmentScores, cbtScores })
@@ -118,7 +118,7 @@ export async function gradebookRoutes(app: FastifyInstance) {
         FROM exam_sessions es
         JOIN exams e ON e.id = es.exam_id
         WHERE es.school_id = ${request.schoolId}::uuid
-        AND es.student_id = ${sid}::uuid AND es.status = 'submitted'
+        AND es.student_id = ${sid}::uuid AND es.status = 'submitted' AND es.score IS NOT NULL
         ORDER BY es.submitted_at DESC
       ` as any[]
 
