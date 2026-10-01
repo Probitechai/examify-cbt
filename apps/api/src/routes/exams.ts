@@ -384,19 +384,26 @@ export async function examRoutes(app: FastifyInstance) {
   app.post('/sessions/:sessionId/submit', { preHandler: [authenticate, requireRole('student')] },
     async (request: any, reply: any) => {
       const sessionId = (request.params as any).sessionId
+      if (!z.string().uuid().safeParse(sessionId).success) return reply.status(404).send({ error: 'NOT_FOUND' })
+      // The student's latest answers come with the submission, so nothing is lost
+      // if the last automatic save didn't get through
+      const body = z.object({ answers: z.record(z.string()).optional() }).safeParse(request.body ?? {})
+      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
       const tdb = tenantDb(request.schoolId)
 
+      // Submit exactly the session asked for, and only the student's own
       const sessionRows = await tdb.query`
-        SELECT id, exam_id, status, answers, question_order
+        SELECT id, exam_id, status, answers, question_order,
+               now() <= server_deadline + interval '2 minutes' AS within_time
         FROM exam_sessions
-        WHERE student_id = ${request.user.id}::uuid
-        AND status = 'in_progress'
-        ORDER BY created_at DESC LIMIT 1
+        WHERE id = ${sessionId}::uuid
+        AND student_id = ${request.user.id}::uuid
+        AND school_id = ${request.schoolId}::uuid
       ` as any[]
 
       const session = sessionRows[0]
       if (!session) return reply.status(404).send({ error: 'NOT_FOUND' })
-      if (session.status !== 'in_progress') return reply.status(400).send({ error: 'ALREADY_SUBMITTED' })
+      if (session.status !== 'in_progress') return reply.status(400).send({ error: 'ALREADY_SUBMITTED', message: 'This exam has already been submitted.' })
 
       const questionRows = await tdb.query`
         SELECT id, correct_answer, marks FROM questions
@@ -412,7 +419,12 @@ export async function examRoutes(app: FastifyInstance) {
 
       const exam = examRows[0]
 
-      const finalAnswers = mergeAnswers(session.answers)
+      // Answers sent with the submission count if it arrives by the deadline
+      // (a 2-minute allowance covers a slow connection at the end)
+      const finalAnswers = {
+        ...mergeAnswers(session.answers),
+        ...(session.within_time && body.data.answers ? body.data.answers : {}),
+      }
 
       let score = 0
       for (const q of questionRows) {
@@ -426,12 +438,15 @@ export async function examRoutes(app: FastifyInstance) {
       const percentage = exam.total_marks > 0 ? (score / exam.total_marks) * 100 : 0
       const passed = percentage >= Number(exam.pass_mark)
 
-      await tdb.query`
+      // Only one submission wins, even if the button is pressed twice
+      const done = await tdb.query`
         UPDATE exam_sessions
-        SET status = 'submitted', submitted_at = now(),
+        SET status = 'submitted', submitted_at = now(), answers = ${db().json(finalAnswers)},
             score = ${score}, percentage = ${percentage}, passed = ${passed}
-        WHERE id = ${session.id}::uuid
-      `
+        WHERE id = ${session.id}::uuid AND status = 'in_progress'
+        RETURNING id
+      ` as any[]
+      if (!done[0]) return reply.status(400).send({ error: 'ALREADY_SUBMITTED', message: 'This exam has already been submitted.' })
       await closeAway(tdb, session.id)
 
       const result = exam.show_result_after

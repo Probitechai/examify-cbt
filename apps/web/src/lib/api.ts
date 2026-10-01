@@ -151,10 +151,11 @@ export const api = {
       body: JSON.stringify({ event, ...(clientCount ? { clientCount } : {}) }),
     }),
 
-  submitExam: (sessionId: string) =>
+  // The latest answers go with the submission, in case the last save didn't get through
+  submitExam: (sessionId: string, answers?: Record<string, string>) =>
     request<{ submitted: boolean; result: any }>(`/sessions/${sessionId}/submit`, {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify(answers ? { answers } : {}),
     }),
 
   // Admin / Teacher

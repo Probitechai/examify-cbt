@@ -7,6 +7,15 @@ import styles from './exam.module.css'
 
 type ExamState = 'loading' | 'instructions' | 'taking' | 'submitting' | 'submitted' | 'error'
 
+// A copy of the answers on this device, so a refresh or a dropped connection
+// can't lose answers the server hasn't received yet
+const backupKey = (sid: string) => `examify_exam_answers_${sid}`
+function readBackup(sid: string): Record<string, string> {
+  try { const v = JSON.parse(localStorage.getItem(backupKey(sid)) ?? '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
+}
+function writeBackup(sid: string, a: Record<string, string>) { try { localStorage.setItem(backupKey(sid), JSON.stringify(a)) } catch {} }
+function clearBackup(sid: string) { try { localStorage.removeItem(backupKey(sid)) } catch {} }
+
 export default function ExamEngine() {
   const router = useRouter()
   const params = useParams()
@@ -30,6 +39,7 @@ export default function ExamEngine() {
   const countdownRef = useRef<any>()
   const sessionIdRef = useRef<string>()
   const tabCountRef = useRef(0)
+  const answersRef = useRef<Record<string, string>>({})
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -48,7 +58,14 @@ export default function ExamEngine() {
           options: typeof q.options === 'string' ? JSON.parse(q.options) : (q.options ?? [])
         }))
         setQuestions(parsedQuestions)
-        setAnswers(data.session.answers ?? {})
+        // Server answers, plus any on this device the server hasn't received yet
+        const fromServer: Record<string, string> = data.session.answers ?? {}
+        const backup = readBackup(sessionId)
+        const merged = { ...fromServer, ...backup }
+        answersRef.current = merged
+        setAnswers(merged)
+        const unsent = Object.keys(backup).some(k => backup[k] !== fromServer[k])
+        if (unsent) api.saveAnswers(sessionId, merged).then(() => setSyncStatus('saved')).catch(() => setSyncStatus('offline'))
         // The server's count, so leaving and reloading doesn't reset it
         tabCountRef.current = Number(data.session.tabSwitches ?? 0)
         setTabWarnings(tabCountRef.current)
@@ -99,7 +116,8 @@ export default function ExamEngine() {
 
   // Online/offline detection
   useEffect(() => {
-    const handleOnline = () => setSyncStatus('saved')
+    // Back online: send everything now rather than waiting for the next save
+    const handleOnline = () => { if (sessionIdRef.current) autoSave(answersRef.current, sessionIdRef.current) }
     const handleOffline = () => setSyncStatus('offline')
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
@@ -142,7 +160,9 @@ export default function ExamEngine() {
   }, [])
 
   function selectAnswer(questionId: string, answer: string) {
-    const updated = { ...answers, [questionId]: answer }
+    const updated = { ...answersRef.current, [questionId]: answer }
+    answersRef.current = updated
+    if (sessionIdRef.current) writeBackup(sessionIdRef.current, updated)
     setAnswers(updated)
     if (sessionIdRef.current) autoSave(updated, sessionIdRef.current)
   }
@@ -166,7 +186,8 @@ export default function ExamEngine() {
     clearInterval(saveTimerRef.current)
     clearInterval(countdownRef.current)
     try {
-      const data = await api.submitExam(sessionIdRef.current) as any
+      const data = await api.submitExam(sessionIdRef.current, answersRef.current) as any
+      clearBackup(sessionIdRef.current)
       setResult(data.result)
 
       // Re-fetch session to get questions with correct_answer now that exam is submitted
@@ -182,8 +203,14 @@ export default function ExamEngine() {
       }
 
       setExamState('submitted')
-    } catch {
-      setError('Submission failed. Please check your connection and try again.')
+    } catch (err: any) {
+      if (err?.code === 'ALREADY_SUBMITTED') {
+        clearBackup(sessionIdRef.current)
+        setError('This exam has already been submitted.')
+        setExamState('error')
+        return
+      }
+      setError('Submission failed. Please check your connection and try again. Your answers are kept on this device.')
       setExamState('taking')
     }
   }
