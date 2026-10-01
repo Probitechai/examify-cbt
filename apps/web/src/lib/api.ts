@@ -137,10 +137,18 @@ export const api = {
   getExamSession: (examId: string) =>
     request<{ session: any; questions: any[]; totalQuestions: number }>(`/exams/${examId}/session`),
 
-  saveAnswers: (sessionId: string, answers: Record<string, string>) =>
+  saveAnswers: (sessionId: string, answers: Record<string, string>, tabSwitches?: number) =>
     request<{ saved: boolean }>(`/sessions/${sessionId}/answers`, {
       method: 'PATCH',
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ answers, ...(tabSwitches ? { tabSwitches } : {}) }),
+    }),
+
+  // Student left or came back to the exam screen. keepalive lets it go out while the tab is hidden.
+  focusEvent: (sessionId: string, event: 'left' | 'returned', clientCount?: number) =>
+    request<{ tabSwitches: number; timeAwaySeconds: number }>(`/sessions/${sessionId}/focus`, {
+      method: 'POST',
+      keepalive: true,
+      body: JSON.stringify({ event, ...(clientCount ? { clientCount } : {}) }),
     }),
 
   submitExam: (sessionId: string) =>

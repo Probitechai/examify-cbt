@@ -29,6 +29,7 @@ export default function ExamEngine() {
   const saveTimerRef = useRef<any>()
   const countdownRef = useRef<any>()
   const sessionIdRef = useRef<string>()
+  const tabCountRef = useRef(0)
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -48,6 +49,9 @@ export default function ExamEngine() {
         }))
         setQuestions(parsedQuestions)
         setAnswers(data.session.answers ?? {})
+        // The server's count, so leaving and reloading doesn't reset it
+        tabCountRef.current = Number(data.session.tabSwitches ?? 0)
+        setTabWarnings(tabCountRef.current)
 
         const deadlineStr = data.session?.serverDeadline ?? data.session?.server_deadline
         const deadline = deadlineStr ? new Date(deadlineStr).getTime() : Date.now() + 3600000
@@ -105,10 +109,23 @@ export default function ExamEngine() {
     }
   }, [])
 
-  // Tab switch detection
+  // Leaving the exam screen (another tab or app, or minimised) is sent to the
+  // server with its time; the teacher sees it with the result
   useEffect(() => {
     if (examState !== 'taking') return
-    const handleVisibility = () => { if (document.hidden) setTabWarnings(w => w + 1) }
+    const handleVisibility = () => {
+      const sid = sessionIdRef.current
+      if (!sid) return
+      if (document.hidden) {
+        tabCountRef.current += 1
+        setTabWarnings(tabCountRef.current)
+        api.focusEvent(sid, 'left', tabCountRef.current).catch(() => {})
+      } else {
+        api.focusEvent(sid, 'returned', tabCountRef.current)
+          .then(r => { tabCountRef.current = Math.max(tabCountRef.current, r.tabSwitches); setTabWarnings(tabCountRef.current) })
+          .catch(() => {})
+      }
+    }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [examState])
@@ -117,7 +134,7 @@ export default function ExamEngine() {
     if (Object.keys(currentAnswers).length === 0) return
     setSyncStatus('saving')
     try {
-      await api.saveAnswers(sid, currentAnswers)
+      await api.saveAnswers(sid, currentAnswers, tabCountRef.current)
       setSyncStatus('saved')
     } catch {
       setSyncStatus('offline')
@@ -261,7 +278,7 @@ export default function ExamEngine() {
               </li>
               <li>
                 <span className={styles.instructionBullet}>🚫</span>
-                <span>Do not switch browser tabs or windows during the exam. Tab switches are recorded and reported to your teacher.</span>
+                <span>Stay on this exam screen. Each time you leave it (another tab, another app, or minimising the browser) is recorded with how long you were away, and your teacher sees it with your result.</span>
               </li>
               <li>
                 <span className={styles.instructionBullet}>✅</span>
@@ -424,7 +441,7 @@ export default function ExamEngine() {
 
       {tabWarnings > 0 && (
         <div className={styles.cheatWarning} role="alert">
-          ⚠️ Warning: Switching tabs is recorded. {tabWarnings} tab switch{tabWarnings > 1 ? 'es' : ''} detected.
+          ⚠️ You have left the exam screen {tabWarnings} time{tabWarnings > 1 ? 's' : ''}. Each time is recorded, with how long you were away, and your teacher will see it with your result.
         </div>
       )}
 

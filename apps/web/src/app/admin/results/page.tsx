@@ -13,7 +13,19 @@ interface ExamResult {
   passed: boolean
   status: string
   submitted_at: string
+  session_id: string
+  tab_switches: number
+  time_away_seconds: number
 }
+
+// "1m 20s", "45s"
+function fmtAway(secs: number) {
+  const s = Math.max(0, Math.round(Number(secs) || 0))
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60), r = s % 60
+  return r ? `${m}m ${r}s` : `${m}m`
+}
+const awayTone = (n: number) => n >= 5 ? { bg: '#fef2f2', fg: '#b91c1c' } : { bg: '#fffbeb', fg: '#92400e' }
 
 interface Stats {
   total: number
@@ -42,6 +54,14 @@ export default function AdminResultsPage() {
   const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all')
   const [sort, setSort] = useState<'percentage' | 'name'>('percentage')
   const [exporting, setExporting] = useState(false)
+  const [away, setAway] = useState<{ name: string; data: any | null } | null>(null)
+
+  async function openAway(r: ExamResult) {
+    setAway({ name: r.student_name, data: null })
+    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/sessions/${r.session_id}/focus-events`)
+    const data = await res.json().catch(() => null)
+    setAway({ name: r.student_name, data: res.ok ? data : { error: data?.message ?? 'Could not load the details.' } })
+  }
 
   
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
@@ -49,13 +69,7 @@ export default function AdminResultsPage() {
   useEffect(() => {
     const token = getToken()
     if (!token) return
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
-        'Content-Type': 'application/json'
-      }
-    })
+    apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`)
       .then(r => r.json())
       .then(d => setExams(d.exams ?? []))
       .catch(console.error)
@@ -69,13 +83,7 @@ export default function AdminResultsPage() {
     setStats(null)
     const token = getToken()
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${exam.id}/results`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
-          'Content-Type': 'application/json'
-        }
-      })
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/exams/${exam.id}/results`)
       const data = await res.json()
       setResults(data.results ?? [])
       setStats(data.stats ?? null)
@@ -90,7 +98,7 @@ export default function AdminResultsPage() {
     if (!selectedExam || results.length === 0) return
     setExporting(true)
 
-    const headers = ['Rank','Student Name','Admission No','Class','Arm','Score','Percentage','Result','Status','Submitted At']
+    const headers = ['Rank','Student Name','Admission No','Class','Arm','Score','Percentage','Result','Status','Submitted At','Times Left Exam Screen','Time Away']
     const rows = results.map((r, i) => [
       r.status === 'submitted' ? i + 1 : '',
       r.student_name ?? '',
@@ -102,6 +110,8 @@ export default function AdminResultsPage() {
       r.passed === true ? 'Pass' : r.passed === false ? 'Fail' : '',
       r.status ?? '',
       r.submitted_at ? new Date(r.submitted_at).toLocaleString('en-NG') : '',
+      Number(r.tab_switches ?? 0),
+      Number(r.tab_switches ?? 0) ? fmtAway(r.time_away_seconds) : '',
     ])
 
     const summaryRows = [
@@ -232,11 +242,11 @@ export default function AdminResultsPage() {
             </div>
           ) : (
             <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.8fr 0.7fr 1fr', gap: '0.75rem', padding: '0.625rem 1.25rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                <span>Rank</span><span>Student</span><span>Adm. No.</span><span>Class</span><span>Score</span><span>Result</span><span>Status</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.6fr 0.7fr 1fr 1fr', gap: '0.75rem', padding: '0.625rem 1.25rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                <span>Rank</span><span>Student</span><span>Adm. No.</span><span>Class</span><span>Score</span><span>Result</span><span>Status</span><span title="Times the student left the exam screen (another tab or app, or minimised)">Left screen</span>
               </div>
               {filteredResults.map((r, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.8fr 0.7fr 1fr', gap: '0.75rem', padding: '0.875rem 1.25rem', alignItems: 'center', borderTop: '1px solid var(--border)', fontSize: '0.875rem' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '0.4fr 2fr 1fr 0.8fr 1.6fr 0.7fr 1fr 1fr', gap: '0.75rem', padding: '0.875rem 1.25rem', alignItems: 'center', borderTop: '1px solid var(--border)', fontSize: '0.875rem' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{r.status === 'submitted' ? i + 1 : '—'}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     <span style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--brand-light)', color: 'var(--brand-dark)', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{r.student_name?.charAt(0)}</span>
@@ -266,11 +276,56 @@ export default function AdminResultsPage() {
                       {r.status === 'submitted' ? 'Submitted' : r.status === 'in_progress' ? 'In progress' : r.status}
                     </span>
                   </span>
+                  <span>
+                    {Number(r.tab_switches ?? 0) > 0 ? (
+                      <button onClick={() => openAway(r)} title="See when"
+                        style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: '20px', border: 'none', cursor: 'pointer', background: awayTone(r.tab_switches).bg, color: awayTone(r.tab_switches).fg }}>
+                        {r.tab_switches}× · {fmtAway(r.time_away_seconds)}
+                      </button>
+                    ) : <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>{r.status === 'not_started' ? '—' : 'Never'}</span>}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </>
+      )}
+      {away && (
+        <div onClick={() => setAway(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 14, padding: '1.5rem', width: 460, maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.25rem' }}>{away.name} left the exam screen</h2>
+            {!away.data ? <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading…</p>
+              : away.data.error ? <p style={{ color: 'var(--danger)', fontSize: '0.875rem' }}>{away.data.error}</p> : (
+              <>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.9rem' }}>
+                  {away.data.tabSwitches} time{away.data.tabSwitches === 1 ? '' : 's'}, {fmtAway(away.data.timeAwaySeconds)} away in total.
+                  Times are from the server. Leaving includes switching tab or app and minimising the browser.
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead><tr>{['#', 'Left at', 'Came back', 'Away'].map(h => <th key={h} style={{ textAlign: 'left', padding: '0.4rem 0.5rem', fontSize: '0.68rem', textTransform: 'uppercase' as const, color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {away.data.events.map((e: any, i: number) => (
+                      <tr key={i}>
+                        <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-tertiary)' }}>{i + 1}</td>
+                        <td style={{ padding: '0.4rem 0.5rem' }}>{new Date(e.left_at).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                        <td style={{ padding: '0.4rem 0.5rem' }}>{e.returned_at ? new Date(e.returned_at).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}</td>
+                        <td style={{ padding: '0.4rem 0.5rem', fontWeight: 600 }}>{e.seconds_away == null ? 'still away' : fmtAway(e.seconds_away)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {away.data.events.length < away.data.tabSwitches && (
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: '0.6rem' }}>
+                    {away.data.tabSwitches - away.data.events.length} more time{away.data.tabSwitches - away.data.events.length === 1 ? ' was' : 's were'} counted while the student was offline, so the exact times weren’t received.
+                  </p>
+                )}
+              </>
+            )}
+            <div style={{ textAlign: 'right', marginTop: '1rem' }}>
+              <button onClick={() => setAway(null)} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, border: '1px solid var(--border)', background: 'white', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
       {selectedExam && loadingResults && (
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading results…</div>

@@ -25,6 +25,23 @@ async function isExamOwnedByTeacher(tdb: any, schoolId: string, teacherId: strin
   return rows.length > 0
 }
 
+// ── Leaving the exam screen ──────────────────────────────────────────────────
+// Each time a student leaves (another tab or app, or minimised) is stored
+// with server times. A time away still open when the exam ends is closed then.
+const MAX_FOCUS_EVENTS = 500
+
+async function closeAway(tdb: any, sessionId: string) {
+  const rows = await tdb.query`
+    UPDATE exam_focus_events
+    SET returned_at = now(),
+        seconds_away = LEAST(GREATEST(0, EXTRACT(EPOCH FROM now() - left_at))::int, 86400)
+    WHERE session_id = ${sessionId}::uuid AND returned_at IS NULL
+    RETURNING seconds_away
+  ` as any[]
+  const add = rows.reduce((t: number, r: any) => t + Number(r.seconds_away ?? 0), 0)
+  if (add) await tdb.query`UPDATE exam_sessions SET time_away_seconds = time_away_seconds + ${add} WHERE id = ${sessionId}::uuid`
+}
+
 export async function examRoutes(app: FastifyInstance) {
 
   // ── List exams (teacher/admin) ────────────────────────────────────────────
@@ -212,7 +229,7 @@ export async function examRoutes(app: FastifyInstance) {
       const tdb = tenantDb(request.schoolId)
 
       const sessionRows = await tdb.query`
-        SELECT id, status, question_order, answers, started_at, server_deadline
+        SELECT id, status, question_order, answers, started_at, server_deadline, tab_switches, time_away_seconds
         FROM exam_sessions
         WHERE exam_id = ${examId}::uuid
         AND student_id = ${request.user.id}::uuid
@@ -224,6 +241,7 @@ export async function examRoutes(app: FastifyInstance) {
 
       if (new Date() > new Date(session.server_deadline) && session.status === 'in_progress') {
         await tdb.query`UPDATE exam_sessions SET status = 'timed_out', submitted_at = now() WHERE id = ${session.id}::uuid`
+        await closeAway(tdb, session.id)
         return reply.status(410).send({ error: 'TIME_EXPIRED', message: 'Your exam time has expired.' })
       }
 
@@ -249,6 +267,8 @@ export async function examRoutes(app: FastifyInstance) {
           serverDeadline: session.server_deadline,
           server_deadline: session.server_deadline,
           answers: mergeAnswers(session.answers),
+          tabSwitches: Number(session.tab_switches ?? 0),
+          timeAwaySeconds: Number(session.time_away_seconds ?? 0),
         },
         questions: ordered,
         totalQuestions: ordered.length,
@@ -259,7 +279,7 @@ export async function examRoutes(app: FastifyInstance) {
   app.patch('/sessions/:sessionId/answers', { preHandler: [authenticate, requireRole('student')] },
     async (request: any, reply: any) => {
       const sessionId = (request.params as any).sessionId
-      const schema = z.object({ answers: z.record(z.string()) })
+      const schema = z.object({ answers: z.record(z.string()), tabSwitches: z.number().int().min(0).max(10000).optional() })
       const body = schema.safeParse(request.body)
       if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
 
@@ -293,7 +313,71 @@ export async function examRoutes(app: FastifyInstance) {
           WHERE id = ${sessionId}::uuid
         `
       }
+      if (body.data.tabSwitches) {
+        await tdb.query`UPDATE exam_sessions SET tab_switches = GREATEST(tab_switches, ${body.data.tabSwitches}) WHERE id = ${sessionId}::uuid`
+      }
       return reply.send({ saved: true })
+    })
+
+  // ── Student left or came back to the exam screen ─────────────────────────
+  app.post('/sessions/:sessionId/focus', { preHandler: [authenticate, requireRole('student')] },
+    async (request: any, reply: any) => {
+      const sessionId = (request.params as any).sessionId
+      const body = z.object({
+        event: z.enum(['left', 'returned']),
+        clientCount: z.number().int().min(0).max(10000).optional(),
+      }).safeParse(request.body)
+      if (!body.success || !z.string().uuid().safeParse(sessionId).success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      const tdb = tenantDb(request.schoolId)
+      const [session] = await tdb.query`
+        SELECT id, status FROM exam_sessions
+        WHERE id = ${sessionId}::uuid AND student_id = ${request.user.id}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      if (!session) return reply.status(404).send({ error: 'NOT_FOUND' })
+      if (session.status !== 'in_progress') return reply.status(400).send({ error: 'SESSION_NOT_ACTIVE' })
+
+      if (body.data.event === 'left') {
+        const [open] = await tdb.query`SELECT 1 FROM exam_focus_events WHERE session_id = ${sessionId}::uuid AND returned_at IS NULL LIMIT 1` as any[]
+        if (!open) {
+          const [{ n }] = await tdb.query`SELECT COUNT(*)::int AS n FROM exam_focus_events WHERE session_id = ${sessionId}::uuid` as any[]
+          if (n < MAX_FOCUS_EVENTS) {
+            await tdb.query`INSERT INTO exam_focus_events (school_id, session_id) VALUES (${request.schoolId}::uuid, ${sessionId}::uuid)`
+          }
+          await tdb.query`UPDATE exam_sessions SET tab_switches = tab_switches + 1, updated_at = now() WHERE id = ${sessionId}::uuid`
+        }
+      } else {
+        await closeAway(tdb, sessionId)
+      }
+      if (body.data.clientCount) {
+        await tdb.query`UPDATE exam_sessions SET tab_switches = GREATEST(tab_switches, ${body.data.clientCount}) WHERE id = ${sessionId}::uuid`
+      }
+      const [r] = await tdb.query`SELECT tab_switches, time_away_seconds FROM exam_sessions WHERE id = ${sessionId}::uuid` as any[]
+      return reply.send({ tabSwitches: Number(r.tab_switches), timeAwaySeconds: Number(r.time_away_seconds) })
+    })
+
+  // ── When a student left the exam screen (staff) ──────────────────────────
+  app.get('/sessions/:sessionId/focus-events', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
+    async (request: any, reply: any) => {
+      const sessionId = (request.params as any).sessionId
+      if (!z.string().uuid().safeParse(sessionId).success) return reply.status(404).send({ error: 'NOT_FOUND' })
+      const tdb = tenantDb(request.schoolId)
+      const [session] = await tdb.query`
+        SELECT es.id, es.exam_id, es.tab_switches, es.time_away_seconds, es.started_at, es.submitted_at, u.full_name AS student_name
+        FROM exam_sessions es JOIN users u ON u.id = es.student_id
+        WHERE es.id = ${sessionId}::uuid AND es.school_id = ${request.schoolId}::uuid
+      ` as any[]
+      if (!session) return reply.status(404).send({ error: 'NOT_FOUND' })
+      if (request.user.role === 'teacher' && !(await isExamOwnedByTeacher(tdb, request.schoolId, request.user.id, session.exam_id))) {
+        return reply.status(403).send({ error: 'NOT_OWNER', message: 'You can only view results for your own exams.' })
+      }
+      const events = await tdb.query`
+        SELECT left_at, returned_at, seconds_away FROM exam_focus_events
+        WHERE session_id = ${sessionId}::uuid ORDER BY left_at
+      ` as any[]
+      return reply.send({
+        studentName: session.student_name, startedAt: session.started_at, submittedAt: session.submitted_at,
+        tabSwitches: Number(session.tab_switches), timeAwaySeconds: Number(session.time_away_seconds), events,
+      })
     })
 
   // ── Submit exam ───────────────────────────────────────────────────────────
@@ -348,6 +432,7 @@ export async function examRoutes(app: FastifyInstance) {
             score = ${score}, percentage = ${percentage}, passed = ${passed}
         WHERE id = ${session.id}::uuid
       `
+      await closeAway(tdb, session.id)
 
       const result = exam.show_result_after
         ? { score, percentage: Math.round(percentage * 100) / 100, passed, totalMarks: exam.total_marks }
@@ -399,7 +484,8 @@ export async function examRoutes(app: FastifyInstance) {
 
       const results = await tdb.query`
         SELECT u.full_name AS student_name, u.admission_no, u.class_level, u.class_arm,
-               es.score, es.percentage, es.passed, es.status, es.submitted_at
+               es.score, es.percentage, es.passed, es.status, es.submitted_at,
+               es.id AS session_id, es.tab_switches, es.time_away_seconds
         FROM exam_sessions es
         JOIN users u ON u.id = es.student_id
         WHERE es.exam_id = ${examId}::uuid
