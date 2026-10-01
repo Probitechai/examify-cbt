@@ -418,8 +418,9 @@ export default function ExamEngine() {
                         const correctOption = options.find((o: any) => o.key === q.correct_answer)
                         const studentOption = options.find((o: any) => o.key === studentAnswer)
                         isCorrect = studentAnswer === q.correct_answer
-                        yourAnswerDisplay = studentAnswer ? `${studentAnswer}. ${studentOption?.text ?? ''}` : 'Not answered'
-                        correctAnswerDisplay = `${q.correct_answer}. ${correctOption?.text ?? ''}`
+                        // Letters as this student saw them (options may have been shuffled)
+                        yourAnswerDisplay = studentAnswer ? `${studentOption?.label ?? studentAnswer}. ${studentOption?.text ?? ''}` : 'Not answered'
+                        correctAnswerDisplay = `${correctOption?.label ?? q.correct_answer}. ${correctOption?.text ?? ''}`
                       }
 
                       return (
@@ -532,7 +533,7 @@ export default function ExamEngine() {
                   onClick={() => selectAnswer(currentQuestion.id, opt.key)}
                   disabled={examState === 'submitting'}
                 >
-                  <span className={styles.optionKey}>{opt.key}</span>
+                  <span className={styles.optionKey}>{opt.label ?? opt.key}</span>
                   <span className={styles.optionText}>{opt.text}</span>
                 </button>
               )

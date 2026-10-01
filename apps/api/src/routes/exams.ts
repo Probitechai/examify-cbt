@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { asJson, mergeAnswers } from '../lib/json'
 import { markPaper, type ManualMark } from '../lib/grading'
+import { shuffleOptions, withLabels } from '../lib/shuffle'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail, sendBulkEmails } from '../lib/email'
 import { resultReadyEmail, examReminderEmail } from '../emails/templates'
@@ -274,11 +275,18 @@ export async function examRoutes(app: FastifyInstance) {
       ` as any[]
 
       const isFinished = session.status === 'submitted' || session.status === 'timed_out'
+      const [examRow] = await tdb.query`SELECT randomise_options FROM exams WHERE id = ${examId}::uuid` as any[]
+      const shuffle = !!examRow?.randomise_options
 
+      // MCQ options in this student's order when the exam randomises them (True/False stays True, False)
       const ordered = session.question_order
         .map((qId: string) => questionRows.find((q: any) => q.id === qId))
         .filter(Boolean)
-        .map((q: any) => ({ ...q, options: asJson(q.options, null) }))
+        .map((q: any) => {
+          const opts = asJson<any[] | null>(q.options, null)
+          if (!Array.isArray(opts) || !opts.length || q.type !== 'mcq') return { ...q, options: opts }
+          return { ...q, options: shuffle ? shuffleOptions(opts, `${session.id}:${q.id}`) : withLabels(opts) }
+        })
         .map((q: any) => isFinished ? q : { ...q, correct_answer: undefined })
 
       return reply.send({
