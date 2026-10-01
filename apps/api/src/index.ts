@@ -46,6 +46,7 @@ import { transportRoutes } from './routes/transport'
 import { transport2Routes } from './routes/transport2'
 import { paystackMode } from './lib/paystack'
 import { settlementRoutes } from './routes/settlements'
+import { examTimetableRoutes } from './routes/exam-timetable'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -112,6 +113,7 @@ async function start() {
   await app.register(transportRoutes, { prefix: '/api' })
   await app.register(transport2Routes, { prefix: '/api' })
   await app.register(settlementRoutes, { prefix: '/api' })
+  await app.register(examTimetableRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     const dbOk = await checkDbConnection()

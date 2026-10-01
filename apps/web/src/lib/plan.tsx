@@ -8,7 +8,7 @@ import { apiFetch, getToken } from '@/lib/auth'
 
 export type Feature =
   | 'resultApproval' | 'gradebook' | 'curriculum' | 'lessons' | 'learningPaths' | 'liveClasses'
-  | 'timetable' | 'certificates' | 'conduct' | 'financeControls' | 'announcements' | 'hostels' | 'transport'
+  | 'examTimetable' | 'certificates' | 'conduct' | 'financeControls' | 'hostels' | 'transport'
   | 'hostelOperations' | 'transportOperations' | 'admissions' | 'analytics'
 
 export type Plan = {
@@ -24,10 +24,9 @@ export const planName = (tier?: string) => PLAN_NAMES[tier ?? ''] ?? 'Basic'
 
 // Screens that belong to a paid feature. A path matches itself and anything under it.
 const PATH_FEATURES: [string, Feature][] = [
-  ['/admin/curriculum', 'curriculum'], ['/admin/lessons', 'lessons'], ['/admin/timetable2', 'timetable'],
+  ['/admin/curriculum', 'curriculum'], ['/admin/lessons', 'lessons'], ['/admin/timetable', 'examTimetable'],
   ['/admin/gradebook', 'gradebook'], ['/admin/learning-paths', 'learningPaths'], ['/admin/live-classes', 'liveClasses'],
   ['/admin/approvals', 'resultApproval'], ['/admin/conduct', 'conduct'], ['/admin/admissions', 'admissions'],
-  ['/admin/announcements', 'announcements'],
   ['/admin/hostels', 'hostels'], ['/admin/hostel-operations', 'hostelOperations'],
   ['/admin/transport', 'transport'], ['/admin/transport-ops', 'transportOperations'],
   ['/admin/certificates', 'certificates'], ['/admin/analytics', 'analytics'],
@@ -36,6 +35,7 @@ const PATH_FEATURES: [string, Feature][] = [
   ['/proprietor/transport', 'transport'], ['/proprietor/transport-operations', 'transportOperations'],
   ['/proprietor/finance-audit', 'financeControls'], ['/proprietor/finance-access', 'financeControls'],
   ['/proprietor/bursars', 'financeControls'], ['/bursar', 'financeControls'],
+  ['/student/exam-timetable', 'examTimetable'], ['/proprietor/exam-timetable', 'examTimetable'],
   ['/student/lessons', 'lessons'], ['/student/learning-paths', 'learningPaths'],
   ['/student/live-classes', 'liveClasses'], ['/student/certificates', 'certificates'],
 ]
@@ -82,8 +82,8 @@ export function hasFeature(plan: Plan, f: Feature): boolean {
 
 const FEATURE_LABELS: Record<Feature, string> = {
   resultApproval: 'Result approval', gradebook: 'The gradebook', curriculum: 'Curriculum', lessons: 'Lessons',
-  learningPaths: 'Learning paths', liveClasses: 'Live classes', timetable: 'The class timetable',
-  certificates: 'Certificates', conduct: 'Conduct reports', financeControls: 'Finance controls', announcements: 'Announcements',
+  learningPaths: 'Learning paths', liveClasses: 'Live classes', examTimetable: 'The exam timetable',
+  certificates: 'Certificates', conduct: 'Conduct reports', financeControls: 'Finance controls',
   hostels: 'Hostel management', transport: 'Transport', hostelOperations: 'Hostel operations',
   transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
 }

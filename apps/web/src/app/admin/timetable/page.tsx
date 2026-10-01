@@ -1,366 +1,289 @@
 'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+// Exam timetable (Standard plan). The School Admin builds the term's paper and
+// CBT sittings and publishes them to students and parents; teachers can view
+// it and see their invigilation duties.
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { checkAuth } from '@/lib/auth'
+import { useAuthStore } from '@/hooks/useAuth'
+import { useClassLevels } from '@/lib/classLevels'
+import { CLASS_ARMS } from '@/lib/classArms'
+import { call, errorText, S, PageHeader, Banner, Modal, Field, TermPicker, useTerms } from '@/components/finance/ui'
+import { ExamTimetableView, PrintStyles, Sitting, fmtDay, fmtTime } from '@/components/examTimetable'
 
-interface Exam {
-  id: string
-  title: string
-  subject: string
-  class_level: string
-  class_arms: string[] | null
-  duration_minutes: number
-  scheduled_at: string
-  ends_at: string
-  status: string
-  question_count: number
+interface Header { id: string; title: string; instructions: string | null; published_at: string | null }
+interface Cbt { id: string; title: string; subject: string; class_level: string; class_arms: string[] | null; scheduled_at: string; duration_minutes: number; status: string }
+
+const blank = { examDate: '', startTime: '09:00', endTime: '11:00', classLevel: '', classArm: '', subject: '', paper: '', mode: 'paper' as 'paper' | 'cbt', examId: '', venue: '', invigilatorId: '', notes: '' }
+
+// CBT exams store a timestamp; the timetable uses Nigerian date and time
+function lagosParts(iso: string, addMins = 0) {
+  const d = new Date(new Date(iso).getTime() + addMins * 60000)
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(d).map(x => [x.type, x.value]))
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour === '24' ? '00' : p.hour}:${p.minute}` }
 }
 
-const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  active:    { bg: '#e8f5ee', color: '#0f4a32', border: '#1a6b4a' },
-  scheduled: { bg: '#eff6ff', color: '#1e40af', border: '#3b82f6' },
-  completed: { bg: '#f1f1ef', color: '#6b6b65', border: '#d0d0c8' },
-  draft:     { bg: '#fffbeb', color: '#92400e', border: '#fbbf24' },
-  cancelled: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
-}
-
-const SUBJECT_COLORS = [
-  { bg: '#eff6ff', color: '#1e40af' },
-  { bg: '#f0fdf4', color: '#166534' },
-  { bg: '#fdf4ff', color: '#7e22ce' },
-  { bg: '#fff7ed', color: '#9a3412' },
-  { bg: '#fef2f2', color: '#991b1b' },
-  { bg: '#ecfeff', color: '#155e75' },
-  { bg: '#fefce8', color: '#854d0e' },
-  { bg: '#f0fdfa', color: '#134e4a' },
-]
-
-export default function TimetablePage() {
+export default function ExamTimetablePage() {
   const router = useRouter()
-  const [exams, setExams] = useState<Exam[]>([])
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'school_admin'
+  const t = useTerms()
+  const levels = useClassLevels()
+  const [header, setHeader] = useState<Header | null>(null)
+  const [entries, setEntries] = useState<Sitting[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'week' | 'list'>('week')
-  const [currentWeek, setCurrentWeek] = useState(new Date())
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState<{ tone: 'success' | 'warning' | 'info'; text: string } | null>(null)
   const [classFilter, setClassFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [mineOnly, setMineOnly] = useState(false)
+  const [editing, setEditing] = useState<{ id: string | null; form: typeof blank } | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [invigilators, setInvigilators] = useState<{ id: string; full_name: string }[]>([])
+  const [cbtExams, setCbtExams] = useState<Cbt[]>([])
+  const [headerEdit, setHeaderEdit] = useState<{ title: string; instructions: string } | null>(null)
+  const [busy, setBusy] = useState('')
 
-  
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
 
+  async function load() {
+    if (!t.termId) return
+    setLoading(true); setError('')
+    const r = await call(`/exam-timetable?termId=${t.termId}`)
+    if (!r.ok) setError(errorText(r.data, 'Could not load the exam timetable.'))
+    else { setHeader(r.data.timetable); setEntries(r.data.entries ?? []) }
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [t.termId])
   useEffect(() => {
-    const token = getToken()
-    if (!token) return
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/exams`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-School-Subdomain': localStorage.getItem('examify_school') ?? 'greensprings',
-        'Content-Type': 'application/json'
-      }
-    })
-      .then(r => r.json())
-      .then(d => setExams(d.exams ?? []))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+    call('/exam-timetable/invigilators').then(r => setInvigilators(r.data.invigilators ?? []))
+    if (isAdmin) call('/exams').then(r => setCbtExams((r.data.exams ?? []).filter((x: Cbt) => x.status !== 'cancelled')))
+  }, [isAdmin])
 
-  // Get week dates
-  function getWeekDates(date: Date) {
-    const start = new Date(date)
-    const day = start.getDay()
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1) // Monday start
-    start.setDate(diff)
-    start.setHours(0, 0, 0, 0)
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start)
-      d.setDate(start.getDate() + i)
-      return d
-    })
+  const shown = useMemo(() => entries.filter(e =>
+    (!classFilter || e.class_level === classFilter) && (!mineOnly || e.invigilator_id === user?.id)), [entries, classFilter, mineOnly, user?.id])
+  const termName = t.terms.find(x => x.id === t.termId)?.name ?? ''
+  const published = !!header?.published_at
+  const myDuties = entries.filter(e => e.invigilator_id === user?.id).length
+
+  function openNew() {
+    setFormError('')
+    const last = entries[entries.length - 1]
+    setEditing({ id: null, form: { ...blank, examDate: last?.exam_date ?? '', classLevel: classFilter || levels[0] || '' } })
+  }
+  function openEdit(s: Sitting) {
+    setFormError('')
+    setEditing({ id: s.id, form: { examDate: s.exam_date, startTime: s.start_time, endTime: s.end_time, classLevel: s.class_level, classArm: s.class_arm,
+      subject: s.subject, paper: s.paper ?? '', mode: s.mode, examId: s.exam_id ?? '', venue: s.venue ?? '', invigilatorId: s.invigilator_id ?? '', notes: s.notes ?? '' } })
+  }
+  function pickCbt(id: string) {
+    if (!editing) return
+    const x = cbtExams.find(c => c.id === id)
+    if (!x) { setEditing({ ...editing, form: { ...editing.form, examId: '' } }); return }
+    const s = lagosParts(x.scheduled_at), e = lagosParts(x.scheduled_at, x.duration_minutes)
+    setEditing({ ...editing, form: { ...editing.form, examId: x.id, subject: x.subject, classLevel: x.class_level,
+      classArm: x.class_arms?.length === 1 ? x.class_arms[0] : editing.form.classArm, examDate: s.date, startTime: s.time, endTime: e.date === s.date ? e.time : '23:59' } })
   }
 
-  function prevWeek() {
-    const d = new Date(currentWeek)
-    d.setDate(d.getDate() - 7)
-    setCurrentWeek(d)
+  async function save() {
+    if (!editing) return
+    const f = editing.form
+    if (!f.examDate || !f.subject.trim() || !f.classLevel) { setFormError('Fill in the date, class and subject.'); return }
+    setSaving(true); setFormError('')
+    const body = { termId: t.termId, ...f, examId: f.mode === 'cbt' && f.examId ? f.examId : null, invigilatorId: f.invigilatorId || null,
+      paper: f.paper || null, venue: f.venue || null, notes: f.notes || null }
+    const r = editing.id
+      ? await call(`/exam-timetable/entries/${editing.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+      : await call('/exam-timetable/entries', { method: 'POST', body: JSON.stringify(body) })
+    setSaving(false)
+    if (!r.ok) { setFormError(errorText(r.data, 'Could not save this sitting.')); return }
+    setEditing(null)
+    const w: string[] = r.data.warnings ?? []
+    setNotice(w.length ? { tone: 'warning', text: `Saved. Note: ${w.join(' ')}` } : { tone: 'success', text: editing.id ? 'Sitting updated.' : 'Sitting added.' })
+    load()
   }
 
-  function nextWeek() {
-    const d = new Date(currentWeek)
-    d.setDate(d.getDate() + 7)
-    setCurrentWeek(d)
+  async function remove(s: Sitting) {
+    if (!window.confirm(`Remove ${s.subject} for ${s.class_level}${s.class_arm ? ' ' + s.class_arm : ''} on ${fmtDay(s.exam_date)}?`)) return
+    const r = await call(`/exam-timetable/entries/${s.id}`, { method: 'DELETE' })
+    if (!r.ok) setNotice({ tone: 'warning', text: errorText(r.data) }); else load()
   }
 
-  function goToToday() {
-    setCurrentWeek(new Date())
+  async function importCbt() {
+    setBusy('import')
+    const r = await call('/exam-timetable/import-cbt', { method: 'POST', body: JSON.stringify({ termId: t.termId }) })
+    setBusy('')
+    if (!r.ok) { setNotice({ tone: 'warning', text: errorText(r.data) }); return }
+    const { added, moved, clashes } = r.data
+    const parts = [added ? `${added} CBT sitting${added === 1 ? '' : 's'} added` : '', moved ? `${moved} moved to the exam’s new time` : ''].filter(Boolean)
+    const head = parts.length ? parts.join(', ') + '.' : 'Every scheduled CBT exam in this term is already on the timetable.'
+    setNotice({ tone: clashes.length ? 'warning' : 'success', text: clashes.length ? `${head} Not added because of a clash: ${clashes.join(' ')}` : `${head} Exams still in draft aren’t included.` })
+    load()
   }
 
-  function isSameDay(d1: Date, d2: Date) {
-    return d1.getDate() === d2.getDate() &&
-      d1.getMonth() === d2.getMonth() &&
-      d1.getFullYear() === d2.getFullYear()
+  async function setPublished(on: boolean) {
+    if (on && !window.confirm('Publish this timetable? Students and parents will see it straight away, and an announcement goes to everyone.')) return
+    if (!on && !window.confirm('Take the timetable down? Students and parents will no longer see it.')) return
+    setBusy('publish')
+    const r = await call('/exam-timetable/publish', { method: 'POST', body: JSON.stringify({ termId: t.termId, published: on }) })
+    setBusy('')
+    if (!r.ok) { setNotice({ tone: 'warning', text: errorText(r.data) }); return }
+    setNotice({ tone: 'success', text: on ? `Published. Students and parents can see it now${r.data.announced ? ', and an announcement was posted' : ''}.` : 'Taken down. Students and parents can no longer see it.' })
+    load()
   }
 
-  function formatTime(iso: string) {
-    return new Date(iso).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })
+  async function saveHeader() {
+    if (!headerEdit) return
+    const r = await call('/exam-timetable', { method: 'PUT', body: JSON.stringify({ termId: t.termId, title: headerEdit.title, instructions: headerEdit.instructions || null }) })
+    if (!r.ok) { setNotice({ tone: 'warning', text: errorText(r.data) }); return }
+    setHeaderEdit(null); load()
   }
 
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })
-  }
-
-  function formatFullDate(iso: string) {
-    return new Date(iso).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  }
-
-  function getSubjectColor(subject: string) {
-    const index = subject.charCodeAt(0) % SUBJECT_COLORS.length
-    return SUBJECT_COLORS[index]
-  }
-
-  const weekDates = getWeekDates(currentWeek)
-  const weekStart = weekDates[0]
-  const weekEnd = weekDates[6]
-
-  const filtered = exams.filter(e => {
-    if (classFilter && e.class_level !== classFilter) return false
-    if (statusFilter && e.status !== statusFilter) return false
-    return true
-  })
-
-  const classes = [...new Set(exams.map(e => e.class_level))].sort()
-
-  // Group exams by day for week view
-  function getExamsForDay(date: Date) {
-    return filtered.filter(e => isSameDay(new Date(e.scheduled_at), date))
-  }
-
-  // Sort exams by date for list view
-  const sortedExams = [...filtered].sort((a, b) =>
-    new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-  )
-
-  // Group list exams by date
-  const groupedByDate: Record<string, Exam[]> = {}
-  sortedExams.forEach(exam => {
-    const dateKey = new Date(exam.scheduled_at).toDateString()
-    if (!groupedByDate[dateKey]) groupedByDate[dateKey] = []
-    groupedByDate[dateKey].push(exam)
-  })
-
-  const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-  function ExamCard({ exam, compact = false }: { exam: Exam; compact?: boolean }) {
-    const status = STATUS_COLORS[exam.status] ?? STATUS_COLORS.scheduled
-    const subjectColor = getSubjectColor(exam.subject)
-    return (
-      <div style={{
-        background: subjectColor.bg,
-        border: `1.5px solid ${status.border}`,
-        borderRadius: '8px',
-        padding: compact ? '0.5rem 0.625rem' : '0.75rem 0.875rem',
-        marginBottom: '0.375rem',
-        cursor: 'default',
-        transition: 'transform 0.15s',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <p style={{ fontSize: compact ? '0.75rem' : '0.825rem', fontWeight: 600, color: subjectColor.color, lineHeight: 1.3, flex: 1 }}>
-            {exam.subject}
-          </p>
-          <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '20px', background: status.bg, color: status.color, border: `1px solid ${status.border}`, whiteSpace: 'nowrap', flexShrink: 0, textTransform: 'uppercase' }}>
-            {exam.status}
-          </span>
-        </div>
-        {!compact && (
-          <p style={{ fontSize: '0.78rem', color: '#1a1a18', marginBottom: '0.25rem', lineHeight: 1.3 }}>{exam.title}</p>
-        )}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.7rem', color: '#6b6b65' }}>
-          <span>⏰ {formatTime(exam.scheduled_at)}</span>
-          <span>⏱ {exam.duration_minutes}min</span>
-          <span>📚 {exam.class_level} {exam.class_arms?.join(', ') ?? 'All'}</span>
-        </div>
-      </div>
-    )
-  }
+  const f = editing?.form
+  const setF = (patch: Partial<typeof blank>) => editing && setEditing({ ...editing, form: { ...editing.form, ...patch } })
+  const cbtForClass = cbtExams.filter(x => !f?.classLevel || x.class_level === f.classLevel)
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1100px', fontFamily: 'var(--font-body)' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-            Exam Timetable
-          </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            {loading ? 'Loading...' : `${exams.length} exams scheduled this term`}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Filters */}
-          <select
-            value={classFilter}
-            onChange={e => setClassFilter(e.target.value)}
-            style={{ padding: '0.5rem 0.875rem', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.825rem', color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }}>
-            <option value="">All classes</option>
-            {classes.map(c => <option key={c}>{c}</option>)}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            style={{ padding: '0.5rem 0.875rem', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.825rem', color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }}>
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="completed">Completed</option>
-            <option value="draft">Draft</option>
-          </select>
-          {/* View toggle */}
-          <div style={{ display: 'flex', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-            {(['week', 'list'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.825rem', fontWeight: 500, cursor: 'pointer', border: 'none', background: view === v ? 'var(--brand)' : 'transparent', color: view === v ? 'white' : 'var(--text-secondary)', transition: 'all 0.15s' }}>
-                {v === 'week' ? '📅 Week' : '📋 List'}
-              </button>
-            ))}
+    <div style={S.page}>
+      <PrintStyles />
+      <div className="no-print">
+        <PageHeader
+          title="Exam Timetable"
+          subtitle={isAdmin ? 'Plan every paper and CBT sitting for the term, then publish it to students and parents.' : 'The term’s exam sittings. Rows marked YOU are your invigilation duties.'}
+          actions={<div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button style={S.btnGhost} onClick={() => window.print()} disabled={!entries.length}>🖨 Print</button>
+            {isAdmin && <button style={S.btnGhost} onClick={importCbt} disabled={!t.termId || busy === 'import'}>{busy === 'import' ? 'Copying…' : '⇩ Copy in CBT exams'}</button>}
+            {isAdmin && <button style={S.btn} onClick={openNew} disabled={!t.termId}>+ Add sitting</button>}
+          </div>}
+        />
+        <div style={{ ...S.card, display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <TermPicker t={t} />
+          <div style={{ minWidth: 160 }}>
+            <label style={S.label}>Class</label>
+            <select style={S.input} value={classFilter} onChange={e => setClassFilter(e.target.value)}>
+              <option value="">All classes</option>
+              {levels.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
           </div>
-          {/* Schedule exam shortcut */}
-          <button onClick={() => router.push('/admin/exams/new')}
-            style={{ padding: '0.5rem 1rem', background: 'var(--brand)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            + Schedule Exam
-          </button>
+          {!isAdmin && myDuties > 0 && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', paddingBottom: '0.5rem' }}>
+              <input type="checkbox" checked={mineOnly} onChange={e => setMineOnly(e.target.checked)} /> Only my invigilation ({myDuties})
+            </label>
+          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.6rem', paddingBottom: '0.3rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.6rem', borderRadius: 12,
+              background: published ? '#e8f5ee' : '#fffbeb', color: published ? '#0f4a32' : '#92400e' }}>
+              {published ? 'PUBLISHED' : 'DRAFT — not visible to students or parents'}
+            </span>
+            {isAdmin && (published
+              ? <button style={S.btnGhost} onClick={() => setPublished(false)} disabled={busy === 'publish'}>Take down</button>
+              : <button style={S.btn} onClick={() => setPublished(true)} disabled={busy === 'publish' || !entries.length}>Publish</button>)}
+          </div>
         </div>
+        {notice && <Banner tone={notice.tone} onClose={() => setNotice(null)}>{notice.text}</Banner>}
+        {error && <Banner tone="error">{error}</Banner>}
       </div>
 
-      {loading ? (
-        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          Loading timetable…
-        </div>
-      ) : exams.length === 0 ? (
-        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📅</div>
-          <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No exams scheduled yet</p>
-          <p style={{ fontSize: '0.875rem' }}>Create exams from the Exams page to see them here.</p>
-          <a href="/admin/exams/new" style={{ display: 'inline-block', marginTop: '1rem', padding: '0.625rem 1.25rem', background: 'var(--brand)', color: 'white', fontSize: '0.875rem', fontWeight: 500, borderRadius: '8px', textDecoration: 'none' }}>
-            + Create first exam
-          </a>
-        </div>
-      ) : view === 'week' ? (
-        // WEEK VIEW
-        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-          {/* Week navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-            <button onClick={prevWeek} style={{ width: 32, height: 32, border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {weekStart.toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} — {weekEnd.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            </div>
+      {/* Title and instructions, printed at the top */}
+      <div style={{ ...S.card }}>
+        {headerEdit ? (
+          <div className="no-print" style={{ display: 'grid', gap: '0.75rem' }}>
+            <Field label="Title"><input style={S.input} value={headerEdit.title} onChange={e => setHeaderEdit({ ...headerEdit, title: e.target.value })} /></Field>
+            <Field label="Instructions for students (printed at the top)">
+              <textarea style={{ ...S.input, minHeight: 80 }} value={headerEdit.instructions} placeholder="e.g. Arrive 30 minutes early. Bring two HB pencils. Phones are not allowed in the hall."
+                onChange={e => setHeaderEdit({ ...headerEdit, instructions: e.target.value })} />
+            </Field>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={goToToday} style={{ padding: '0.375rem 0.875rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Today</button>
-              <button onClick={nextWeek} style={{ width: 32, height: 32, border: '1px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+              <button style={S.btn} onClick={saveHeader} disabled={!headerEdit.title.trim()}>Save</button>
+              <button style={S.btnGhost} onClick={() => setHeaderEdit(null)}>Cancel</button>
             </div>
           </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+            <div>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1a1a18' }}>{header?.title ?? 'Examination Timetable'}{termName && <span style={{ fontWeight: 500, color: '#6b6b65' }}> · {termName}</span>}{classFilter && <span style={{ fontWeight: 500, color: '#6b6b65' }}> · {classFilter}</span>}</div>
+              {header?.instructions
+                ? <p style={{ fontSize: '0.86rem', color: '#3a3a36', marginTop: '0.4rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{header.instructions}</p>
+                : isAdmin && <p className="no-print" style={{ fontSize: '0.82rem', color: '#a0a09a', marginTop: '0.4rem' }}>No instructions yet. Add the rules students should know before the exams.</p>}
+            </div>
+            {isAdmin && <button className="no-print" style={{ ...S.btnSmall, alignSelf: 'flex-start' }}
+              onClick={() => setHeaderEdit({ title: header?.title ?? 'Examination Timetable', instructions: header?.instructions ?? '' })}>Edit</button>}
+          </div>
+        )}
+      </div>
 
-          {/* Day columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: '400px' }}>
-            {weekDates.map((date, i) => {
-              const dayExams = getExamsForDay(date)
-              const isToday = isSameDay(date, new Date())
-              const isWeekend = i >= 5
-              return (
-                <div key={i} style={{
-                  borderRight: i < 6 ? '1px solid var(--border)' : 'none',
-                  background: isWeekend ? '#fafafa' : isToday ? '#f0fdf4' : 'white',
-                  minHeight: '400px',
-                }}>
-                  {/* Day header */}
-                  <div style={{
-                    padding: '0.625rem 0.5rem',
-                    borderBottom: '1px solid var(--border)',
-                    textAlign: 'center',
-                    background: isToday ? 'var(--brand)' : isWeekend ? '#f1f1ef' : 'var(--bg)',
-                  }}>
-                    <p style={{ fontSize: '0.72rem', fontWeight: 600, color: isToday ? 'white' : 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>
-                      {DAY_NAMES[i]}
-                    </p>
-                    <p style={{ fontSize: '1.1rem', fontWeight: 600, color: isToday ? 'white' : isWeekend ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
-                      {date.getDate()}
-                    </p>
-                  </div>
-                  {/* Exams for this day */}
-                  <div style={{ padding: '0.5rem' }}>
-                    {dayExams.length === 0 ? (
-                      isWeekend ? null : (
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center', padding: '0.5rem 0' }}>—</p>
-                      )
-                    ) : dayExams.map(exam => (
-                      <ExamCard key={exam.id} exam={exam} compact />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+      {loading ? <p style={{ color: '#6b6b65', padding: '1rem' }}>Loading…</p> : (
+        <ExamTimetableView
+          entries={shown}
+          staff
+          highlightInvigilator={isAdmin ? undefined : user?.id}
+          actions={isAdmin ? (s) => <>
+            <button style={S.btnSmall} onClick={() => openEdit(s)}>Edit</button>{' '}
+            <button style={S.btnDanger} onClick={() => remove(s)}>Remove</button>
+          </> : undefined}
+          empty={isAdmin
+            ? <>No sittings for this term yet. Use <strong>+ Add sitting</strong> for paper exams, or <strong>Copy in CBT exams</strong> to bring in the CBT exams you’ve scheduled.</>
+            : 'The exam timetable for this term hasn’t been set up yet.'}
+        />
+      )}
 
-          {/* Legend */}
-          <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', background: 'var(--bg)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            {Object.entries(STATUS_COLORS).map(([status, colors]) => (
-              <span key={status} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: colors.bg, border: `1.5px solid ${colors.border}`, flexShrink: 0 }} />
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </span>
-            ))}
+      {editing && f && (
+        <Modal title={editing.id ? 'Edit sitting' : 'Add a sitting'} onClose={() => setEditing(null)} width={560}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <Field label="Type">
+              <select style={S.input} value={f.mode} onChange={e => setF({ mode: e.target.value as any, examId: '' })}>
+                <option value="paper">Paper (written)</option>
+                <option value="cbt">CBT (on Examify)</option>
+              </select>
+            </Field>
+            {f.mode === 'cbt' ? (
+              <Field label="CBT exam" hint="Fills in the subject, date and time">
+                <select style={S.input} value={f.examId} onChange={e => pickCbt(e.target.value)}>
+                  <option value="">Not linked</option>
+                  {cbtForClass.map(x => <option key={x.id} value={x.id}>{x.title} ({x.class_level}{x.status === 'draft' ? ', draft' : ''})</option>)}
+                </select>
+              </Field>
+            ) : <div />}
+            <Field label="Class">
+              <select style={S.input} value={f.classLevel} onChange={e => setF({ classLevel: e.target.value, examId: '' })}>
+                <option value="">Choose…</option>
+                {levels.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </Field>
+            <Field label="Arm">
+              <select style={S.input} value={f.classArm} onChange={e => setF({ classArm: e.target.value })}>
+                <option value="">All arms</option>
+                {CLASS_ARMS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </Field>
+            <Field label="Subject"><input style={S.input} value={f.subject} onChange={e => setF({ subject: e.target.value })} placeholder="e.g. Mathematics" /></Field>
+            <Field label="Paper (optional)"><input style={S.input} value={f.paper} onChange={e => setF({ paper: e.target.value })} placeholder="e.g. Paper 1 (Objective)" /></Field>
+            <Field label="Date"><input type="date" style={S.input} value={f.examDate} onChange={e => setF({ examDate: e.target.value })} /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <Field label="Starts"><input type="time" style={S.input} value={f.startTime} onChange={e => setF({ startTime: e.target.value })} /></Field>
+              <Field label="Ends"><input type="time" style={S.input} value={f.endTime} onChange={e => setF({ endTime: e.target.value })} /></Field>
+            </div>
+            <Field label="Venue"><input style={S.input} value={f.venue} onChange={e => setF({ venue: e.target.value })} placeholder={f.mode === 'cbt' ? 'e.g. ICT Lab' : 'e.g. Main Hall'} /></Field>
+            <Field label="Invigilator">
+              <select style={S.input} value={f.invigilatorId} onChange={e => setF({ invigilatorId: e.target.value })}>
+                <option value="">Not assigned</option>
+                {invigilators.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select>
+            </Field>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Field label="Note for students (optional)"><input style={S.input} value={f.notes} onChange={e => setF({ notes: e.target.value })} placeholder="e.g. Bring a mathematical set" /></Field>
+            </div>
           </div>
-        </div>
-      ) : (
-        // LIST VIEW
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {Object.keys(groupedByDate).length === 0 ? (
-            <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '12px', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No exams match your filters.
-            </div>
-          ) : Object.entries(groupedByDate).map(([dateKey, dayExams]) => (
-            <div key={dateKey}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', marginBottom: '0.75rem' }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  {formatFullDate(dayExams[0].scheduled_at)}
-                </p>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-                  {dayExams.length} exam{dayExams.length > 1 ? 's' : ''}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                {dayExams.map(exam => {
-                  const status = STATUS_COLORS[exam.status] ?? STATUS_COLORS.scheduled
-                  const subjectColor = getSubjectColor(exam.subject)
-                  return (
-                    <div key={exam.id} style={{ background: 'white', border: `1px solid ${status.border}`, borderRadius: '12px', padding: '1.125rem 1.375rem', display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.375rem' }}>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.625rem', borderRadius: '20px', background: subjectColor.bg, color: subjectColor.color }}>
-                            {exam.subject}
-                          </span>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.625rem', borderRadius: '20px', background: status.bg, color: status.color, border: `1px solid ${status.border}`, textTransform: 'uppercase' }}>
-                            {exam.status}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>{exam.title}</p>
-                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                          <span>⏰ {formatTime(exam.scheduled_at)} — {formatTime(exam.ends_at)}</span>
-                          <span>⏱ {exam.duration_minutes} minutes</span>
-                          <span>📚 {exam.class_level} {exam.class_arms?.join(', ') ?? '(all arms)'}</span>
-                          <span>📋 {exam.question_count ?? 0} questions</span>
-                        </div>
-                      </div>
-                      <a href="/admin/results" style={{ padding: '0.5rem 1rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
-                        View results →
-                      </a>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+          {f.examDate && f.startTime && f.endTime && (
+            <p style={{ fontSize: '0.8rem', color: '#6b6b65', marginTop: '0.75rem' }}>{fmtDay(f.examDate)}, {fmtTime(f.startTime)} – {fmtTime(f.endTime)}</p>
+          )}
+          {formError && <div style={{ marginTop: '0.75rem' }}><Banner tone="error">{formError}</Banner></div>}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+            <button style={S.btnGhost} onClick={() => setEditing(null)}>Cancel</button>
+            <button style={S.btn} onClick={save} disabled={saving}>{saving ? 'Saving…' : editing.id ? 'Save changes' : 'Add sitting'}</button>
+          </div>
+        </Modal>
       )}
     </div>
   )

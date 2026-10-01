@@ -3,6 +3,7 @@ import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlan, hasFeature } from '@/lib/plan'
+import { ExamTimetableView, Sitting } from '@/components/examTimetable'
 
 interface Student {
   id: string
@@ -33,9 +34,10 @@ export default function ParentDashboard() {
   const [parentName, setParentName] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning' | 'hostel' | 'transport'>('results')
+  const [activeSection, setActiveSection] = useState<'results' | 'attendance' | 'fees' | 'learning' | 'hostel' | 'transport' | 'exams'>('results')
   const [hostel, setHostel] = useState<any>(null)
   const [transport, setTransport] = useState<any>(null)
+  const [examTT, setExamTT] = useState<{ title: string; instructions: string | null; entries: Sitting[] } | null | 'none'>(null)
   const [results, setResults] = useState<any>(null)
   const [attendance, setAttendance] = useState<any>(null)
   const [fees, setFees] = useState<any>(null)
@@ -99,11 +101,16 @@ export default function ParentDashboard() {
     } catch {} finally { setLoading(false) }
   }
 
-  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning' | 'hostel' | 'transport', studentId: string, termId: string) {
+  async function loadSection(section: 'results' | 'attendance' | 'fees' | 'learning' | 'hostel' | 'transport' | 'exams', studentId: string, termId: string) {
     setSectionLoading(true)
     setActiveSection(section)
     try {
-      if (section === 'learning') {
+      if (section === 'exams') {
+        const res = await apiFetch(`${API}/exam-timetable/mine?termId=${termId}`)
+        const data = await res.json()
+        const child = (data.students ?? []).find((k: any) => k.id === studentId)
+        setExamTT(data.timetable && child ? { title: data.timetable.title, instructions: data.timetable.instructions, entries: child.entries } : 'none')
+      } else if (section === 'learning') {
         const [lessonsRes, gradebookRes] = await Promise.all([
           apiFetch(`${API}/lessons?classLevel=${currentItem?.student?.class_level ?? ''}`),
           apiFetch(`${API}/gradebook/student/${studentId}?termId=${termId}`),
@@ -286,7 +293,8 @@ export default function ParentDashboard() {
                     { key: 'fees', label: '💰 Fees' },
                     { key: 'hostel', label: '🏠 Hostel' },
                     { key: 'transport', label: '🚌 Transport' },
-                  ] as const).filter(tab => (tab.key !== 'hostel' || hasFeature(plan, 'hostels')) && (tab.key !== 'transport' || hasFeature(plan, 'transport'))).map(tab => (
+                    { key: 'exams', label: '🗓️ Exams' },
+                  ] as const).filter(tab => (tab.key !== 'hostel' || hasFeature(plan, 'hostels')) && (tab.key !== 'transport' || hasFeature(plan, 'transport')) && (tab.key !== 'exams' || hasFeature(plan, 'examTimetable'))).map(tab => (
                     <button key={tab.key}
                       onClick={() => { if (termId) loadSection(tab.key, currentItem.student.id, termId) }}
                       style={{ padding: '0.625rem 1.25rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeSection === tab.key ? '#1a6b4a' : 'transparent', color: activeSection === tab.key ? 'white' : '#6b6b65' }}>
@@ -526,6 +534,24 @@ export default function ParentDashboard() {
                 )}
 
                 {/* Transport section */}
+                {activeSection === 'exams' && examTT && !sectionLoading && (
+                  <div>
+                    {examTT === 'none' ? (
+                      <div style={{ background: 'white', borderRadius: '14px', padding: '2rem', textAlign: 'center', border: '1px solid #e5e5e0', color: '#6b6b65', fontSize: '0.875rem' }}>
+                        The exam timetable for this term hasn’t been published yet.
+                      </div>
+                    ) : (
+                      <>
+                        <p style={{ fontWeight: 700, color: '#1a1a18', marginBottom: '0.5rem' }}>{examTT.title}</p>
+                        {examTT.instructions && (
+                          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '0.75rem', fontSize: '0.85rem', color: '#78350f', whiteSpace: 'pre-wrap' }}>{examTT.instructions}</div>
+                        )}
+                        <ExamTimetableView entries={examTT.entries} hideClass empty="No exams for this child on the timetable." />
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {activeSection === 'transport' && (
                   <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', overflow: 'hidden' }}>
                     {!transport ? (

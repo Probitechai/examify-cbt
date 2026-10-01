@@ -199,7 +199,14 @@ setStats({
         </div>
 {/* Progress link */}
 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-  {hasFeature(plan, 'lessons') && (
+  {hasFeature(plan, 'examTimetable') && (
+<button
+    onClick={() => router.push('/student/exam-timetable')}
+    style={{ padding: '0.5rem 1rem', background: '#0f4a32', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
+    🗓️ Exam Timetable
+</button>
+)}
+{hasFeature(plan, 'lessons') && (
 <button
     onClick={() => router.push('/student/lessons')}
     style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>

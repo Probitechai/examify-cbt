@@ -37,14 +37,14 @@ const NAV: NavItem[] = [
   { href: '/admin/sessions',       icon: '📆', label: 'Academic Sessions',  group: 'academics' },
   { href: '/admin/curriculum',     icon: '📚', label: 'Curriculum',         tier: 'standard', group: 'academics' },
   { href: '/admin/lessons',        icon: '📖', label: 'Lesson Plans',       tier: 'standard', group: 'academics' },
-  { href: '/admin/timetable2',     icon: '📅', label: 'Class Timetable',    tier: 'standard', group: 'academics' },
+  { href: '/admin/timetable2',     icon: '📅', label: 'Class Timetable',    group: 'academics' },
   { href: '/admin/gradebook',      icon: '📊', label: 'Gradebook',          tier: 'standard', group: 'academics' },
   { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',    tier: 'standard', group: 'academics' },
   { href: '/admin/live-classes',   icon: '🎥', label: 'Live Classes',       tier: 'standard', group: 'academics' },
 
   { href: '/admin/qbank',         icon: '❓', label: 'Question Bank',    group: 'cbt' },
   { href: '/admin/exams',         icon: '📋', label: 'Exams Management', group: 'cbt' },
-  { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable',   group: 'cbt' },
+  { href: '/admin/timetable',     icon: '📝', label: 'Exam Timetable',   tier: 'standard', group: 'cbt' },
   { href: '/admin/results',       icon: '📈', label: 'Exam Results',     group: 'cbt' },
   { href: '/admin/jamb-progress', icon: '🎯', label: 'JAMB Progress (SS3)', group: 'cbt' },
 
@@ -65,7 +65,7 @@ const NAV: NavItem[] = [
   { href: '/admin/fee-approvals', icon: '✅', label: 'Fee Approvals',     group: 'finance' },
   { href: '/admin/subscription',  icon: '💳', label: 'Subscription',      group: 'finance' },
 
-  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     tier: 'standard', group: 'communication' },
+  { href: '/admin/announcements', icon: '📢', label: 'Announcements',     group: 'communication' },
 
   { href: '/admin/hostels',           icon: '🏠', label: 'Hostel Management',    tier: 'standard', group: 'operations' },
   { href: '/admin/hostel-operations', icon: '📋', label: 'Hostel Operations',    tier: 'premium', group: 'operations' },

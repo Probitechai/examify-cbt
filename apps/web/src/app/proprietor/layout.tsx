@@ -10,6 +10,7 @@ const NAV = [
   { href: '/proprietor', icon: '📊', label: 'Overview' },
   { href: '/proprietor/curriculum', icon: '📚', label: 'Curriculum', group: 'academics' },
   { href: '/proprietor/exams', icon: '📝', label: 'Exams', group: 'academics' },
+  { href: '/proprietor/exam-timetable', icon: '🗓️', label: 'Exam Timetable', group: 'academics' },
   { href: '/proprietor/results', icon: '📈', label: 'Results', group: 'academics' },
   { href: '/proprietor/attendance', icon: '📋', label: 'Attendance', group: 'academics' },
   { href: '/proprietor/conduct', icon: '🗒️', label: 'Conduct Reports', group: 'academics' },

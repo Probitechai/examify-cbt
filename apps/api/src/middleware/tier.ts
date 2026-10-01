@@ -63,11 +63,10 @@ export const FEATURE_TIERS = {
   lessons:             'standard', // lessons, resources, interactive, assignments, discussion
   learningPaths:       'standard',
   liveClasses:         'standard',
-  timetable:           'standard',
+  examTimetable:       'standard', // paper and CBT sittings, venues, invigilators, published to students and parents
   certificates:        'standard',
   conduct:             'standard',
   financeControls:     'standard', // Bursar, discounts, debtors + SMS, finance reports, audit log, emergency access
-  announcements:       'standard',
   hostels:             'standard',
   transport:           'standard',
   hostelOperations:    'premium',  // exeats, visitors, roll calls, meal plans
@@ -80,8 +79,8 @@ export type Feature = keyof typeof FEATURE_TIERS
 export const FEATURE_NAMES: Record<Feature, string> = {
   resultApproval: 'Result approval', gradebook: 'Gradebook', curriculum: 'Curriculum',
   lessons: 'Lessons', learningPaths: 'Learning paths', liveClasses: 'Live classes',
-  timetable: 'Class timetable', certificates: 'Certificates', conduct: 'Conduct reports',
-  financeControls: 'Finance controls', announcements: 'Announcements', hostels: 'Hostel management',
+  examTimetable: 'The exam timetable', certificates: 'Certificates', conduct: 'Conduct reports',
+  financeControls: 'Finance controls', hostels: 'Hostel management',
   transport: 'Transport', hostelOperations: 'Hostel operations',
   transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
 }
