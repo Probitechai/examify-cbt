@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-import { requireTier } from '../middleware/tier'
+import { requireFeature } from '../middleware/tier'
 
 export async function timetableRoutes(app: FastifyInstance) {
 
@@ -44,7 +44,7 @@ export async function timetableRoutes(app: FastifyInstance) {
     })
 
   // ── Add a timetable entry ─────────────────────────────────────────────────
-  app.post('/timetable', { preHandler: [authenticate, requireRole('school_admin'), requireTier('standard')] },
+  app.post('/timetable', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('timetable')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -89,7 +89,7 @@ export async function timetableRoutes(app: FastifyInstance) {
     })
 
   // ── Delete a timetable entry ──────────────────────────────────────────────
-  app.delete('/timetable/:id', { preHandler: [authenticate, requireRole('school_admin'), requireTier('standard')] },
+  app.delete('/timetable/:id', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('timetable')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const tdb = tenantDb(request.schoolId)
@@ -101,7 +101,7 @@ export async function timetableRoutes(app: FastifyInstance) {
     })
 
   // ── Clear entire timetable for a class/term ───────────────────────────────
-  app.delete('/timetable', { preHandler: [authenticate, requireRole('school_admin'), requireTier('standard')] },
+  app.delete('/timetable', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('timetable')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel required' })

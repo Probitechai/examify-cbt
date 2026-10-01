@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { asJson } from '../lib/json'
 import { authenticate, requireRole } from '../middleware/auth'
-import { requireTier } from '../middleware/tier'
+import { requireFeature } from '../middleware/tier'
 
 const DEFAULT_BOUNDARIES = [
   { grade: 'A', min: 75, max: 100, remark: 'Excellent' },
@@ -304,7 +304,7 @@ export async function resultRoutes(app: FastifyInstance) {
     })
 
   // ── Approve results ───────────────────────────────────────────────────────
-  app.post('/results/approve', { preHandler: [authenticate, requireRole('school_admin'), requireTier('standard')] },
+  app.post('/results/approve', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('resultApproval')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),

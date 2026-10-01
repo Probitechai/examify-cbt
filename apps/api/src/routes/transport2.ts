@@ -2,8 +2,11 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 export async function transport2Routes(app: FastifyInstance) {
+  gateRoutes(app, (url: string) => url.includes('/transport/student/') ? 'transport' : 'transportOperations')
+
 
   // ─── ROLL CALLS ───────────────────────────────────────────────────────────
 

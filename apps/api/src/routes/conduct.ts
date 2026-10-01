@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-import { requireTier } from '../middleware/tier'
+import { requireFeature } from '../middleware/tier'
 
 async function isClassTeacherFor(tdb: any, schoolId: string, teacherId: string, classLevel: string, classArm: string): Promise<boolean> {
   const rows = await tdb.query`
@@ -17,7 +17,7 @@ async function isClassTeacherFor(tdb: any, schoolId: string, teacherId: string, 
 export async function conductRoutes(app: FastifyInstance) {
 
   // ── Get conduct reports for a class/term ──────────────────────────────────
-  app.get('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor'), requireTier('standard')] },
+  app.get('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor'), requireFeature('conduct')] },
     async (request: any, reply: any) => {
       const { termId, classLevel, classArm } = request.query as any
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel required' })
@@ -71,7 +71,7 @@ export async function conductRoutes(app: FastifyInstance) {
     })
 
   // ── Save conduct report for a student ────────────────────────────────────
-  app.post('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
+  app.post('/conduct', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireFeature('conduct')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -129,7 +129,7 @@ export async function conductRoutes(app: FastifyInstance) {
     })
 
   // ── Bulk save conduct reports ─────────────────────────────────────────────
-  app.post('/conduct/bulk', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireTier('standard')] },
+  app.post('/conduct/bulk', { preHandler: [authenticate, requireRole('school_admin', 'teacher'), requireFeature('conduct')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         termId: z.string().uuid(),
@@ -205,7 +205,7 @@ export async function conductRoutes(app: FastifyInstance) {
     })
 
   // ── Get conduct report for a single student (used by report card) ─────────
-  app.get('/conduct/student', { preHandler: [authenticate, requireTier('standard')] },
+  app.get('/conduct/student', { preHandler: [authenticate, requireFeature('conduct')] },
     async (request: any, reply: any) => {
       const { termId, studentId } = request.query as any
       if (!termId || !studentId) return reply.status(400).send({ error: 'termId and studentId required' })

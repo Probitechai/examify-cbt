@@ -2,8 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 export async function discussionRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'lessons')
+
 
   // GET DISCUSSIONS FOR A LESSON
   app.get('/lessons/:lessonId/discussions', { preHandler: [authenticate] },

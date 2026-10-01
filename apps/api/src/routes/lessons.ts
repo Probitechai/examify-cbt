@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 // Scoping ignores class arm (consistent with Curriculum). teacher_subject_assignments
 // stores subject as a name string, curriculum_subjects references it by id.
@@ -28,6 +29,8 @@ async function isLessonOwnedByTeacher(tdb: any, schoolId: string, teacherId: str
 }
 
 export async function lessonRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'lessons')
+
 
   // ── LESSON PLANS ──────────────────────────────────────────────────────────
 

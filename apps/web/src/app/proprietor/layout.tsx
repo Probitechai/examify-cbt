@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
 import { ROLE_HOME } from '@/lib/auth'
+import { usePlan, hasFeature, featureForPath, planName, PlanGate } from '@/lib/plan'
 
 const NAV = [
   { href: '/proprietor', icon: '📊', label: 'Overview' },
@@ -44,6 +45,7 @@ export default function ProprietorLayout({ children }: { children: React.ReactNo
   const pathname = usePathname()
   const { user, isLoading, hydrate, logout } = useAuthStore()
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const plan = usePlan()
 
   useEffect(() => { hydrate() }, [hydrate])
 
@@ -99,10 +101,13 @@ export default function ProprietorLayout({ children }: { children: React.ReactNo
               }
 
               const active = pathname === item.href
+              const f = featureForPath(item.href)
+              const locked = !!f && plan.loaded && !hasFeature(plan, f)
               const navElement = (
                 <Link key={item.href} href={item.href}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.75rem', borderRadius: 8, textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, background: active ? '#e8f5ee' : 'transparent', color: active ? '#0f4a32' : '#3a3a36', ...indent }}>
-                  <span>{item.icon}</span><span>{item.label}</span>
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.75rem', borderRadius: 8, textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, background: active ? '#e8f5ee' : 'transparent', color: active ? '#0f4a32' : '#3a3a36', opacity: locked ? 0.55 : 1, ...indent }}>
+                  <span>{item.icon}</span><span style={{ flex: 1 }}>{item.label}</span>
+                  {locked && f && <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>{planName(plan.featureTiers[f])}</span>}
                 </Link>
               )
 
@@ -124,7 +129,9 @@ export default function ProprietorLayout({ children }: { children: React.ReactNo
           </button>
         </div>
       </aside>
-      <main style={{ flex: 1, background: '#f7f7f5', overflowY: 'auto' as const }}>{children}</main>
+      <main style={{ flex: 1, background: '#f7f7f5', overflowY: 'auto' as const }}>
+        <PlanGate pathname={pathname} upgradeHref="/proprietor/subscription">{children}</PlanGate>
+      </main>
     </div>
   )
 }

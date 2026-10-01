@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-import { requireTier } from '../middleware/tier'
+import { requireFeature } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { paystackRequest, schoolUrl, usableSubaccount } from '../lib/paystack'
 import { recordCollection, routingMetadata } from '../lib/settlements'
@@ -22,7 +22,7 @@ export async function admissionRoutes(app: FastifyInstance) {
       return reply.send({ settings: rows[0] ?? null })
     })
 
-  app.post('/admissions/settings', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.post('/admissions/settings', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         intakeMode: z.enum(['public', 'manual', 'both']).optional(),
@@ -195,7 +195,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — LIST APPLICATIONS ─────────────────────────────────────────────
 
-  app.get('/admissions/applications', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireTier('premium')] },
+  app.get('/admissions/applications', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const { status, appliedClass, search } = request.query as any
       const tdb = tenantDb(request.schoolId)
@@ -248,7 +248,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — GET SINGLE APPLICATION ────────────────────────────────────────
 
-  app.get('/admissions/applications/:id', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireTier('premium')] },
+  app.get('/admissions/applications/:id', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const tdb = tenantDb(request.schoolId)
@@ -288,7 +288,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — UPDATE APPLICATION STATUS ────────────────────────────────────
 
-  app.patch('/admissions/applications/:id/status', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.patch('/admissions/applications/:id/status', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const schema = z.object({
@@ -351,7 +351,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — MANUALLY ADD APPLICANT ───────────────────────────────────────
 
-  app.post('/admissions/applicants', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.post('/admissions/applicants', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const schema = z.object({
         firstName: z.string().min(1),
@@ -409,7 +409,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── ADMIN — ENROLL APPLICANT AS STUDENT ──────────────────────────────────
 
-  app.post('/admissions/applications/:id/enroll', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.post('/admissions/applications/:id/enroll', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const schema = z.object({
@@ -520,7 +520,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
   // ── STATS ─────────────────────────────────────────────────────────────────
 
-  app.get('/admissions/stats', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireTier('premium')] },
+  app.get('/admissions/stats', { preHandler: [authenticate, requireRole('school_admin', 'proprietor'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const tdb = tenantDb(request.schoolId)
       const rows = await tdb.query`
@@ -540,7 +540,7 @@ export async function admissionRoutes(app: FastifyInstance) {
       return reply.send({ stats: rows[0] })
     })
   // ── SEND OFFER LETTER ─────────────────────────────────────────────────────
-  app.post('/admissions/applications/:id/offer', { preHandler: [authenticate, requireRole('school_admin'), requireTier('premium')] },
+  app.post('/admissions/applications/:id/offer', { preHandler: [authenticate, requireRole('school_admin'), requireFeature('admissions')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const schema = z.object({

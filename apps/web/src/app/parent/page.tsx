@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth, getToken } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { usePlan, hasFeature } from '@/lib/plan'
 
 interface Student {
   id: string
@@ -26,6 +27,7 @@ const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function ParentDashboard() {
   const router = useRouter()
+  const plan = usePlan()
   const [dashboard, setDashboard] = useState<DashboardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [parentName, setParentName] = useState('')
@@ -270,12 +272,12 @@ export default function ParentDashboard() {
                   )}
                 </div>
 
-{/* Learning card */}
-                <div style={{ background: '#f5f3ff', borderRadius: '10px', padding: '0.875rem', cursor: 'pointer', marginTop: '0.75rem' }}
+{/* Learning card (lessons and gradebook are on Standard and above) */}
+                {hasFeature(plan, 'lessons') && hasFeature(plan, 'gradebook') && <div style={{ background: '#f5f3ff', borderRadius: '10px', padding: '0.875rem', cursor: 'pointer', marginTop: '0.75rem' }}
                   onClick={() => { setActiveSection('learning'); if (termId) loadSection('learning', currentItem.student.id, termId) }}>
                   <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#7e22ce', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.375rem' }}>Learning</p>
                   <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>View lessons, assignments and grades</p>
-                </div>
+                </div>}
                 {/* Section tabs */}
                 <div style={{ display: 'flex', gap: 0, background: 'white', border: '1px solid #e5e5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1rem', width: 'fit-content' }}>
                   {([
@@ -284,7 +286,7 @@ export default function ParentDashboard() {
                     { key: 'fees', label: '💰 Fees' },
                     { key: 'hostel', label: '🏠 Hostel' },
                     { key: 'transport', label: '🚌 Transport' },
-                  ] as const).map(tab => (
+                  ] as const).filter(tab => (tab.key !== 'hostel' || hasFeature(plan, 'hostels')) && (tab.key !== 'transport' || hasFeature(plan, 'transport'))).map(tab => (
                     <button key={tab.key}
                       onClick={() => { if (termId) loadSection(tab.key, currentItem.student.id, termId) }}
                       style={{ padding: '0.625rem 1.25rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeSection === tab.key ? '#1a6b4a' : 'transparent', color: activeSection === tab.key ? 'white' : '#6b6b65' }}>

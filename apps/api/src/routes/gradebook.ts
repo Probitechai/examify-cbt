@@ -2,8 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 export async function gradebookRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'gradebook')
+
 
   // GET CLASS GRADEBOOK
   app.get('/gradebook/class', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },

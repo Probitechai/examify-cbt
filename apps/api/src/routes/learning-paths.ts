@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subjectId: string): Promise<boolean> {
   const subjectRows = await tdb.query`
@@ -29,6 +30,8 @@ async function isPathInTeacherScope(tdb: any, schoolId: string, teacherId: strin
 }
 
 export async function learningPathRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'learningPaths')
+
 
   // LIST PATHS
   app.get('/learning-paths', { preHandler: [authenticate] },

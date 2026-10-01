@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { normalizeTier, TIER_NAMES, FEATURE_TIERS, featuresFor } from '../middleware/tier'
 import { SECTIONS, SECTION_LEVELS, levelsFor, asSections, sectionOf } from '../lib/classLevels'
 
 /**
@@ -54,6 +55,14 @@ app.get('/schools/public', async (request: any, reply: any) => {
       const rows = await db()`SELECT sections FROM schools WHERE id = ${request.schoolId}::uuid` as any[]
       const sections = asSections(rows[0]?.sections)
       return reply.send({ sections, levels: levelsFor(sections), bySection: SECTION_LEVELS })
+    })
+
+  // ── This school's plan and which paid features it includes (every signed-in role)
+  // The web app locks pages from this, using the same table the API enforces.
+  app.get('/schools/plan', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const tier = normalizeTier(request.school?.subscriptionTier)
+      return reply.send({ tier, planName: TIER_NAMES[tier], features: featuresFor(tier), featureTiers: FEATURE_TIERS })
     })
 
   // ── Get school settings ───────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
 import { api } from '../../lib/api'
+import { usePlan, hasFeature } from '../../lib/plan'
 
 interface ExamSummary {
   id: string
@@ -28,6 +29,7 @@ interface StudentStats {
 
 export default function StudentDashboard() {
   const router = useRouter()
+  const plan = usePlan()
   const { user, isLoading, hydrate, logout } = useAuthStore()
   const [exams, setExams] = useState<ExamSummary[]>([])
   const [stats, setStats] = useState<StudentStats>({ totalExams: 0, completed: 0, passed: 0, available: 0 })
@@ -197,26 +199,34 @@ setStats({
         </div>
 {/* Progress link */}
 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-  <button
+  {hasFeature(plan, 'lessons') && (
+<button
     onClick={() => router.push('/student/lessons')}
     style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
     📖 My Lessons
 </button>
+)}
+{hasFeature(plan, 'liveClasses') && (
 <button
     onClick={() => router.push('/student/live-classes')}
     style={{ padding: '0.5rem 1rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
     🎥 Live Classes
 </button>
+)}
+{hasFeature(plan, 'certificates') && (
 <button
     onClick={() => router.push('/student/certificates')}
     style={{ padding: '0.5rem 1rem', background: '#d4af37', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
     🏆 My Certificates
 </button>
+)}
+{hasFeature(plan, 'learningPaths') && (
 <button
     onClick={() => router.push('/student/learning-paths')}
     style={{ padding: '0.5rem 1rem', background: '#7e22ce', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>
     🗺️ Learning Paths
 </button>
+)}
 {user.classLevel === 'SS3' && (
   <button
       onClick={() => router.push('/student/jamb')}

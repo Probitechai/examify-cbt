@@ -47,6 +47,75 @@ export function requireTier(minTier: Tier) {
   }
 }
 
+// ── Features sold by plan ────────────────────────────────────────────────────
+// The lowest plan each paid feature starts at. Everything not listed is on
+// every plan. The API refuses these features below their plan, and the web
+// app reads the same table (GET /schools/plan) to lock its pages.
+export const FEATURE_TIERS = {
+  resultApproval:      'standard',
+  gradebook:           'standard',
+  curriculum:          'standard', // subjects, schemes of work, delivery tracking
+  lessons:             'standard', // lessons, resources, interactive, assignments, discussion
+  learningPaths:       'standard',
+  liveClasses:         'standard',
+  timetable:           'standard',
+  certificates:        'standard',
+  conduct:             'standard',
+  fees:                'standard',
+  announcements:       'standard',
+  hostels:             'standard',
+  transport:           'standard',
+  hostelOperations:    'premium',  // exeats, visitors, roll calls, meal plans
+  transportOperations: 'premium',  // trip roll calls, incidents, maintenance
+  admissions:          'premium',
+  analytics:           'premium',
+} as const satisfies Record<string, Tier>
+export type Feature = keyof typeof FEATURE_TIERS
+
+export const FEATURE_NAMES: Record<Feature, string> = {
+  resultApproval: 'Result approval', gradebook: 'Gradebook', curriculum: 'Curriculum',
+  lessons: 'Lessons', learningPaths: 'Learning paths', liveClasses: 'Live classes',
+  timetable: 'Class timetable', certificates: 'Certificates', conduct: 'Conduct reports',
+  fees: 'Fee management', announcements: 'Announcements', hostels: 'Hostel management',
+  transport: 'Transport', hostelOperations: 'Hostel operations',
+  transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
+}
+
+/** Which features a school's plan includes */
+export function featuresFor(tier: unknown): Record<Feature, boolean> {
+  const out = {} as Record<Feature, boolean>
+  for (const f of Object.keys(FEATURE_TIERS) as Feature[]) out[f] = tierAtLeast(tier, FEATURE_TIERS[f])
+  return out
+}
+
+export function requireFeature(feature: Feature) {
+  const min = FEATURE_TIERS[feature]
+  return async function checkFeature(request: any, reply: any) {
+    const schoolTier = normalizeTier(request.school?.subscriptionTier)
+    if (!tierAtLeast(schoolTier, min)) {
+      return reply.status(403).send({
+        error: 'UPGRADE_REQUIRED',
+        message: `${FEATURE_NAMES[feature]} is part of the ${TIER_NAMES[min]} plan. Your school is on the ${TIER_NAMES[schoolTier]} plan.`,
+        feature, currentTier: schoolTier, requiredTier: min,
+      })
+    }
+  }
+}
+
+/**
+ * Put every route a module registers behind a plan. `pick` names the feature
+ * for a route (or null to leave it open). The check runs after the route's
+ * own login and role checks, so a signed-out caller still gets 401.
+ */
+export function gateRoutes(app: any, pick: Feature | ((url: string) => Feature | null)) {
+  app.addHook('onRoute', (opts: any) => {
+    const feature = typeof pick === 'function' ? pick(String(opts.url)) : pick
+    if (!feature) return
+    const pre = opts.preHandler == null ? [] : Array.isArray(opts.preHandler) ? opts.preHandler : [opts.preHandler]
+    opts.preHandler = [...pre, requireFeature(feature)]
+  })
+}
+
 export const TIER_STUDENT_LIMITS: Record<Tier, number> = {
   basic: 200,
   standard: 500,

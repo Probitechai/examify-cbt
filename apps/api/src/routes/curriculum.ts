@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { levelsFor, asSections } from '../lib/classLevels'
 import { authenticate, requireRole } from '../middleware/auth'
-import { requireTier } from '../middleware/tier'
+import { requireTier, gateRoutes } from '../middleware/tier'
 
 // Curriculum scoping ignores class arm (curriculum is shared across all arms).
 // teacher_subject_assignments stores the subject as a name string, while
@@ -167,6 +167,8 @@ const CAMBRIDGE_PRIMARY = [
 ]
 
 export async function curriculumRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'curriculum')
+
 
   // SETTINGS
   app.get('/curriculum/settings', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },

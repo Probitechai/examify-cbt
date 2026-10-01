@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { usePlan, hasFeature, featureForPath, PlanGate } from '@/lib/plan'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -88,6 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const { hydrate, user, isLoading } = useAuthStore()
   const [schoolTier, setSchoolTier] = useState<string>('basic')
+  const plan = usePlan()
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => { hydrate() }, [hydrate])
@@ -126,9 +128,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   )
 
+  // Locks come from the plan table the API enforces; item.tier is only the fallback label
   function isLocked(item: NavItem): boolean {
+    const f = featureForPath(item.href)
+    if (f && plan.loaded) return !hasFeature(plan, f)
     if (!item.tier) return false
     return (TIER_ORDER[schoolTier] ?? 1) < (TIER_ORDER[item.tier] ?? 1)
+  }
+  function lockLabel(item: NavItem) {
+    const f = featureForPath(item.href)
+    return tierLabel((f && plan.featureTiers[f]) || item.tier || 'basic')
   }
 
   function tierLabel(tier: string) {
@@ -191,14 +200,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 const navElement = locked ? (
                   <div key={item.href}
-                    onClick={() => alert(`${item.label} requires the ${tierLabel(item.tier!)} plan.\n\nPlease contact support to upgrade your subscription.`)}
+                    onClick={() => router.push(item.href)}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.75rem', borderRadius: '8px', cursor: 'pointer', opacity: 0.5, ...indent }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span className={styles.navIcon}>{item.icon}</span>
                       <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{item.label}</span>
                     </div>
                     <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: 10, background: '#fef3c7', color: '#92400e' }}>
-                      {tierLabel(item.tier!)}
+                      {lockLabel(item)}
                     </span>
                   </div>
                 ) : (
@@ -231,7 +240,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
       </aside>
-      <main className={styles.main}>{children}</main>
+      <main className={styles.main}>
+        <PlanGate pathname={pathname} upgradeHref={user.role === 'school_admin' ? '/admin/subscription' : undefined}>{children}</PlanGate>
+      </main>
     </div>
   )
 }

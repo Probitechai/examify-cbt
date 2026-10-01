@@ -2,8 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 export async function interactiveRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'lessons')
+
 
   // ── FLASHCARDS ────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subjectId: string): Promise<boolean> {
   const subjectRows = await tdb.query`
@@ -32,6 +33,8 @@ function generateJitsiRoom(schoolSubdomain: string, title: string): string {
 }
 
 export async function liveClassRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'liveClasses')
+
 
   // LIST LIVE CLASSES
   app.get('/live-classes', { preHandler: [authenticate] },

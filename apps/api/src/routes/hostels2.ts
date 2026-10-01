@@ -2,8 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { gateRoutes } from '../middleware/tier'
 
 export async function hostel2Routes(app: FastifyInstance) {
+  gateRoutes(app, 'hostelOperations')
+
 
   // ── EXEATS ────────────────────────────────────────────────────────────────
 
@@ -388,7 +391,7 @@ export async function hostel2Routes(app: FastifyInstance) {
       return reply.status(201).send({ saved: true })
     })
     // LOOKUP PARENT FOR A STUDENT
-  app.get('/hostels/student-guardian/:studentId', { preHandler: [authenticate] },
+  app.get('/hostels/student-guardian/:studentId', { preHandler: [authenticate, requireRole('school_admin', 'teacher', 'proprietor')] },
     async (request: any, reply: any) => {
       const { studentId } = request.params as any
       const sid = String(studentId)
