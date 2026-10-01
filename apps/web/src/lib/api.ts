@@ -177,8 +177,9 @@ export const api = {
   createUser: (data: any) =>
     request<{ userId: string }>('/users', { method: 'POST', body: JSON.stringify(data) }),
 
-  getQuestions: () =>
-    request<{ questions: any[] }>('/questions'),
+  // Filters: subject, classLevel, type, q (search), mine, limit (max 500), offset
+  getQuestions: (params: Record<string, string> = {}) =>
+    request<{ questions: any[]; total: number; subjects: string[] }>(`/questions?${new URLSearchParams(params)}`),
 
   createQuestion: (data: any) =>
     request<{ questionId: string }>('/questions', { method: 'POST', body: JSON.stringify(data) }),

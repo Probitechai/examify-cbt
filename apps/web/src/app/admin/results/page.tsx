@@ -105,7 +105,7 @@ export default function AdminResultsPage() {
   }
 
   
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
 
   useEffect(() => {
     const token = getToken()

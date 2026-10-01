@@ -71,11 +71,26 @@ export default function AdminNewExamPage() {
     }
   }, [])
 
+  // Questions for the exam's class (up to 500), searchable; ones already picked stay listed
+  const [qSearch, setQSearch] = useState('')
+  const [qTotal, setQTotal] = useState(0)
   useEffect(() => {
-    api.getQuestions().then((data: any) => {
-      setQuestions(data.questions ?? [])
-    }).catch(console.error).finally(() => setLoadingQ(false))
-  }, [])
+    if (step !== 'questions') return
+    const t = setTimeout(() => {
+      setLoadingQ(true)
+      const params: Record<string, string> = { classLevel: details.classLevel, limit: '500' }
+      if (qSearch.trim()) params.q = qSearch.trim()
+      api.getQuestions(params).then((data: any) => {
+        setQTotal(data.total ?? 0)
+        setQuestions(prev => {
+          const picked = prev.filter(q => selectedQIds.has(q.id))
+          const fresh = data.questions ?? []
+          return [...fresh, ...picked.filter(p => !fresh.some((f: any) => f.id === p.id))]
+        })
+      }).catch(console.error).finally(() => setLoadingQ(false))
+    }, qSearch ? 350 : 0)
+    return () => clearTimeout(t)
+  }, [step, details.classLevel, qSearch])
 
   function setDetail(key: string, val: any) {
     setDetails(d => ({ ...d, [key]: val }))
@@ -283,12 +298,15 @@ export default function AdminNewExamPage() {
                   {subjects.map((s: any) => <option key={s}>{s}</option>)}
                 </select>
               </div>
+              <input className={styles.sel} style={{ width: '100%', marginBottom: '0.6rem', boxSizing: 'border-box' }}
+                placeholder={`Search ${details.classLevel} questions…`} value={qSearch} onChange={e => setQSearch(e.target.value)} />
+              {qTotal > 500 && <p style={{ fontSize: '0.75rem', color: '#6b6b65', marginBottom: '0.5rem' }}>Showing the newest 500 of {qTotal} {details.classLevel} questions. Search to find others.</p>}
               {loadingQ ? (
                 <div className={styles.loadingQ}>Loading questions…</div>
               ) : filteredQ.length === 0 ? (
                 <div className={styles.emptyQ}>
-                  <p>No questions found.</p>
-                  <p>Add questions in the Question Bank first.</p>
+                  <p>{qSearch ? 'No questions match your search.' : `No ${details.classLevel} questions in the bank yet.`}</p>
+                  <p>Add or import them in the Question Bank first.</p>
                 </div>
               ) : filteredQ.map((q: any) => (
                 <div key={q.id}
