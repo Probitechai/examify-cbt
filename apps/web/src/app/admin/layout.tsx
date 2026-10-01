@@ -39,7 +39,7 @@ const NAV: NavItem[] = [
   { href: '/admin/lessons',        icon: '📖', label: 'Lesson Plans',       tier: 'standard', group: 'academics' },
   { href: '/admin/timetable2',     icon: '📅', label: 'Class Timetable',    group: 'academics' },
   { href: '/admin/gradebook',      icon: '📊', label: 'Gradebook',          tier: 'standard', group: 'academics' },
-  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',    tier: 'standard', group: 'academics' },
+  { href: '/admin/learning-paths', icon: '🗺️', label: 'Learning Paths',    tier: 'premium', group: 'academics' },
   { href: '/admin/live-classes',   icon: '🎥', label: 'Live Classes',       tier: 'standard', group: 'academics' },
 
   { href: '/admin/qbank',         icon: '❓', label: 'Question Bank',    group: 'cbt' },

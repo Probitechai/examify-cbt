@@ -6,6 +6,7 @@ import { useAuthStore } from '../../../../hooks/useAuth'
 import LessonDiscussion from '../../../admin/lessons/LessonDiscussion'
 import FlashcardDeck from '../../../admin/lessons/FlashcardDeck'
 import InlineQuiz from '../../../admin/lessons/InlineQuiz'
+import { usePlan, hasFeature } from '@/lib/plan'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -37,6 +38,7 @@ function getYoutubeId(url: string): string | null {
 export default function StudentLessonDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const plan = usePlan()
   const lessonId = params.id as string
   const { user, isLoading, hydrate } = useAuthStore()
 
@@ -45,7 +47,7 @@ export default function StudentLessonDetailPage() {
   const [quizzes, setQuizzes] = useState<any[]>([])
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'content' | 'resources' | 'quizzes' | 'assignments'>('content')
+  const [activeTab, setActiveTab] = useState<'content' | 'resources' | 'quizzes' | 'assignments' | 'interactive' | 'discussion'>('content')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [resourcesViewed, setResourcesViewed] = useState(0)
@@ -216,7 +218,11 @@ export default function StudentLessonDetailPage() {
             { key: 'assignments', label: `📝 Tasks (${assignments.length})` },
           { key: 'interactive', label: `🎮 Interactive` },
           { key: 'discussion', label: '💬 Q&A' },
-          ] as const).map(tab => (
+          ] as const).filter(tab =>
+            // Quizzes, interactive and Q&A are Premium; hidden when the school's plan doesn't include them
+            ((tab.key !== 'quizzes' && tab.key !== 'interactive') || hasFeature(plan, 'interactiveLessons')) &&
+            (tab.key !== 'discussion' || hasFeature(plan, 'lessonDiscussion'))
+          ).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', whiteSpace: 'nowrap' as const }}>
               {tab.label}

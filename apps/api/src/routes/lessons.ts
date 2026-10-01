@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-import { gateRoutes } from '../middleware/tier'
+import { gateRoutes, tierAtLeast, FEATURE_TIERS } from '../middleware/tier'
 
 // Scoping ignores class arm (consistent with Curriculum). teacher_subject_assignments
 // stores subject as a name string, curriculum_subjects references it by id.
@@ -29,7 +29,8 @@ async function isLessonOwnedByTeacher(tdb: any, schoolId: string, teacherId: str
 }
 
 export async function lessonRoutes(app: FastifyInstance) {
-  gateRoutes(app, 'lessons')
+  // Lesson quizzes are part of interactive lessons (Premium); the rest is Standard
+  gateRoutes(app, (url: string) => url.includes('/quizzes') ? 'interactiveLessons' : 'lessons')
 
 
   // ── LESSON PLANS ──────────────────────────────────────────────────────────
@@ -135,7 +136,9 @@ export async function lessonRoutes(app: FastifyInstance) {
         ORDER BY sort_order ASC, created_at ASC
       ` as any[]
 
-      const quizzes = await tdb.query`
+      // Lesson quizzes only on plans with interactive lessons (kept, but hidden, after a downgrade)
+      const withQuizzes = tierAtLeast(request.school?.subscriptionTier, FEATURE_TIERS.interactiveLessons)
+      const quizzes = !withQuizzes ? [] : await tdb.query`
         SELECT lq.*, e.title AS exam_title, e.duration_minutes
         FROM lesson_quizzes lq
         LEFT JOIN exams e ON e.id = lq.exam_id

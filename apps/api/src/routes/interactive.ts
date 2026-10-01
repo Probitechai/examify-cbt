@@ -5,7 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { gateRoutes } from '../middleware/tier'
 
 export async function interactiveRoutes(app: FastifyInstance) {
-  gateRoutes(app, 'lessons')
+  gateRoutes(app, 'interactiveLessons')
 
 
   // ── FLASHCARDS ────────────────────────────────────────────────────────────

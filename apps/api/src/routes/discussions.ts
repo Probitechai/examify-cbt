@@ -5,7 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { gateRoutes } from '../middleware/tier'
 
 export async function discussionRoutes(app: FastifyInstance) {
-  gateRoutes(app, 'lessons')
+  gateRoutes(app, 'lessonDiscussion')
 
 
   // GET DISCUSSIONS FOR A LESSON

@@ -6,6 +6,8 @@ import LessonDiscussion from '../LessonDiscussion'
 import FlashcardDeck from '../FlashcardDeck'
 import VideoUpload from '../VideoUpload'
 import InlineQuiz from '../InlineQuiz'
+import { usePlan, hasFeature, planName, PlanLocked } from '@/lib/plan'
+import { useAuthStore } from '@/hooks/useAuth'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -32,6 +34,12 @@ const RESOURCE_ICONS: Record<string, string> = {
 export default function LessonDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const plan = usePlan()
+  const { user: me } = useAuthStore()
+  const upgradeHref = me?.role === 'school_admin' ? '/admin/subscription' : undefined
+  // Quizzes, flashcards and in-lesson quizzes, and discussion are Premium
+  const interactiveOn = hasFeature(plan, 'interactiveLessons'), discussionOn = hasFeature(plan, 'lessonDiscussion')
+  const lockTag = (on: boolean, f: 'interactiveLessons' | 'lessonDiscussion') => on ? '' : ` · ${planName(plan.featureTiers[f])}`
   const lessonId = params.id as string
 
   const [lesson, setLesson] = useState<any>(null)
@@ -42,7 +50,7 @@ export default function LessonDetailPage() {
   const [completionList, setCompletionList] = useState<any[]>([])
   const [exams, setExams] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'content' | 'resources' | 'quizzes' | 'assignments' | 'completions'>('content')
+  const [activeTab, setActiveTab] = useState<'content' | 'resources' | 'quizzes' | 'assignments' | 'completions' | 'discussion' | 'interactive'>('content')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [publishing, setPublishing] = useState(false)
@@ -329,11 +337,11 @@ export default function LessonDetailPage() {
         {([
           { key: 'content', label: '📄 Content' },
           { key: 'resources', label: `📎 Resources (${resources.length})` },
-          { key: 'quizzes', label: `❓ Quizzes (${quizzes.length})` },
+          { key: 'quizzes', label: interactiveOn ? `❓ Quizzes (${quizzes.length})` : `❓ Quizzes${lockTag(false, 'interactiveLessons')}` },
           { key: 'assignments', label: `📝 Assignments (${assignments.length})` },
           { key: 'completions', label: '📊 Completions' },
-          { key: 'discussion', label: '💬 Discussion' },
-          { key: 'interactive', label: `🎮 Interactive (${flashcards.length + inlineQuizzes.length})` },
+          { key: 'discussion', label: `💬 Discussion${lockTag(discussionOn, 'lessonDiscussion')}` },
+          { key: 'interactive', label: interactiveOn ? `🎮 Interactive (${flashcards.length + inlineQuizzes.length})` : `🎮 Interactive${lockTag(false, 'interactiveLessons')}` },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => { setActiveTab(tab.key as any); if (tab.key === 'completions') loadCompletionList() }}
             style={{ padding: '0.625rem 1rem', fontSize: '0.825rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: activeTab === tab.key ? '#1a6b4a' : 'transparent', color: activeTab === tab.key ? 'white' : '#6b6b65', whiteSpace: 'nowrap' as const }}>
@@ -477,7 +485,8 @@ export default function LessonDetailPage() {
       )}
 
       {/* QUIZZES TAB */}
-      {activeTab === 'quizzes' && (
+      {activeTab === 'quizzes' && !interactiveOn && <PlanLocked feature="interactiveLessons" plan={plan} upgradeHref={upgradeHref} />}
+      {activeTab === 'quizzes' && interactiveOn && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button onClick={() => setShowQuizForm(true)}
@@ -654,7 +663,8 @@ export default function LessonDetailPage() {
       )}
 
       {/* INTERACTIVE TAB */}
-      {activeTab === 'interactive' && (
+      {activeTab === 'interactive' && !interactiveOn && <PlanLocked feature="interactiveLessons" plan={plan} upgradeHref={upgradeHref} />}
+      {activeTab === 'interactive' && interactiveOn && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Flashcards section */}
           <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.5rem' }}>
@@ -739,7 +749,8 @@ export default function LessonDetailPage() {
       )}
 
       {/* DISCUSSION TAB */}
-      {activeTab === 'discussion' && (
+      {activeTab === 'discussion' && !discussionOn && <PlanLocked feature="lessonDiscussion" plan={plan} upgradeHref={upgradeHref} />}
+      {activeTab === 'discussion' && discussionOn && (
         <LessonDiscussion
           lessonId={lessonId}
           currentUserId={lesson.teacher_id}

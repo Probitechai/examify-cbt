@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { apiFetch, getToken } from '@/lib/auth'
 
 export type Feature =
-  | 'resultApproval' | 'gradebook' | 'curriculum' | 'lessons' | 'learningPaths' | 'liveClasses'
+  | 'resultApproval' | 'gradebook' | 'curriculum' | 'lessons' | 'interactiveLessons' | 'lessonDiscussion' | 'learningPaths' | 'liveClasses'
   | 'examTimetable' | 'certificates' | 'conduct' | 'financeControls' | 'hostels' | 'transport'
   | 'hostelOperations' | 'transportOperations' | 'admissions' | 'analytics'
 
@@ -81,7 +81,7 @@ export function hasFeature(plan: Plan, f: Feature): boolean {
 }
 
 const FEATURE_LABELS: Record<Feature, string> = {
-  resultApproval: 'Result approval', gradebook: 'The gradebook', curriculum: 'Curriculum', lessons: 'Lessons',
+  resultApproval: 'Result approval', gradebook: 'The gradebook', curriculum: 'Curriculum', lessons: 'Lessons', interactiveLessons: 'Interactive lessons', lessonDiscussion: 'Lesson discussion',
   learningPaths: 'Learning paths', liveClasses: 'Live classes', examTimetable: 'The exam timetable',
   certificates: 'Certificates', conduct: 'Conduct reports', financeControls: 'Finance controls',
   hostels: 'Hostel management', transport: 'Transport', hostelOperations: 'Hostel operations',
