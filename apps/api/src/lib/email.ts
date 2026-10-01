@@ -3,6 +3,7 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = process.env.EMAIL_FROM ?? 'Examify <onboarding@resend.dev>'
+const RESEND_URL = process.env.RESEND_API_URL ?? 'https://api.resend.com/emails' // override only for tests
 
 interface SendEmailParams {
   to: string | string[]
@@ -17,8 +18,9 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   }
 
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch(RESEND_URL, {
       method: 'POST',
+      signal: AbortSignal.timeout(10000), // don't keep the caller waiting if the email service hangs
       headers: {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',

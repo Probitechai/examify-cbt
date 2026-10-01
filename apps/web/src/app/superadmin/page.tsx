@@ -58,6 +58,25 @@ function hdrs() {
 }
 const API = process.env.NEXT_PUBLIC_API_URL
 
+// After creating an account or resending login details: confirms the email went,
+// or (only if it couldn't be sent) shows the temporary password to pass on another way
+function LoginDetailsResult({ email, emailSent, tempPassword, sentText }: { email: string; emailSent: boolean; tempPassword?: string; sentText: string }) {
+  if (emailSent) {
+    return (
+      <div style={{ background: '#e8f5ee', border: '1px solid #b7dfc8', borderRadius: '8px', padding: '0.875rem', marginBottom: '1.25rem', fontSize: '0.825rem', color: '#0f4a32', lineHeight: 1.5 }}>
+        ✉️ {sentText} <strong>{email}</strong>. If it doesn’t arrive (check spam), use <strong>Resend login</strong> under 👑 Manage.
+      </div>
+    )
+  }
+  return (
+    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '0.875rem', marginBottom: '1.25rem', fontSize: '0.825rem', color: '#78350f', lineHeight: 1.5 }}>
+      <p style={{ marginBottom: '0.5rem' }}>⚠️ The email couldn’t be sent. Pass these details on yourself, privately:</p>
+      <p style={{ marginBottom: '0.3rem' }}><strong>Email:</strong> {email}</p>
+      <p><strong>Temporary password:</strong> <span style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{tempPassword}</span></p>
+    </div>
+  )
+}
+
 export default function SuperAdminDashboard() {
   const router = useRouter()
   const [overview, setOverview] = useState<Overview | null>(null)
@@ -69,7 +88,8 @@ export default function SuperAdminDashboard() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
-  const [createdInfo, setCreatedInfo] = useState<{ subdomain: string; adminEmail: string; tempPassword: string } | null>(null)
+  // tempPassword is only sent back when the welcome email couldn't be sent
+  const [createdInfo, setCreatedInfo] = useState<{ subdomain: string; adminEmail: string; emailSent: boolean; tempPassword?: string } | null>(null)
   const [newSchool, setNewSchool] = useState({
     name: '', subdomain: '', email: '', phone: '',
     subscription_tier: 'basic', admin_name: '', admin_email: '',
@@ -94,7 +114,11 @@ export default function SuperAdminDashboard() {
     const [newProprietor, setNewProprietor] = useState({ full_name: '', email: '', phone: '' })
     const [creatingProprietor, setCreatingProprietor] = useState(false)
     const [proprietorCreateError, setProprietorCreateError] = useState('')
-    const [createdProprietorInfo, setCreatedProprietorInfo] = useState<{ email: string; tempPassword: string } | null>(null)
+    const [createdProprietorInfo, setCreatedProprietorInfo] = useState<{ email: string; emailSent: boolean; tempPassword?: string } | null>(null)
+    // School Admins of the school being managed, and the result of "Resend login details"
+    const [schoolAdmins, setSchoolAdmins] = useState<{ id: string; full_name: string; email: string; is_active: boolean; last_login_at: string | null }[]>([])
+    const [resending, setResending] = useState<string | null>(null)
+    const [resendResult, setResendResult] = useState<{ userId: string; email: string; emailSent: boolean; tempPassword?: string; error?: string } | null>(null)
     const [togglingProprietor, setTogglingProprietor] = useState<string | null>(null)
     const [deletingProprietor, setDeletingProprietor] = useState<string | null>(null)
   const [showAddAdminModal, setShowAddAdminModal] = useState(false)
@@ -256,14 +280,30 @@ export default function SuperAdminDashboard() {
       const res = await fetch(`${API}/superadmin/schools/${schoolId}/proprietors`, { headers: hdrs() })
       const data = await res.json()
       setProprietors(data.proprietors ?? [])
+      const a = await fetch(`${API}/superadmin/schools/${schoolId}/admins`, { headers: hdrs() })
+      setSchoolAdmins((await a.json()).admins ?? [])
     } catch {} finally { setLoadingProprietors(false) }
+  }
+
+  async function resendLogin(user: { id: string; full_name: string; email: string }) {
+    if (!window.confirm(`Send ${user.full_name} new login details at ${user.email}?\n\nThis replaces their current password with a temporary one; they choose a new password when they sign in.`)) return
+    setResending(user.id); setResendResult(null)
+    try {
+      const res = await fetch(`${API}/superadmin/users/${user.id}/resend-login`, { method: 'POST', headers: hdrs(), body: '{}' })
+      const data = await res.json()
+      setResendResult(res.ok ? { userId: user.id, email: data.email, emailSent: data.emailSent, tempPassword: data.tempPassword }
+        : { userId: user.id, email: user.email, emailSent: false, error: data.message ?? 'Could not send new login details.' })
+    } catch {
+      setResendResult({ userId: user.id, email: user.email, emailSent: false, error: 'Network error. Please try again.' })
+    } finally { setResending(null) }
   }
 
   function openManageProprietor(school: School) {
     setManagingSchool(school)
     setCreatedProprietorInfo(null)
     setProprietorCreateError('')
-    setNewProprietor({ full_name: '', email: '' })
+    setResendResult(null)
+    setNewProprietor({ full_name: '', email: '', phone: '' })
     loadProprietors(school.id)
   }
 
@@ -280,7 +320,7 @@ export default function SuperAdminDashboard() {
       })
       const data = await res.json()
       if (!res.ok) { setProprietorCreateError(data.message ?? 'Failed to create proprietor.'); return }
-      setCreatedProprietorInfo({ email: data.proprietor.email, tempPassword: data.tempPassword })
+      setCreatedProprietorInfo({ email: data.proprietor.email, emailSent: !!data.emailSent, tempPassword: data.tempPassword })
       setNewProprietor({ full_name: '', email: '', phone: '' })
       loadProprietors(managingSchool.id)
     } catch {
@@ -349,7 +389,7 @@ export default function SuperAdminDashboard() {
         setCreateError(data.message ?? 'Failed to create school')
         return
       }
-      setCreatedInfo({ subdomain: data.school.subdomain, adminEmail: data.admin.email, tempPassword: data.tempPassword })
+      setCreatedInfo({ subdomain: data.school.subdomain, adminEmail: data.admin.email, emailSent: !!data.emailSent, tempPassword: data.tempPassword })
       setNewSchool({ name: '', subdomain: '', email: '', phone: '', subscription_tier: 'basic', admin_name: '', admin_email: '', sections: ['secondary'] })
       loadData()
     } catch {
@@ -862,8 +902,34 @@ export default function SuperAdminDashboard() {
             onClick={() => setManagingSchool(null)}>
             <div style={{ background: 'white', borderRadius: '14px', padding: '1.75rem', width: 460, maxHeight: '85vh', overflowY: 'auto' as const }}
               onClick={e => e.stopPropagation()}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.25rem' }}>👑 Proprietor — {managingSchool.name}</h2>
-              <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginBottom: '1.25rem' }}>Full oversight access, subscription control, and school-admin management for this school.</p>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a1a18', marginBottom: '0.25rem' }}>👑 Accounts — {managingSchool.name}</h2>
+              <p style={{ fontSize: '0.78rem', color: '#6b6b65', marginBottom: '1.25rem' }}>The school’s School Admins and Proprietors. Proprietors have full oversight, subscription control and School Admin management.</p>
+
+              {!loadingProprietors && schoolAdmins.length > 0 && (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.25rem' }}>School Admins</p>
+                  {schoolAdmins.map(a => (
+                    <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid #f0f0ee', gap: '0.5rem' }}>
+                      <div>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1a1a18' }}>{a.full_name}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{a.email} · {a.last_login_at ? `last signed in ${new Date(a.last_login_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'not signed in yet'}</p>
+                      </div>
+                      <button onClick={() => resendLogin(a)} disabled={resending === a.id || !a.is_active} title={a.is_active ? 'Email new login details' : 'Account deactivated'}
+                        style={{ padding: '0.35rem 0.7rem', border: '1px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' as const, opacity: resending === a.id || !a.is_active ? 0.6 : 1 }}>
+                        {resending === a.id ? 'Sending…' : '✉ Resend login'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {resendResult && (
+                <div style={{ marginBottom: '1rem' }}>
+                  {resendResult.error
+                    ? <p style={{ fontSize: '0.8rem', color: '#dc2626', background: '#fef2f2', padding: '0.6rem 0.75rem', borderRadius: '8px' }}>{resendResult.error}</p>
+                    : <LoginDetailsResult email={resendResult.email} emailSent={resendResult.emailSent} tempPassword={resendResult.tempPassword} sentText="New login details have been emailed to" />}
+                </div>
+              )}
+              <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6b6b65', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Proprietors</p>
 
               {loadingProprietors ? (
                 <p style={{ fontSize: '0.825rem', color: '#6b6b65' }}>Loading…</p>
@@ -881,6 +947,10 @@ export default function SuperAdminDashboard() {
                         <span style={{ padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700, background: p.is_active ? '#e8f5ee' : '#fef2f2', color: p.is_active ? '#0f4a32' : '#dc2626' }}>
                           {p.is_active ? 'Active' : 'Inactive'}
                         </span>
+                        <button onClick={() => resendLogin(p)} disabled={resending === p.id || !p.is_active} title="Email new login details"
+                          style={{ padding: '0.35rem 0.6rem', border: '1px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', opacity: resending === p.id || !p.is_active ? 0.6 : 1 }}>
+                          {resending === p.id ? '…' : '✉'}
+                        </button>
                         <button onClick={() => handleToggleProprietor(p.id)} disabled={togglingProprietor === p.id}
                           style={{ padding: '0.35rem 0.7rem', border: '1px solid #e5e5e0', borderRadius: '8px', background: 'white', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', opacity: togglingProprietor === p.id ? 0.6 : 1 }}>
                           {p.is_active ? 'Deactivate' : 'Activate'}
@@ -935,11 +1005,8 @@ export default function SuperAdminDashboard() {
               ) : (
                 <>
                   <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f4a32', marginBottom: '0.75rem' }}>✅ Proprietor created</h3>
-                  <p style={{ fontSize: '0.875rem', color: '#3a3a36', marginBottom: '1rem' }}>Share these login details:</p>
-                  <div style={{ background: '#f7f7f5', borderRadius: '8px', padding: '0.875rem', marginBottom: '1.25rem', fontSize: '0.825rem' }}>
-                    <p style={{ marginBottom: '0.4rem' }}><strong>Email:</strong> {createdProprietorInfo.email}</p>
-                    <p><strong>Temporary password:</strong> {createdProprietorInfo.tempPassword}</p>
-                  </div>
+                  <LoginDetailsResult email={createdProprietorInfo.email} emailSent={createdProprietorInfo.emailSent} tempPassword={createdProprietorInfo.tempPassword}
+                    sentText="Their login details have been emailed to" />
                   <button onClick={() => setCreatedProprietorInfo(null)}
                     style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
                     Done
@@ -1042,12 +1109,10 @@ export default function SuperAdminDashboard() {
               <>
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f4a32', marginBottom: '0.75rem' }}>✅ School created</h2>
                 <p style={{ fontSize: '0.875rem', color: '#3a3a36', marginBottom: '1rem' }}>
-                  <strong>{createdInfo.subdomain}.examify.ng</strong> is live. Share these login details with the school's admin:
+                  <strong>{createdInfo.subdomain}.examify.ng</strong> is live.
                 </p>
-                <div style={{ background: '#f7f7f5', borderRadius: '8px', padding: '0.875rem', marginBottom: '1.25rem', fontSize: '0.825rem' }}>
-                  <p style={{ marginBottom: '0.4rem' }}><strong>Email:</strong> {createdInfo.adminEmail}</p>
-                  <p><strong>Temporary password:</strong> {createdInfo.tempPassword}</p>
-                </div>
+                <LoginDetailsResult email={createdInfo.adminEmail} emailSent={createdInfo.emailSent} tempPassword={createdInfo.tempPassword}
+                  sentText="A welcome email with the school’s address, their login details and first steps has gone to" />
                 <button onClick={() => setShowAddModal(false)}
                   style={{ width: '100%', padding: '0.65rem', background: '#0f4a32', border: 'none', borderRadius: '8px', color: 'white', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
                   Done

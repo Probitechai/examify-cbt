@@ -1,12 +1,29 @@
 import type { FastifyInstance } from 'fastify'
+import { newTempPassword } from '../lib/passwords'
 import * as bcrypt from 'bcryptjs'
-import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import { db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { saveSections } from './schools'
 import { asSections } from '../lib/classLevels'
-import { isTier, tierAtLeast, FINANCE_CONTROLS_TIER, TIER_NAMES } from '../middleware/tier'
+import { isTier, tierAtLeast, FINANCE_CONTROLS_TIER, TIER_NAMES, getStudentLimit } from '../middleware/tier'
+import { sendEmail } from '../lib/email'
+import { loginCredentialsEmail, schoolWelcomeEmail, schoolCreatedNoticeEmail } from '../emails/templates'
+import { schoolUrl } from '../lib/paystack'
+
+// Login details go by email. The temporary password is only returned to
+// Super Admin when the email couldn't be sent, so it can be passed on another way.
+async function emailLoginDetails(schoolId: string, user: { full_name: string; email: string; role: string }, password: string): Promise<boolean> {
+  const [school] = await db()`SELECT name, subdomain FROM schools WHERE id = ${schoolId}::uuid` as any[]
+  if (!school) return false
+  const { subject, html } = loginCredentialsEmail({
+    schoolName: school.name, fullName: user.full_name, email: user.email, password,
+    loginUrl: `${schoolUrl(school.subdomain)}/login`, role: user.role,
+  })
+  return (await sendEmail({ to: user.email, subject, html })).success
+}
+const loginReply = (emailSent: boolean, password: string) => emailSent ? { emailSent: true } : { emailSent: false, tempPassword: password }
+const SECTION_LABEL: Record<string, string> = { nursery: 'Nursery', primary: 'Primary', secondary: 'Secondary' }
 
 export async function superAdminRoutes(app: FastifyInstance) {
 
@@ -162,7 +179,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       return reply.status(409).send({ error: 'SUBDOMAIN_TAKEN', message: 'This subdomain is already in use.' })
     }
 
-    const tempPassword = Math.random().toString(36).slice(-10)
+    const tempPassword = newTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, 10)
 
     try {
@@ -182,12 +199,31 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         return { school, admin: adminRows[0] }
       })
 
-      // TODO: send welcome email via Resend with login URL + tempPassword
+      // Welcome email with login details to the first School Admin
+      const address = schoolUrl(result.school.subdomain)
+      const secs = sections.map(x => SECTION_LABEL[x])
+      const limit = getStudentLimit(subscription_tier)
+      const welcome = schoolWelcomeEmail({
+        schoolName: result.school.name, adminName: result.admin.full_name, adminEmail: result.admin.email, password: tempPassword,
+        schoolAddress: address, planName: TIER_NAMES[subscription_tier as keyof typeof TIER_NAMES],
+        studentLimit: limit >= 999999 ? 'any number of students' : `${limit} active students`,
+        sections: secs.length > 1 ? `${secs.slice(0, -1).join(', ')} and ${secs.at(-1)}` : secs[0],
+      })
+      const emailSent = (await sendEmail({ to: result.admin.email, subject: welcome.subject, html: welcome.html })).success
+      // …and a short notice, without the password, to the school's own address
+      if (String(email).toLowerCase() !== String(result.admin.email).toLowerCase()) {
+        const notice = schoolCreatedNoticeEmail({
+          schoolName: result.school.name, adminName: result.admin.full_name, adminEmail: result.admin.email,
+          schoolAddress: address, planName: TIER_NAMES[subscription_tier as keyof typeof TIER_NAMES],
+        })
+        sendEmail({ to: email, subject: notice.subject, html: notice.html }).catch(() => {})
+      }
 
       return reply.status(201).send({
         school: result.school,
         admin: { id: result.admin.id, name: result.admin.full_name, email: result.admin.email },
-        tempPassword, // remove from response once email sending is wired up
+        schoolAddress: address,
+        ...loginReply(emailSent, tempPassword),
       })
     } catch (err: any) {
       return reply.status(500).send({ error: 'CREATION_FAILED', message: 'Failed to create school and admin.', detail: err.message })
@@ -267,6 +303,39 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       return reply.send({ proprietors: rows })
     })
 
+  // ── A school's School Admin accounts ──────────────────────────────────────
+  app.get('/superadmin/schools/:id/admins', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      if (!z.string().uuid().safeParse(id).success) return reply.status(404).send({ error: 'SCHOOL_NOT_FOUND' })
+      const rows = await db()`
+        SELECT id, full_name, email, is_active, created_at, last_login_at, must_change_password
+        FROM users WHERE school_id = ${id}::uuid AND role = 'school_admin'
+        ORDER BY created_at ASC
+      ` as any[]
+      return reply.send({ admins: rows })
+    })
+
+  // ── Send a school account fresh login details ─────────────────────────────
+  // For when the welcome email didn't arrive or was lost: sets a new temporary
+  // password (they choose their own at next sign-in) and emails it.
+  app.post('/superadmin/users/:userId/resend-login', { preHandler: [superAuth] },
+    async (request: any, reply: any) => {
+      const { userId } = request.params as any
+      if (!z.string().uuid().safeParse(userId).success) return reply.status(404).send({ error: 'NOT_FOUND' })
+      const [user] = await db()`
+        SELECT id, school_id, full_name, email, role, is_active FROM users
+        WHERE id = ${userId}::uuid AND role IN ('school_admin', 'proprietor', 'bursar')
+      ` as any[]
+      if (!user) return reply.status(404).send({ error: 'NOT_FOUND', message: 'No School Admin, Proprietor or Bursar account with that id.' })
+      if (!user.is_active) return reply.status(400).send({ error: 'INACTIVE', message: 'This account is deactivated. Activate it first.' })
+      const tempPassword = newTempPassword()
+      const passwordHash = await bcrypt.hash(tempPassword, 12)
+      await db()`UPDATE users SET password_hash = ${passwordHash}, must_change_password = true, updated_at = now() WHERE id = ${user.id}::uuid`
+      const emailSent = await emailLoginDetails(user.school_id, user, tempPassword)
+      return reply.send({ email: user.email, ...loginReply(emailSent, tempPassword) })
+    })
+
   // ── Create a proprietor account for a specific school ─────────────────────
   app.post('/superadmin/schools/:id/proprietors', { preHandler: [superAuth] },
     async (request: any, reply: any) => {
@@ -287,14 +356,15 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
       }
 
-      const tempPassword = Math.random().toString(36).slice(-10)
+      const tempPassword = newTempPassword()
       const passwordHash = await bcrypt.hash(tempPassword, 10)
       const rows = await db()`
         INSERT INTO users (school_id, full_name, email, phone, password_hash, role, is_active, must_change_password)
         VALUES (${id}::uuid, ${full_name}, ${email.toLowerCase()}, ${phone ?? null}, ${passwordHash}, 'proprietor', true, true)
         RETURNING id, full_name, email, phone
       ` as any[]
-      return reply.status(201).send({ proprietor: rows[0], tempPassword })
+      const emailSent = await emailLoginDetails(id, { ...rows[0], role: 'proprietor' }, tempPassword)
+      return reply.status(201).send({ proprietor: rows[0], ...loginReply(emailSent, tempPassword) })
     })
 
   // ── Bursar accounts (fallback for schools with NO active Proprietor) ──────
@@ -339,7 +409,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
       }
 
-      const tempPassword = randomBytes(9).toString('base64url')
+      const tempPassword = newTempPassword()
       const passwordHash = await bcrypt.hash(tempPassword, 12)
       const rows = await db()`
         INSERT INTO users (school_id, full_name, email, phone, password_hash, role, is_active, must_change_password)
@@ -351,7 +421,8 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
         VALUES (${id}::uuid, ${request.user?.id ?? null}::uuid, 'super_admin', 'bursar.created', 'user',
                 ${rows[0].id}::uuid, ${db().json({ fullName: full_name, email: email.toLowerCase() })})
       `
-      return reply.status(201).send({ bursar: rows[0], tempPassword })
+      const emailSent = await emailLoginDetails(id, { ...rows[0], role: 'bursar' }, tempPassword)
+      return reply.status(201).send({ bursar: rows[0], ...loginReply(emailSent, tempPassword) })
     })
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -514,7 +585,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       if (existing.length > 0) {
         return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
       }
-      const tempPassword = Math.random().toString(36).slice(-10)
+      const tempPassword = newTempPassword()
       const passwordHash = await bcrypt.hash(tempPassword, 10)
       const rows = await db()`
         INSERT INTO users (school_id, full_name, email, password_hash, role, is_active)

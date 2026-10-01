@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import { newTempPassword } from '../lib/passwords'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
@@ -41,7 +42,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
         return reply.status(409).send({ error: 'EMAIL_TAKEN', message: 'This email is already in use.' })
       }
 
-      const tempPassword = Math.random().toString(36).slice(-10)
+      const tempPassword = newTempPassword()
       const passwordHash = await bcrypt.hash(tempPassword, 12)
       const rows = await tdb.query`
         INSERT INTO users (school_id, role, full_name, email, phone, password_hash, is_active, must_change_password)
@@ -106,7 +107,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
       const target = targetRows[0]
       if (!target) return reply.status(404).send({ error: 'NOT_FOUND' })
 
-      const tempPassword = Math.random().toString(36).slice(-10)
+      const tempPassword = newTempPassword()
       const passwordHash = await bcrypt.hash(tempPassword, 12)
       await tdb.query`
         UPDATE users SET password_hash = ${passwordHash}, must_change_password = true

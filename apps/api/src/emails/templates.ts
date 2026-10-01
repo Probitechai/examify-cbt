@@ -59,6 +59,13 @@ function wrapper(schoolName: string, content: string): string {
   `.trim()
 }
 
+// "Mrs Funke Adeyemi" → "Funke", "Chief (Dr.) Ade Bello" → "Ade": greet by first name, not title
+const TITLES = /^(mr|mrs|ms|miss|mx|dr|prof|professor|chief|engr|eng|arc|barr|hon|rev|revd|pastor|bishop|imam|alhaji|alhaja|alh|sir|lady|dame|mallam|malam|madam|oba|otunba|high|dcn|deacon|deaconess|evang|pst|apostle|elder|capt|col|gen|maj|lt|comrade|prince|princess|hrh|hrm)\.?$/i
+export function firstName(full: string): string {
+  const words = String(full ?? '').replace(/[()]/g, ' ').split(/\s+/).filter(Boolean)
+  return words.find(w => !TITLES.test(w)) ?? words[0] ?? ''
+}
+
 function button(text: string, url: string): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 24px 0;">
@@ -90,7 +97,7 @@ export function loginCredentialsEmail(params: {
     : 'Student'
 
   const content = `
-    <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 16px;">Welcome to Examify, ${fullName.split(' ')[0]}! 👋</h1>
+    <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 16px;">Welcome to Examify, ${firstName(fullName)}! 👋</h1>
     <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 20px;">
       Your ${roleLabel.toLowerCase()} account has been created for <strong>${schoolName}</strong> on the Examify CBT Platform. Here are your login details:
     </p>
@@ -144,7 +151,7 @@ export function examReminderEmail(params: {
   const content = `
     <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 16px;">📅 Upcoming Exam Reminder</h1>
     <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 20px;">
-      Hi ${fullName.split(' ')[0]}, this is a reminder that you have an exam scheduled soon.
+      Hi ${firstName(fullName)}, this is a reminder that you have an exam scheduled soon.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; margin: 0 0 20px;">
@@ -210,7 +217,7 @@ export function resultReadyEmail(params: {
   const content = `
     <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 16px;">📊 Your Result is Ready</h1>
     <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 20px;">
-      Hi ${fullName.split(' ')[0]}, your result for the following exam has been released:
+      Hi ${firstName(fullName)}, your result for the following exam has been released:
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f7f5; border-radius:10px; margin: 0 0 16px;">
@@ -265,7 +272,7 @@ export function weeklyProgressEmail(params: {
     <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 6px;">📈 Weekly Progress Report</h1>
     <p style="color:#6b6b65; font-size:13px; margin:0 0 20px;">${weekRange}</p>
     <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 20px;">
-      Hi ${fullName.split(' ')[0]}, here's a summary of your exam activity this week.
+      Hi ${firstName(fullName)}, here's a summary of your exam activity this week.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 20px;">
@@ -314,4 +321,98 @@ export function weeklyProgressEmail(params: {
     subject: `Weekly progress report — ${weekRange}`,
     html: wrapper(schoolName, content),
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// NEW SCHOOL: welcome for the first School Admin (with login details)
+// ─────────────────────────────────────────────────────────────────────────
+const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+
+export function schoolWelcomeEmail(params: {
+  schoolName: string
+  adminName: string
+  adminEmail: string
+  password: string
+  schoolAddress: string   // e.g. https://greensprings.examify.ng
+  planName: string
+  studentLimit: string    // e.g. "200 active students"
+  sections: string        // e.g. "Primary and Secondary"
+}): { subject: string; html: string } {
+  const p = Object.fromEntries(Object.entries(params).map(([k, v]) => [k, esc(v)])) as typeof params
+  const step = (n: number, title: string, body: string) => `
+    <tr>
+      <td style="vertical-align:top; padding:0 12px 14px 0; width:28px;">
+        <span style="display:inline-block; width:24px; height:24px; border-radius:12px; background:#e8f5ee; color:${BRAND_DARK}; font-weight:700; font-size:12px; text-align:center; line-height:24px;">${n}</span>
+      </td>
+      <td style="padding:0 0 14px; font-size:14px; color:#3a3a36; line-height:1.5;"><strong style="color:#1a1a18;">${title}</strong><br>${body}</td>
+    </tr>`
+  const content = `
+    <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 12px;">Welcome to Examify, ${firstName(p.adminName)}! 🎉</h1>
+    <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 20px;">
+      <strong>${p.schoolName}</strong> is now set up on Examify, and you are its School Administrator.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f7f5; border-radius:10px; margin:0 0 8px;">
+      <tr><td style="padding:16px 20px;">
+        <p style="margin:0 0 6px; font-size:13px; color:#6b6b65;">Your school’s address</p>
+        <p style="margin:0 0 14px; font-size:15px; font-weight:600;"><a href="${p.schoolAddress}" style="color:${BRAND_COLOR}; text-decoration:none;">${p.schoolAddress.replace(/^https?:\/\//, '')}</a></p>
+        <p style="margin:0 0 6px; font-size:13px; color:#6b6b65;">Email address</p>
+        <p style="margin:0 0 14px; font-size:15px; color:#1a1a18; font-weight:600;">${p.adminEmail}</p>
+        <p style="margin:0 0 6px; font-size:13px; color:#6b6b65;">Temporary password</p>
+        <p style="margin:0; font-size:16px; color:#1a1a18; font-weight:700; font-family:'Courier New', monospace; letter-spacing:0.5px;">${p.password}</p>
+      </td></tr>
+    </table>
+    <p style="color:#6b6b65; font-size:13px; line-height:1.6; margin:0 0 4px;">
+      You’ll be asked to choose your own password when you first sign in.
+    </p>
+
+    ${button('Sign in to your school →', `${params.schoolAddress}/login`)}
+
+    <p style="color:#1a1a18; font-size:15px; font-weight:700; margin:8px 0 12px;">Getting started</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${step(1, 'Set up your session and terms', 'Academic Sessions → add the current session and its terms, and mark the current term active.')}
+      ${step(2, 'Add your teachers', 'Users → add each teacher. They get their own login details by email.')}
+      ${step(3, 'Add your students', 'Import them from a spreadsheet, or add them one at a time. Link parents to their children.')}
+      ${step(4, 'Assign teachers to classes', 'Teacher Assignments → who teaches which subject in which class, and the class teacher for each arm.')}
+      ${step(5, 'Set up fees', 'Fee Management → add fee items for each class, so parents can see balances and pay online.')}
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e5e0; border-radius:10px; margin:12px 0 0;">
+      <tr><td style="padding:14px 18px; font-size:13px; color:#3a3a36; line-height:1.6;">
+        <strong>Your plan:</strong> ${p.planName} · up to ${p.studentLimit}<br>
+        <strong>Sections:</strong> ${p.sections}
+      </td></tr>
+    </table>
+
+    <p style="color:#a0a09a; font-size:13px; line-height:1.6; margin:20px 0 0;">
+      Please keep these details private. If you didn’t expect this email, reply to let us know.
+    </p>
+  `
+  return { subject: `Welcome to Examify: ${params.schoolName} is ready`, html: wrapper(p.schoolName, content) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// NEW SCHOOL: notice to the school's contact address (no password)
+// ─────────────────────────────────────────────────────────────────────────
+export function schoolCreatedNoticeEmail(params: {
+  schoolName: string
+  adminName: string
+  adminEmail: string
+  schoolAddress: string
+  planName: string
+}): { subject: string; html: string } {
+  const p = Object.fromEntries(Object.entries(params).map(([k, v]) => [k, esc(v)])) as typeof params
+  const content = `
+    <h1 style="color:#1a1a18; font-size:20px; font-weight:700; margin:0 0 12px;">${p.schoolName} is on Examify</h1>
+    <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 16px;">
+      Your school’s Examify account is ready at
+      <a href="${p.schoolAddress}" style="color:${BRAND_COLOR}; font-weight:600; text-decoration:none;">${p.schoolAddress.replace(/^https?:\/\//, '')}</a>
+      on the <strong>${p.planName}</strong> plan.
+    </p>
+    <p style="color:#3a3a36; font-size:14px; line-height:1.6; margin:0 0 16px;">
+      The School Administrator, <strong>${p.adminName}</strong> (${p.adminEmail}), has been sent their own login details separately.
+    </p>
+    ${button('Visit your school’s page →', params.schoolAddress)}
+  `
+  return { subject: `${params.schoolName} is now on Examify`, html: wrapper(p.schoolName, content) }
 }

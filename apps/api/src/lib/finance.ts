@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Finance helpers shared by fees, finance, paystack and proprietor routes
@@ -52,6 +51,4 @@ export async function logFinance(tx: any, request: any | null, schoolId: string,
 }
 
 // Cryptographically random temporary password for staff accounts
-export function tempPassword(): string {
-  return randomBytes(9).toString('base64url')
-}
+export { newTempPassword as tempPassword } from './passwords'
