@@ -2,6 +2,7 @@
 import { apiFetch, checkAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { PLANS } from '@/lib/plans'
 
 function getToken() {
   if (typeof document === 'undefined') return ''
@@ -29,20 +30,6 @@ interface Payment {
   created_at: string
 }
 
-const PLANS = [
-  { tier: 'basic', name: 'Basic Plan', price: 50000, color: '#1a6b4a', bg: '#e8f5ee',
-    features: ['CBT Exam Engine (unlimited exams)', 'Question Bank (5 question types)', 'Result Entry & Report Cards', 'Class Broadsheet', 'Attendance Marking', 'Fee Management & Online Payments', 'Conduct Reports', 'Class Timetable Builder', 'Bulk Announcements', 'Parent Portal', 'Email Notifications', 'Up to 200 students'],
-    missing: ['Admissions', 'Curriculum & Lesson Plans', 'Gradebook', 'Live Classes', 'Certificates', 'LMS Features', 'JAMB Prep'] },
-  { tier: 'standard', name: 'Standard Plan', price: 75000, color: '#1e40af', bg: '#eff6ff', popular: true,
-    features: ['Everything in Basic, plus:', 'Admissions Management', 'Curriculum Management', 'Lesson Plans & Delivery', 'Unified Gradebook', 'Live Classes (Jitsi Meet)', 'Completion Certificates', 'Result Approval Workflow', 'SMS Notifications', 'Hostel Management', 'Up to 500 students'],
-    missing: ['Learning Paths', 'AI Features', 'JAMB Prep', 'Direct Video Upload', 'Analytics'] },
-  { tier: 'premium', name: 'Premium Plan', price: 120000, color: '#7e22ce', bg: '#f5f3ff',
-    features: ['Everything in Standard, plus:', 'Learning Paths', 'Discussion & Q&A', 'Flashcards & Inline Quizzes', 'Direct Video Upload', 'JAMB Prep (AI-powered)', 'Advanced Analytics', 'Unlimited Students', 'Priority Support'],
-    missing: ['API Access', 'Multi-campus', 'Custom Branding'] },
-  { tier: 'enterprise', name: 'Enterprise Plan', price: 0, color: '#b45309', bg: '#fffbeb',
-    features: ['Everything in Premium, plus:', 'Multi-campus Management', 'API Access', 'Custom Branding', 'Dedicated Account Manager', 'SLA Guarantee', 'Custom Integrations', 'Unlimited Everything'],
-    missing: [] },
-]
 
 const API = process.env.NEXT_PUBLIC_API_URL
 

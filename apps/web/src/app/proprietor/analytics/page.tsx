@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import { checkAuth } from '@/lib/auth'
 import SchoolAnalytics from '@/components/SchoolAnalytics'
 
-export default function AnalyticsPage() {
+export default function ProprietorAnalyticsPage() {
   const router = useRouter()
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
-  return <SchoolAnalytics resultsHref="/admin/results" />
+  useEffect(() => { checkAuth(router, 'proprietor') }, [])
+  return <SchoolAnalytics resultsHref="/proprietor/results" />
 }

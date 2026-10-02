@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
-import { normalizeTier, TIER_NAMES, FEATURE_TIERS, featuresFor } from '../middleware/tier'
+import { normalizeTier, TIER_NAMES, FEATURE_TIERS, featuresFor, TIER_STUDENT_LIMITS } from '../middleware/tier'
 import { SECTIONS, SECTION_LEVELS, levelsFor, asSections, sectionOf } from '../lib/classLevels'
 import { findStudent, studentAccess } from '../lib/teacherScope'
 
@@ -63,7 +63,7 @@ app.get('/schools/public', async (request: any, reply: any) => {
   app.get('/schools/plan', { preHandler: [authenticate] },
     async (request: any, reply: any) => {
       const tier = normalizeTier(request.school?.subscriptionTier)
-      return reply.send({ tier, planName: TIER_NAMES[tier], features: featuresFor(tier), featureTiers: FEATURE_TIERS })
+      return reply.send({ tier, planName: TIER_NAMES[tier], features: featuresFor(tier), featureTiers: FEATURE_TIERS, studentLimits: TIER_STUDENT_LIMITS })
     })
 
   // ── Get school settings ───────────────────────────────────────────────────

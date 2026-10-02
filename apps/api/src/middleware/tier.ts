@@ -74,7 +74,9 @@ export const FEATURE_TIERS = {
   hostelOperations:    'premium',  // exeats, visitors, roll calls, meal plans
   transportOperations: 'premium',  // trip roll calls, incidents, maintenance
   admissions:          'premium',
-  analytics:           'premium',
+  analytics:           'premium',  // results, attendance, fees and term-on-term trends
+  jambPrep:            'premium',  // SS3 JAMB practice, mocks and AI questions (each AI call costs money)
+  smsAlerts:           'standard', // automatic texts to parents: absences, results released
 } as const satisfies Record<string, Tier>
 export type Feature = keyof typeof FEATURE_TIERS
 
@@ -85,6 +87,7 @@ export const FEATURE_NAMES: Record<Feature, string> = {
   financeControls: 'Finance controls', hostels: 'Hostel management',
   transport: 'Transport', hostelOperations: 'Hostel operations',
   transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
+  jambPrep: 'JAMB Prep', smsAlerts: 'SMS alerts to parents',
 }
 
 /** Which features a school's plan includes */
@@ -125,7 +128,7 @@ export function gateRoutes(app: any, pick: Feature | ((url: string) => Feature |
 export const TIER_STUDENT_LIMITS: Record<Tier, number> = {
   basic: 200,
   standard: 500,
-  premium: 800,
+  premium: 1000,
   enterprise: 999999,
 }
 

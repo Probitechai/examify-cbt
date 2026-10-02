@@ -234,7 +234,7 @@ setStats({
     🗺️ Learning Paths
 </button>
 )}
-{user.classLevel === 'SS3' && (
+{user.classLevel === 'SS3' && hasFeature(plan, 'jambPrep') && (
   <button
       onClick={() => router.push('/student/jamb')}
       style={{ padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #1a6b4a, #d4af37)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', marginRight: '0.5rem' }}>

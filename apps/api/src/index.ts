@@ -40,6 +40,7 @@ import { interactiveRoutes } from './routes/interactive'
 import { certificateRoutes } from './routes/certificates'
 import { learningPathRoutes } from './routes/learning-paths'
 import { jambRoutes } from './routes/jamb'
+import { analyticsRoutes } from './routes/analytics'
 import { hostelRoutes } from './routes/hostels'
 import { hostel2Routes } from './routes/hostels2'
 import { transportRoutes } from './routes/transport'
@@ -108,6 +109,7 @@ async function start() {
   await app.register(certificateRoutes, { prefix: '/api' })
   await app.register(learningPathRoutes, { prefix: '/api' })
   await app.register(jambRoutes, { prefix: '/api' })
+  await app.register(analyticsRoutes, { prefix: '/api' })
   await app.register(hostelRoutes, { prefix: '/api' })
   await app.register(hostel2Routes, { prefix: '/api' })
   await app.register(transportRoutes, { prefix: '/api' })

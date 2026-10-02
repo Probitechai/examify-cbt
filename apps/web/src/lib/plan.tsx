@@ -9,7 +9,7 @@ import { apiFetch, getToken } from '@/lib/auth'
 export type Feature =
   | 'resultApproval' | 'gradebook' | 'curriculum' | 'lessons' | 'interactiveLessons' | 'lessonDiscussion' | 'learningPaths' | 'liveClasses'
   | 'examTimetable' | 'certificates' | 'conduct' | 'financeControls' | 'hostels' | 'transport'
-  | 'hostelOperations' | 'transportOperations' | 'admissions' | 'analytics'
+  | 'hostelOperations' | 'transportOperations' | 'admissions' | 'analytics' | 'jambPrep' | 'smsAlerts'
 
 export type Plan = {
   loaded: boolean
@@ -38,6 +38,8 @@ const PATH_FEATURES: [string, Feature][] = [
   ['/student/exam-timetable', 'examTimetable'], ['/proprietor/exam-timetable', 'examTimetable'],
   ['/student/lessons', 'lessons'], ['/student/learning-paths', 'learningPaths'],
   ['/student/live-classes', 'liveClasses'], ['/student/certificates', 'certificates'],
+  ['/student/jamb', 'jambPrep'], ['/admin/jamb-progress', 'jambPrep'], ['/proprietor/jamb-progress', 'jambPrep'],
+  ['/proprietor/analytics', 'analytics'],
 ]
 
 /** The paid feature a screen belongs to, if any */
@@ -85,10 +87,13 @@ const FEATURE_LABELS: Record<Feature, string> = {
   learningPaths: 'Learning paths', liveClasses: 'Live classes', examTimetable: 'The exam timetable',
   certificates: 'Certificates', conduct: 'Conduct reports', financeControls: 'Finance controls',
   hostels: 'Hostel management', transport: 'Transport', hostelOperations: 'Hostel operations',
-  transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'Analytics',
+  transportOperations: 'Transport operations', admissions: 'Online admissions', analytics: 'School analytics',
+  jambPrep: 'JAMB Prep', smsAlerts: 'SMS alerts to parents',
 }
 
 const FEATURE_NOTES: Partial<Record<Feature, string>> = {
+  jambPrep: 'JAMB Prep gives SS3 students past questions, timed mock UTMEs and AI practice questions.',
+  analytics: 'School analytics shows results, attendance and fee collection by class and subject, and how each compares with earlier terms.',
   financeControls: 'This covers the Bursar role, discounts and waivers, debtors and SMS reminders, finance reports and the finance audit log. On your plan the School Admin manages fees, and parents can still pay online.',
 }
 

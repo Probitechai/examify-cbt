@@ -75,7 +75,7 @@ const NAV: NavItem[] = [
 
   { href: '/admin/certificates',  icon: '🏆', label: 'Certificates',      tier: 'standard', group: 'recognition' },
 
-  { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium', group: 'analytics' },
+  { href: '/admin/analytics',     icon: '📊', label: 'School Analytics',  tier: 'premium', group: 'analytics' },
 ]
 
 // Pages only the School Admin uses. Teachers don't see them in the menu, and

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { tenantDb, db } from '../db/client'
+import { gateRoutes } from '../middleware/tier'
 import { authenticate } from '../middleware/auth'
 // jamb_subjects, jamb_topics, jamb_past_questions, jamb_topic_notes are GLOBAL (shared by all schools).
 // jamb_student_profiles, jamb_topic_progress, jamb_quiz_sessions, jamb_ai_questions, jamb_ai_usage are tenant-scoped.
@@ -92,6 +93,7 @@ async function topicWithSubject(topicId: string) {
 }
 
 export async function jambRoutes(app: FastifyInstance) {
+  gateRoutes(app, 'jambPrep')
   const SYLLABUS = [authenticate, requireSS3OrStaff]
   const STUDENT = [authenticate, requireSS3Student]
 

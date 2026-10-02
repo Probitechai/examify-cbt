@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { tierAtLeast, FEATURE_TIERS } from '../middleware/tier'
 
 async function isClassTeacherFor(tdb: any, schoolId: string, teacherId: string, classLevel: string, classArm: string): Promise<boolean> {
   const rows = await tdb.query`
@@ -46,6 +47,15 @@ export async function attendanceRoutes(app: FastifyInstance) {
         }
       }
 
+      // Who was already marked absent today, so a re-save doesn't text parents twice
+      const ids = d.records.map(r => r.studentId)
+      const before = ids.length ? await tdb.query`
+        SELECT student_id FROM attendance_records
+        WHERE school_id = ${request.schoolId}::uuid AND date = ${d.date}::date
+          AND status = 'absent' AND student_id = ANY(${ids}::uuid[])
+      ` as any[] : []
+      const alreadyAbsent = new Set(before.map((b: any) => b.student_id))
+
       let saved = 0
 
       for (const r of d.records) {
@@ -67,10 +77,12 @@ export async function attendanceRoutes(app: FastifyInstance) {
         saved++
       }
 
-      // Send SMS alerts for absent students (fire and forget)
+      // Text parents of newly absent students (fire and forget). SMS alerts are on Standard and above.
+      const smsOn = tierAtLeast(request.school?.subscriptionTier, FEATURE_TIERS.smsAlerts)
       ;(async () => {
         try {
-          const absentStudents = d.records.filter(r => r.status === 'absent')
+          if (!smsOn) return
+          const absentStudents = d.records.filter(r => r.status === 'absent' && !alreadyAbsent.has(r.studentId))
           if (absentStudents.length === 0) return
 
           const tdb2 = tenantDb(request.schoolId)
@@ -83,7 +95,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
               LEFT JOIN parent_student_links psl ON psl.student_id = u.id
                 AND psl.school_id = ${request.schoolId}::uuid
               LEFT JOIN users p ON p.id = psl.parent_id
-              WHERE u.id = ${r.studentId}::uuid
+              WHERE u.id = ${r.studentId}::uuid AND u.school_id = ${request.schoolId}::uuid
               LIMIT 1
             ` as any[]
 
