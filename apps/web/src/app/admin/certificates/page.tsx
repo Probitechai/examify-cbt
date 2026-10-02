@@ -3,12 +3,16 @@ import { apiFetch, checkAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
+import { useTeaching, teachingLevels, teachesSubjectIn } from '@/lib/teaching'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
 
 export default function CertificatesPage() {
-  const CLASS_LEVELS = useClassLevels()
+  const schoolLevels = useClassLevels()
+  const teaching = useTeaching()
+  // Teachers issue certificates to the classes they teach; bulk issue and revoke stay with the School Admin
+  const CLASS_LEVELS = teaching.limited ? teachingLevels(teaching) : schoolLevels
   const router = useRouter()
   const [certificates, setCertificates] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
@@ -37,7 +41,10 @@ export default function CertificatesPage() {
     description: '', minCompletionPct: '80'
   })
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+  useEffect(() => {
+    if (teaching.limited && CLASS_LEVELS.length && !CLASS_LEVELS.includes(selectedClass)) setSelectedClass(CLASS_LEVELS[0])
+  }, [teaching.loaded, CLASS_LEVELS.join()])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -70,9 +77,9 @@ export default function CertificatesPage() {
   }
 
   async function loadStudents() {
-    const res = await apiFetch(`${API}/gradebook/class?termId=${selectedTerm}&classLevel=${selectedClass}`)
+    const res = await apiFetch(`${API}/users/students?classLevel=${encodeURIComponent(selectedClass)}`)
     const data = await res.json()
-    setStudents(data.students ?? [])
+    setStudents(res.ok ? data.students ?? [] : [])
   }
 
   async function loadCertificates() {
@@ -81,6 +88,7 @@ export default function CertificatesPage() {
     try {
       const res = await apiFetch(`${API}/certificates?termId=${selectedTerm}&classLevel=${selectedClass}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load certificates'); return }
       setCertificates(data.certificates ?? [])
     } catch { setError('Failed to load certificates') } finally { setLoading(false) }
   }
@@ -97,9 +105,9 @@ export default function CertificatesPage() {
         description: issueForm.description || undefined,
       }
       if (issueForm.subjectId) body.subjectId = issueForm.subjectId
-      const res = await fetch(`${API}/certificates`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/certificates`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to issue')
+      if (!res.ok) throw new Error(data.message ?? data.error ?? 'Failed to issue')
       if (data.alreadyIssued) { setSuccess('Certificate already issued to this student.') }
       else { setSuccess(`Certificate issued! Number: ${data.certificate.certificate_number}`) }
       setShowIssueForm(false)
@@ -121,9 +129,9 @@ export default function CertificatesPage() {
         minCompletionPct: Number(bulkForm.minCompletionPct),
       }
       if (bulkForm.subjectId) body.subjectId = bulkForm.subjectId
-      const res = await fetch(`${API}/certificates/bulk-issue`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/certificates/bulk-issue`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to bulk issue')
+      if (!res.ok) throw new Error(data.message ?? data.error ?? 'Failed to bulk issue')
       setSuccess(`Issued ${data.issued} certificates to eligible students!`)
       setShowBulkForm(false)
       setTimeout(() => setSuccess(''), 5000)
@@ -133,7 +141,8 @@ export default function CertificatesPage() {
 
   async function revoke(id: string) {
     if (!window.confirm('Revoke this certificate?')) return
-    await fetch(`${API}/certificates/${id}/revoke`, { method: 'PATCH' })
+    const res = await apiFetch(`${API}/certificates/${id}/revoke`, { method: 'PATCH' })
+    if (!res.ok) { setError('Could not revoke this certificate'); return }
     setCertificates(prev => prev.filter(c => c.id !== id))
   }
 
@@ -149,10 +158,10 @@ export default function CertificatesPage() {
           <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Issue and manage certificates for lesson completion and term excellence.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={() => { setShowBulkForm(true); loadSubjects() }}
+          {!teaching.limited && <button onClick={() => { setShowBulkForm(true); loadSubjects() }}
             style={{ padding: '0.5rem 1rem', background: '#eff6ff', color: '#1e40af', border: '1.5px solid #bfdbfe', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
             📋 Bulk Issue
-          </button>
+          </button>}
           <button onClick={() => { setShowIssueForm(true); loadStudents(); loadSubjects() }}
             style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
             + Issue Certificate
@@ -213,8 +222,8 @@ export default function CertificatesPage() {
               <div style={{ display: 'flex', gap: '0.375rem' }}>
                 <button onClick={() => setViewingCert(cert)}
                   style={{ padding: '0.3rem 0.625rem', background: '#e8f5ee', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#0f4a32', cursor: 'pointer', fontWeight: 600 }}>View</button>
-                <button onClick={() => revoke(cert.id)}
-                  style={{ padding: '0.3rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#dc2626', cursor: 'pointer' }}>✕</button>
+                {!teaching.limited && <button onClick={() => revoke(cert.id)} title="Revoke"
+                  style={{ padding: '0.3rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.68rem', color: '#dc2626', cursor: 'pointer' }}>✕</button>}
               </div>
             </div>
           ))}
@@ -246,7 +255,7 @@ export default function CertificatesPage() {
               <div><label style={lbl}>Subject (optional)</label>
                 <select style={sel} value={issueForm.subjectId} onChange={e => setIssueForm(f => ({ ...f, subjectId: e.target.value }))}>
                   <option value="">General (no specific subject)</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {subjects.filter(s => teachesSubjectIn(teaching, selectedClass, s.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select></div>
               <div><label style={lbl}>Certificate Title *</label>
                 <input style={inp} value={issueForm.title} onChange={e => setIssueForm(f => ({ ...f, title: e.target.value }))} /></div>

@@ -2,8 +2,18 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
+import { loadTeacherScope } from '../lib/teacherScope'
 
 export async function teacherAssignmentRoutes(app: FastifyInstance) {
+
+  // What the signed-in teacher teaches: their subjects and the classes they are
+  // class teacher for. Pages use this to offer only the teacher's own classes.
+  app.get('/me/teaching', { preHandler: [authenticate, requireRole('school_admin', 'teacher')] },
+    async (request: any, reply: any) => {
+      if (request.user.role !== 'teacher') return reply.send({ limited: false, subjects: [], classTeacherOf: [] })
+      const scope = await loadTeacherScope(tenantDb(request.schoolId), request.schoolId, request.user.id)
+      return reply.send({ limited: true, ...scope })
+    })
 
   // List assignments — optionally filtered by teacherId (for the modal) or
   // by classLevel (for the management page's "view by class" mode)

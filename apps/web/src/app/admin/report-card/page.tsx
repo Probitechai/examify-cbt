@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
+import { useTeaching, teachingLevels } from '@/lib/teaching'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -54,7 +55,10 @@ function gradeBg(grade: string) {
 }
 
 export default function ReportCardPage() {
-  const CLASS_LEVELS = useClassLevels()
+  const schoolLevels = useClassLevels()
+  const teaching = useTeaching()
+  // Teachers: classes they teach or are class teacher for
+  const CLASS_LEVELS = teaching.limited ? teachingLevels(teaching) : schoolLevels
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [terms, setTerms] = useState<Term[]>([])
@@ -75,7 +79,10 @@ export default function ReportCardPage() {
   const [schoolName, setSchoolName] = useState('')
   const photoInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+  useEffect(() => {
+    if (teaching.limited && CLASS_LEVELS.length && !CLASS_LEVELS.includes(classLevel)) setClassLevel(CLASS_LEVELS[0])
+  }, [teaching.loaded, CLASS_LEVELS.join()])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -122,16 +129,11 @@ export default function ReportCardPage() {
   async function loadStudents() {
     setStudentsLoading(true)
     try {
-      const res = await apiFetch(`${API}/users`)
+      const params = new URLSearchParams({ classLevel })
+      if (classArm) params.append('classArm', classArm)
+      const res = await apiFetch(`${API}/users/students?${params}`)
       const data = await res.json()
-      const all = data.users ?? []
-      const filtered = all.filter((u: any) => {
-        if (u.role !== 'student') return false
-        if (u.class_level !== classLevel) return false
-        if (classArm && u.class_arm !== classArm) return false
-        return true
-      })
-      setStudents(filtered)
+      setStudents(res.ok ? data.students ?? [] : [])
       setSelectedStudent('')
     } catch {} finally { setStudentsLoading(false) }
   }
@@ -270,11 +272,13 @@ export default function ReportCardPage() {
               <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18', marginBottom: '0.25rem' }}>{selectedStudentData.full_name}</p>
               <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{selectedStudentData.photo_url ? 'Photo uploaded ✓' : 'No photo yet'}</p>
             </div>
+            {!teaching.limited && <>
             <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             <button onClick={() => photoInputRef.current?.click()} disabled={photoUploading}
               style={{ padding: '0.5rem 1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#1a1a18', cursor: 'pointer', whiteSpace: 'nowrap' as const, opacity: photoUploading ? 0.6 : 1 }}>
               {photoUploading ? '⏳ Uploading…' : selectedStudentData.photo_url ? '🔄 Change photo' : '📷 Upload photo'}
             </button>
+            </>}
           </div>
         )}
       </div>

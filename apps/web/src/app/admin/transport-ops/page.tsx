@@ -136,7 +136,7 @@ export default function TransportOpsPage() {
     if (!route) { flash('No route assigned to this bus', true); return }
     setLoading(true)
     try {
-      const res = await fetch(`${API}/transport/roll-calls`, {
+      const res = await apiFetch(`${API}/transport/roll-calls`, {
         method: 'POST',
         body: JSON.stringify({ busId: selectedBus, routeId: route.id, termId, date: selectedDate, tripType })
       })
@@ -169,7 +169,7 @@ export default function TransportOpsPage() {
   async function saveIncident() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/transport/incidents`, {
+      const res = await apiFetch(`${API}/transport/incidents`, {
         method: 'POST',
         body: JSON.stringify({ ...incidentForm, cost: undefined })
       })
@@ -199,7 +199,7 @@ export default function TransportOpsPage() {
   async function saveMaintenance() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/transport/maintenance`, {
+      const res = await apiFetch(`${API}/transport/maintenance`, {
         method: 'POST',
         body: JSON.stringify({ ...maintenanceForm, cost: Number(maintenanceForm.cost), nextMaintenanceDate: maintenanceForm.nextMaintenanceDate || undefined, performedBy: maintenanceForm.performedBy || undefined })
       })

@@ -5,6 +5,7 @@ import { tenantDb } from '../db/client'
 import { asJson } from '../lib/json'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireFeature } from '../middleware/tier'
+import { loadTeacherScope, canSeeSubject, isClassTeacher, NOT_YOUR_CLASS } from '../lib/teacherScope'
 
 const DEFAULT_BOUNDARIES = [
   { grade: 'A', min: 75, max: 100, remark: 'Excellent' },
@@ -116,6 +117,11 @@ export async function resultRoutes(app: FastifyInstance) {
           WHERE sr.term_id = ${termId}::uuid AND sr.school_id = ${request.schoolId}::uuid
           ORDER BY class_level_rank(u.class_level), u.class_level, u.class_arm, u.full_name, sr.subject
         ` as any[]
+      }
+      // Teachers: subjects they teach, or every subject of a class they are class teacher for
+      if (request.user.role === 'teacher') {
+        const scope = await loadTeacherScope(tdb, request.schoolId, request.user.id)
+        results = results.filter((r: any) => canSeeSubject(scope, r.class_level, r.class_arm, r.subject))
       }
       return reply.send({ results })
     })
@@ -398,6 +404,15 @@ export async function resultRoutes(app: FastifyInstance) {
       if (!termId || !classLevel) return reply.status(400).send({ error: 'termId and classLevel are required' })
 
       const tdb = tenantDb(request.schoolId)
+
+      // The broadsheet is the class teacher's view of one arm
+      if (request.user.role === 'teacher') {
+        const scope = await loadTeacherScope(tdb, request.schoolId, request.user.id)
+        if (!classArm) return reply.status(400).send({ error: 'ARM_REQUIRED', message: 'Choose the class arm you are class teacher for.' })
+        if (!isClassTeacher(scope, classLevel, classArm)) {
+          return reply.status(403).send({ ...NOT_YOUR_CLASS, message: 'Only the class teacher of this class can see its broadsheet.' })
+        }
+      }
       const config = await getConfig(tdb, request.schoolId)
 
       let results: any[]

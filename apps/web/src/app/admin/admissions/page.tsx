@@ -77,7 +77,7 @@ export default function AdmissionsPage() {
     }
     setAdding(true); setAddError('')
     try {
-      const res = await fetch(`${API}/admissions/applicants`, {
+      const res = await apiFetch(`${API}/admissions/applicants`, {
         method: 'POST',
         body: JSON.stringify({
           firstName: addForm.firstName, lastName: addForm.lastName,
@@ -102,7 +102,7 @@ export default function AdmissionsPage() {
   async function saveSettings() {
     setSavingSettings(true)
     try {
-      await fetch(`${API}/admissions/settings`, {
+      await apiFetch(`${API}/admissions/settings`, {
         method: 'POST',
         body: JSON.stringify({
           intakeMode: settingsForm.intake_mode ?? 'both',

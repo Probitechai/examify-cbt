@@ -217,7 +217,7 @@ export default function TransportPage() {
   async function saveStop() {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/transport/routes/${activeRouteForStop.id}/stops`, {
+      const res = await apiFetch(`${API}/transport/routes/${activeRouteForStop.id}/stops`, {
         method: 'POST',
         body: JSON.stringify({ ...stopForm, sortOrder: activeRouteForStop.stops?.length ?? 0 })
       })
@@ -242,7 +242,7 @@ export default function TransportPage() {
     setLoading(true)
     try {
       const payload: any = { ...assignForm, termId, stopId: assignForm.stopId || undefined }
-      const res = await fetch(`${API}/transport/assignments`, { method: 'POST', body: JSON.stringify(payload) })
+      const res = await apiFetch(`${API}/transport/assignments`, { method: 'POST', body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) { flash(data.message ?? 'Failed to assign', true); return }
       flash('Student assigned to bus')

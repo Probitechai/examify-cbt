@@ -3,9 +3,42 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { gateRoutes } from '../middleware/tier'
+import {
+  loadTeacherScope, canSeeClass, canSeeSubject, isClassTeacher, teachesSubject,
+  findStudent, studentAccess, NOT_YOUR_CLASS,
+} from '../lib/teacherScope'
 
 export async function gradebookRoutes(app: FastifyInstance) {
   gateRoutes(app, 'gradebook')
+
+  // Before saving marks: every student must be in this school, and a teacher must
+  // teach the subject to the student's class (or, with no subject, be the class teacher).
+  async function checkWrite(request: any, tdb: any, studentIds: string[], subjectId: string | null): Promise<{ status: number; body: any } | null> {
+    const unique = [...new Set(studentIds)]
+    const rows = unique.length ? await tdb.query`
+      SELECT id, class_level, class_arm FROM users
+      WHERE id = ANY(${unique}::uuid[]) AND school_id = ${request.schoolId}::uuid AND role = 'student'
+    ` as any[] : []
+    if (rows.length !== unique.length) return { status: 404, body: { error: 'STUDENT_NOT_FOUND', message: 'One or more students were not found in this school.' } }
+    if (request.user.role !== 'teacher') return null
+
+    let subjectName: string | null = null
+    if (subjectId) {
+      const sub = await tdb.query`
+        SELECT name FROM curriculum_subjects WHERE id = ${subjectId}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      if (!sub[0]) return { status: 404, body: { error: 'SUBJECT_NOT_FOUND', message: 'Subject not found.' } }
+      subjectName = sub[0].name
+    }
+    const scope = await loadTeacherScope(tdb, request.schoolId, request.user.id)
+    const blocked = rows.filter((r: any) => subjectName
+      ? !(teachesSubject(scope, r.class_level, r.class_arm, subjectName) || isClassTeacher(scope, r.class_level, r.class_arm))
+      : !isClassTeacher(scope, r.class_level, r.class_arm))
+    if (blocked.length) return { status: 403, body: { ...NOT_YOUR_CLASS, message: subjectName
+      ? `You are not assigned to teach ${subjectName} to ${blocked.length === 1 ? 'this student' : `${blocked.length} of these students`}. Nothing was saved.`
+      : 'Only the class teacher can add marks without a subject. Choose your subject. Nothing was saved.' } }
+    return null
+  }
 
 
   // GET CLASS GRADEBOOK
@@ -61,7 +94,7 @@ export async function gradebookRoutes(app: FastifyInstance) {
         ` as any[]
       }
 
-      const assignmentScores = await tdb.query`
+      let assignmentScores = await tdb.query`
         SELECT asub.student_id, asub.score, asub.assignment_id,
                la.title, la.max_score, lp.subject_id, cs.name AS subject_name
         FROM assignment_submissions asub
@@ -72,12 +105,30 @@ export async function gradebookRoutes(app: FastifyInstance) {
         AND asub.status = 'graded' AND lp.term_id = ${tid}::uuid AND lp.class_level = ${cl}
       ` as any[]
 
-      const cbtScores = await tdb.query`
+      // CBT scores for this class's students only
+      const ids = students.map((s: any) => s.id)
+      let cbtScores = ids.length ? await tdb.query`
         SELECT es.student_id, es.score, es.percentage, e.title, e.subject, e.total_marks
         FROM exam_sessions es
         JOIN exams e ON e.id = es.exam_id
         WHERE es.school_id = ${request.schoolId}::uuid AND es.status = 'submitted' AND es.score IS NOT NULL
-      ` as any[]
+          AND es.student_id = ANY(${ids}::uuid[])
+      ` as any[] : []
+
+      // Teachers: the arms they teach or are class teacher for, and only their subjects
+      // unless they are the class teacher
+      if (request.user.role === 'teacher') {
+        const scope = await loadTeacherScope(tdb, request.schoolId, request.user.id)
+        students = students.filter((s: any) => canSeeClass(scope, cl, s.class_arm))
+        if (!students.length) return reply.status(403).send(NOT_YOUR_CLASS)
+        const arm: Record<string, string | null> = {}
+        for (const s of students) arm[s.id] = s.class_arm
+        const mine = (studentId: string, subject: string | null) =>
+          studentId in arm && canSeeSubject(scope, cl, arm[studentId], subject)
+        entries = entries.filter((e: any) => mine(e.student_id, e.subject_name) || (e.student_id in arm && e.graded_by === request.user.id))
+        assignmentScores = assignmentScores.filter((a: any) => mine(a.student_id, a.subject_name))
+        cbtScores = cbtScores.filter((c: any) => mine(c.student_id, c.subject))
+      }
 
       return reply.send({ students, entries, assignmentScores, cbtScores })
     })
@@ -92,7 +143,13 @@ export async function gradebookRoutes(app: FastifyInstance) {
       const tid = String(termId)
       const tdb = tenantDb(request.schoolId)
 
-      const entries = await tdb.query`
+      // Admin and Proprietor: anyone. Teacher: students they teach. Parent: own children. Student: self.
+      const student = await findStudent(tdb, request.schoolId, sid)
+      if (!student) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })
+      const access = await studentAccess(tdb, request, student)
+      if (!access.allowed) return reply.status(403).send({ error: 'FORBIDDEN', message: 'You can only see records for students you teach or are linked to.' })
+
+      let entries = await tdb.query`
         SELECT ge.*, cs.name AS subject_name
         FROM gradebook_entries ge
         LEFT JOIN curriculum_subjects cs ON cs.id = ge.subject_id
@@ -101,7 +158,7 @@ export async function gradebookRoutes(app: FastifyInstance) {
         ORDER BY cs.name ASC, ge.created_at ASC
       ` as any[]
 
-      const assignmentScores = await tdb.query`
+      let assignmentScores = await tdb.query`
         SELECT asub.score, asub.feedback, asub.graded_at,
                la.title, la.max_score, cs.name AS subject_name, lp.subject_id
         FROM assignment_submissions asub
@@ -113,7 +170,7 @@ export async function gradebookRoutes(app: FastifyInstance) {
         ORDER BY cs.name ASC, asub.graded_at DESC
       ` as any[]
 
-      const cbtScores = await tdb.query`
+      let cbtScores = await tdb.query`
         SELECT es.score, es.percentage, es.submitted_at, e.title, e.subject, e.total_marks
         FROM exam_sessions es
         JOIN exams e ON e.id = es.exam_id
@@ -121,6 +178,15 @@ export async function gradebookRoutes(app: FastifyInstance) {
         AND es.student_id = ${sid}::uuid AND es.status = 'submitted' AND es.score IS NOT NULL
         ORDER BY es.submitted_at DESC
       ` as any[]
+
+      // A subject teacher sees only their own subjects; the class teacher sees everything
+      const scope = access.scope
+      if (scope) {
+        const ok = (subject: string | null) => canSeeSubject(scope, student.class_level, student.class_arm, subject)
+        entries = entries.filter((e: any) => ok(e.subject_name) || e.graded_by === request.user.id)
+        assignmentScores = assignmentScores.filter((a: any) => ok(a.subject_name))
+        cbtScores = cbtScores.filter((c: any) => ok(c.subject))
+      }
 
       return reply.send({ entries, assignmentScores, cbtScores })
     })
@@ -151,6 +217,8 @@ export async function gradebookRoutes(app: FastifyInstance) {
       const wt = d.weight
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
+      const denied = await checkWrite(request, tdb, [stid], subid)
+      if (denied) return reply.status(denied.status).send(denied.body)
 
       if (subid) {
         await tdb.query`
@@ -187,6 +255,8 @@ export async function gradebookRoutes(app: FastifyInstance) {
       const ms = d.maxScore
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
+      const denied = await checkWrite(request, tdb, d.scores.map(x => x.studentId), subid)
+      if (denied) return reply.status(denied.status).send(denied.body)
 
       let saved = 0
       for (const s of d.scores) {
@@ -213,8 +283,13 @@ export async function gradebookRoutes(app: FastifyInstance) {
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const eid = String(id)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eid)) return reply.status(404).send({ error: 'NOT_FOUND' })
       const tdb = tenantDb(request.schoolId)
-      await tdb.query`DELETE FROM gradebook_entries WHERE id = ${eid}::uuid AND school_id = ${request.schoolId}::uuid`
+      // Teachers can remove only marks they entered themselves
+      const rows = request.user.role === 'teacher'
+        ? await tdb.query`DELETE FROM gradebook_entries WHERE id = ${eid}::uuid AND school_id = ${request.schoolId}::uuid AND graded_by = ${request.user.id}::uuid RETURNING id` as any[]
+        : await tdb.query`DELETE FROM gradebook_entries WHERE id = ${eid}::uuid AND school_id = ${request.schoolId}::uuid RETURNING id` as any[]
+      if (!rows.length) return reply.status(404).send({ error: 'NOT_FOUND', message: request.user.role === 'teacher' ? 'Mark not found, or entered by someone else.' : 'Mark not found.' })
       return reply.send({ deleted: true })
     })
 }

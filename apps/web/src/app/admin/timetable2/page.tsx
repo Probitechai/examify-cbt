@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
@@ -70,7 +70,9 @@ export default function TimetablePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  // Teachers can view and print any class's timetable; the School Admin edits it
+  const [canEdit, setCanEdit] = useState(false)
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']); setCanEdit(parseJWT(getToken())?.role === 'school_admin') }, [])
 
   useEffect(() => { loadSessions() }, [])
 
@@ -269,18 +271,18 @@ export default function TimetablePage() {
                 style={{ padding: '0.5rem 1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.825rem', color: '#1a1a18', cursor: 'pointer' }}>
                 {view === 'grid' ? '☰ List view' : '⊞ Grid view'}
               </button>
-              <button onClick={() => setShowForm(true)}
+              {canEdit && <button onClick={() => setShowForm(true)}
                 style={{ padding: '0.5rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
                 + Add entry
-              </button>
+              </button>}
               <button onClick={() => window.print()}
                 style={{ padding: '0.5rem 1rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}>
                 🖨️ Print
               </button>
-              <button onClick={handleClearAll}
+              {canEdit && <button onClick={handleClearAll}
                 style={{ padding: '0.5rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '0.825rem', color: '#dc2626', cursor: 'pointer' }}>
                 🗑️ Clear all
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -323,13 +325,13 @@ export default function TimetablePage() {
                                     <p style={{ fontSize: '0.65rem', color: '#a0a09a', marginTop: '0.1rem' }}>{entry.start_time}{entry.end_time ? ` - ${entry.end_time}` : ''}</p>
                                   )}
                                   {entry.venue && <p style={{ fontSize: '0.65rem', color: '#a0a09a' }}>📍 {entry.venue}</p>}
-                                  <button onClick={() => handleDelete(entry.id)}
+                                  {canEdit && <button onClick={() => handleDelete(entry.id)}
                                     className="no-print"
                                     style={{ position: 'absolute' as const, top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: 'rgba(220,38,38,0.1)', border: 'none', cursor: 'pointer', fontSize: '0.6rem', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                                     ✕
-                                  </button>
+                                  </button>}
                                 </div>
-                              ) : (
+                              ) : !canEdit ? <div style={{ height: 52 }} /> : (
                                 <div className="no-print"
                                   onClick={() => { setFormDay(day); setFormPeriod(period); setShowForm(true) }}
                                   style={{ height: 52, borderRadius: '8px', border: '1.5px dashed #e5e5e0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d0d0c8', fontSize: '0.72rem', transition: 'all 0.1s' }}
@@ -370,11 +372,11 @@ export default function TimetablePage() {
                               </p>
                             </div>
                           </div>
-                          <button onClick={() => handleDelete(entry.id)}
+                          {canEdit && <button onClick={() => handleDelete(entry.id)}
                             className="no-print"
                             style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer' }}>
                             Delete
-                          </button>
+                          </button>}
                         </div>
                       ))}
                     </div>
@@ -388,11 +390,11 @@ export default function TimetablePage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
           <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📅</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No timetable yet</p>
-          <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>Select filters and click Load, or start adding entries directly.</p>
-          <button onClick={() => { if (selectedTerm) setShowForm(true); else setError('Please select a session and term first') }}
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65', marginBottom: '1.5rem' }}>{canEdit ? 'Select filters and click Load, or start adding entries directly.' : 'Choose a class and click Load to see its timetable.'}</p>
+          {canEdit && <button onClick={() => { if (selectedTerm) setShowForm(true); else setError('Please select a session and term first') }}
             style={{ padding: '0.625rem 1.5rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
             + Add first entry
-          </button>
+          </button>}
         </div>
       )}
     </div>

@@ -165,7 +165,7 @@ export default function Hostel2Page() {
     }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/hostels/exeats`, {
+      const res = await apiFetch(`${API}/hostels/exeats`, {
         method: 'POST',
         body: JSON.stringify({ studentId: f.studentId, hostelId: selectedHostel, termId: selectedTerm, reason: f.reason, destination: f.destination, departureDate: f.departureDate, returnDate: f.returnDate, guardianName: f.guardianName, guardianPhone: f.guardianPhone, guardianRelationship: f.guardianRelationship })
       })
@@ -179,7 +179,7 @@ export default function Hostel2Page() {
   }
 
   async function updateExeatStatus(id: string, status: string, reason?: string) {
-    await fetch(`${API}/hostels/exeats/${id}/status`, {
+    await apiFetch(`${API}/hostels/exeats/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, rejectionReason: reason })
     })
@@ -193,7 +193,7 @@ export default function Hostel2Page() {
     if (!f.studentId || !f.visitorName || !f.relationship) { setError('Student, visitor name and relationship required'); return }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/hostels/visitors`, {
+      const res = await apiFetch(`${API}/hostels/visitors`, {
         method: 'POST',
         body: JSON.stringify({ studentId: f.studentId, hostelId: selectedHostel, visitorName: f.visitorName, visitorPhone: f.visitorPhone || undefined, relationship: f.relationship, purpose: f.purpose || undefined })
       })
@@ -206,7 +206,7 @@ export default function Hostel2Page() {
   }
 
   async function checkoutVisitor(id: string) {
-    await fetch(`${API}/hostels/visitors/${id}/checkout`, { method: 'PATCH' })
+    await apiFetch(`${API}/hostels/visitors/${id}/checkout`, { method: 'PATCH' })
     setSuccess('Visitor checked out!'); setTimeout(() => setSuccess(''), 3000)
     loadVisitors()
   }
@@ -220,7 +220,7 @@ export default function Hostel2Page() {
         status: rollCallEntries[a.student_id] ?? 'present',
         notes: rollCallNotes[a.student_id] ?? undefined,
       }))
-      const res = await fetch(`${API}/hostels/roll-calls`, {
+      const res = await apiFetch(`${API}/hostels/roll-calls`, {
         method: 'POST',
         body: JSON.stringify({ hostelId: selectedHostel, date: rollCallDate, callTime, entries })
       })
@@ -235,7 +235,7 @@ export default function Hostel2Page() {
     if (!mealForm.studentId) { setError('Student required'); return }
     setSaving(true); setError('')
     try {
-      await fetch(`${API}/hostels/meal-plans`, {
+      await apiFetch(`${API}/hostels/meal-plans`, {
         method: 'POST',
         body: JSON.stringify({ studentId: mealForm.studentId, hostelId: selectedHostel, termId: selectedTerm, planType: mealForm.planType, dietaryRequirements: mealForm.dietaryRequirements || undefined })
       })

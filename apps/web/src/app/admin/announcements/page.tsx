@@ -1,5 +1,5 @@
 'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
@@ -42,7 +42,9 @@ export default function AnnouncementsPage() {
   const [success, setSuccess] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  // Teachers read announcements for staff; posting stays with the School Admin
+  const [canPost, setCanPost] = useState(false)
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']); setCanPost(parseJWT(getToken())?.role === 'school_admin') }, [])
 
   useEffect(() => { loadAnnouncements() }, [])
 
@@ -59,7 +61,7 @@ export default function AnnouncementsPage() {
     if (!title.trim() || !body.trim()) { setError('Title and message are required'); return }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/announcements`, {
+      const res = await apiFetch(`${API}/announcements`, {
         method: 'POST',
         body: JSON.stringify({ title: title.trim(), body: body.trim(), audience })
       })
@@ -94,12 +96,12 @@ export default function AnnouncementsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Announcements</h1>
-          <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Post messages to parents, teachers, students or everyone.</p>
+          <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>{canPost ? 'Post messages to parents, teachers, students or everyone.' : 'Messages from your school for staff and everyone.'}</p>
         </div>
-        <button onClick={() => { setShowForm(true); setError('') }}
+        {canPost && <button onClick={() => { setShowForm(true); setError('') }}
           style={{ padding: '0.625rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
           + New announcement
-        </button>
+        </button>}
       </div>
 
       {/* New announcement form */}
@@ -166,7 +168,7 @@ export default function AnnouncementsPage() {
         <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '4rem', textAlign: 'center' }}>
           <p style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📢</p>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.5rem' }}>No announcements yet</p>
-          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>Post your first announcement to parents, teachers or students.</p>
+          <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>{canPost ? 'Post your first announcement to parents, teachers or students.' : 'Nothing from the school yet.'}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -195,10 +197,10 @@ export default function AnnouncementsPage() {
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(a.id) }}
+                    {canPost && <button onClick={e => { e.stopPropagation(); handleDelete(a.id) }}
                       style={{ padding: '0.3rem 0.75rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.72rem', color: '#dc2626', cursor: 'pointer' }}>
                       Delete
-                    </button>
+                    </button>}
                     <span style={{ fontSize: '0.825rem', color: '#a0a09a' }}>{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>

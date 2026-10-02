@@ -115,7 +115,7 @@ export default function HostelPage() {
     try {
       const body: any = { name: hostelForm.name, type: hostelForm.type, description: hostelForm.description || undefined }
       if (hostelForm.housemasterId) body.housemasterId = hostelForm.housemasterId
-      const res = await fetch(`${API}/hostels`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/hostels`, { method: 'POST', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create')
       setShowHostelForm(false)
@@ -129,7 +129,7 @@ export default function HostelPage() {
     if (!roomForm.roomNumber || !selectedHostel) { setError('Room number required'); return }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/hostels/${selectedHostel.id}/rooms`, {
+      const res = await apiFetch(`${API}/hostels/${selectedHostel.id}/rooms`, {
         method: 'POST',
         body: JSON.stringify({
           roomNumber: roomForm.roomNumber,
@@ -152,7 +152,7 @@ export default function HostelPage() {
     if (!allocForm.studentId || !allocForm.bedId || !selectedTerm) { setError('Student and bed required'); return }
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/hostels/allocations`, {
+      const res = await apiFetch(`${API}/hostels/allocations`, {
         method: 'POST',
         body: JSON.stringify({
           studentId: allocForm.studentId,

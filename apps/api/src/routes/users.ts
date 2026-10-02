@@ -8,6 +8,7 @@ import { studentCapacity, limitError } from '../lib/studentLimit'
 import { normalizeTier, TIER_NAMES } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
+import { loadTeacherScope, canSeeClass } from '../lib/teacherScope'
 async function schoolLevels(schoolId: string): Promise<string[]> {
   const rows = await db()`SELECT sections FROM schools WHERE id = ${schoolId}::uuid` as any[]
   return levelsFor(asSections(rows[0]?.sections))
@@ -26,6 +27,28 @@ export async function userRoutes(app: FastifyInstance) {
         ORDER BY role, full_name
       `
       return reply.send({ users })
+    })
+
+  // Students of one class, for staff pickers (report card and the like).
+  // Teachers get only the arms they teach or are class teacher for.
+  app.get('/users/students', { preHandler: [authenticate, requireRole('school_admin', 'proprietor', 'teacher')] },
+    async (request: any, reply: any) => {
+      const { classLevel, classArm } = request.query as any
+      if (!classLevel) return reply.status(400).send({ error: 'classLevel is required' })
+      const cl = String(classLevel), ca = classArm ? String(classArm) : null
+      const tdb = tenantDb(request.schoolId)
+      let students = await tdb.query`
+        SELECT id, full_name, admission_no, class_level, class_arm
+        FROM users
+        WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
+          AND class_level = ${cl} AND (${ca}::text IS NULL OR class_arm = ${ca})
+        ORDER BY class_arm, full_name
+      ` as any[]
+      if (request.user.role === 'teacher') {
+        const scope = await loadTeacherScope(tdb, request.schoolId, request.user.id)
+        students = students.filter((s: any) => canSeeClass(scope, s.class_level, s.class_arm))
+      }
+      return reply.send({ students })
     })
 
   app.post('/users', { preHandler: [authenticate, requireRole('school_admin')] },

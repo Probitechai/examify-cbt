@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../hooks/useAuth'
 import { ROLE_HOME } from '@/lib/auth'
+import { useTeaching } from '@/lib/teaching'
 import styles from './admin.layout.module.css'
 
 const TIER_ORDER: Record<string, number> = { basic: 1, standard: 2, premium: 3, enterprise: 4 }
@@ -77,6 +78,20 @@ const NAV: NavItem[] = [
   { href: '/admin/analytics',     icon: '📊', label: 'Analytics',         tier: 'premium', group: 'analytics' },
 ]
 
+// Pages only the School Admin uses. Teachers don't see them in the menu, and
+// opening one directly shows a short notice instead of the page.
+const ADMIN_ONLY = [
+  '/admin/settings', '/admin/sessions', '/admin/users', '/admin/students', '/admin/admissions',
+  '/admin/fees', '/admin/fee-approvals', '/admin/subscription', '/admin/approvals', '/admin/result-config',
+  '/admin/hostels', '/admin/hostel-operations', '/admin/transport', '/admin/transport-ops',
+  '/admin/analytics', '/admin/questions2',
+]
+function adminOnly(path: string) {
+  return ADMIN_ONLY.some(p => path === p || path.startsWith(p + '/'))
+}
+// Menu names that read better for a teacher
+const TEACHER_LABELS: Record<string, string> = { '/admin/teacher-assignments': 'My Classes' }
+
 function getToken() {
   if (typeof document === 'undefined') return ''
   return document.cookie.split(';').find(c => c.trim().startsWith('examify_token='))?.split('=')[1] ?? ''
@@ -90,6 +105,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { hydrate, user, isLoading } = useAuthStore()
   const [schoolTier, setSchoolTier] = useState<string>('basic')
   const plan = usePlan()
+  const teaching = useTeaching()
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => { hydrate() }, [hydrate])
@@ -122,6 +138,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       console.error('[TIER FETCH] Exception before fetch:', err)
     }
   }, [user])
+  const isTeacher = user?.role === 'teacher'
+  // A teacher's menu: no admin-only pages; the broadsheet only for class teachers
+  const nav = !isTeacher ? NAV : NAV.filter(item => {
+    if (adminOnly(item.href)) return false
+    if (item.href === '/admin/broadsheet') return teaching.loaded && teaching.classTeacherOf.length > 0
+    return true
+  }).map(item => TEACHER_LABELS[item.href] ? { ...item, label: TEACHER_LABELS[item.href] } : item)
+  const blocked = isTeacher && adminOnly(pathname)
+
   if (isLoading || !user) return (
     <div className={styles.loading}>
       <div className={styles.spinner} />
@@ -172,7 +197,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className={styles.nav}>
             {(() => {
               let lastGroup: string | undefined
-              return NAV.map(item => {
+              return nav.map(item => {
                 const isGroupStart = !!item.group && item.group !== lastGroup
                 lastGroup = item.group
                 const open = item.group ? (openGroups[item.group] ?? true) : true
@@ -241,7 +266,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
       <main className={styles.main}>
-        <PlanGate pathname={pathname} upgradeHref={user.role === 'school_admin' ? '/admin/subscription' : undefined}>{children}</PlanGate>
+        {blocked ? (
+          <div style={{ padding: '3rem 1.5rem', maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
+            <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔒</p>
+            <h1 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem' }}>This page is for the School Admin</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              Your teacher account can&apos;t open it. If you need something here, please ask your School Admin.</p>
+            <Link href="/admin" style={{ padding: '0.6rem 1.25rem', background: '#1a6b4a', color: 'white', borderRadius: 8, textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}>Back to overview</Link>
+          </div>
+        ) : (
+          <PlanGate pathname={pathname} upgradeHref={user.role === 'school_admin' ? '/admin/subscription' : undefined}>{children}</PlanGate>
+        )}
       </main>
     </div>
   )

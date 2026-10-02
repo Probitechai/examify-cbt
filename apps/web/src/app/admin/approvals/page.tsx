@@ -104,7 +104,7 @@ export default function ApprovalsPage() {
       if (classArm) body.classArm = classArm
       if (scope === 'subject' && subject) body.subject = subject
 
-      const res = await fetch(`${API}/results/approve`, {
+      const res = await apiFetch(`${API}/results/approve`, {
         method: 'POST',
         body: JSON.stringify(body)
       })

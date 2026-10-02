@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { gateRoutes } from '../middleware/tier'
+import { loadTeacherScope, canSeeClass, canSeeSubject, findStudent, studentAccess, NOT_YOUR_CLASS } from '../lib/teacherScope'
 
 export async function certificateRoutes(app: FastifyInstance) {
   gateRoutes(app, 'certificates')
@@ -14,6 +15,11 @@ export async function certificateRoutes(app: FastifyInstance) {
       const { studentId } = request.params as any
       const sid = String(studentId)
       const tdb = tenantDb(request.schoolId)
+      const student = await findStudent(tdb, request.schoolId, sid)
+      if (!student) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })
+      if (!(await studentAccess(tdb, request, student)).allowed) {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'You can only see certificates for students you teach or are linked to.' })
+      }
       const rows = await tdb.query`
         SELECT cc.*, u.full_name AS student_name, u.class_level, u.class_arm,
                cs.name AS subject_name, t.name AS term_name,
@@ -84,6 +90,10 @@ export async function certificateRoutes(app: FastifyInstance) {
           ORDER BY cc.issued_at DESC
         ` as any[]
       }
+      if (request.user.role === 'teacher') {
+        const scope = await loadTeacherScope(tdb, request.schoolId, request.user.id)
+        rows = rows.filter((r: any) => canSeeClass(scope, r.class_level, r.class_arm))
+      }
       return reply.send({ certificates: rows })
     })
 
@@ -110,6 +120,8 @@ export async function certificateRoutes(app: FastifyInstance) {
         AND cc.school_id = ${request.schoolId}::uuid
       ` as any[]
       if (!rows[0]) return reply.status(404).send({ error: 'Certificate not found' })
+      const access = await studentAccess(tdb, request, { id: rows[0].student_id, class_level: rows[0].class_level, class_arm: rows[0].class_arm })
+      if (!access.allowed) return reply.status(404).send({ error: 'Certificate not found' })
       return reply.send({ certificate: rows[0] })
     })
 
@@ -135,6 +147,19 @@ export async function certificateRoutes(app: FastifyInstance) {
       const desc = d.description ?? null
       const uid = request.user.id
       const tdb = tenantDb(request.schoolId)
+
+      const student = await findStudent(tdb, request.schoolId, stid)
+      if (!student) return reply.status(404).send({ error: 'STUDENT_NOT_FOUND', message: 'Student not found in this school.' })
+      // Teachers: students they teach; a subject certificate needs that subject (or class teacher)
+      if (request.user.role === 'teacher') {
+        const scope = await loadTeacherScope(tdb, request.schoolId, uid)
+        let ok = canSeeClass(scope, student.class_level, student.class_arm)
+        if (ok && subid) {
+          const sub = await tdb.query`SELECT name FROM curriculum_subjects WHERE id = ${subid}::uuid AND school_id = ${request.schoolId}::uuid` as any[]
+          ok = !!sub[0] && canSeeSubject(scope, student.class_level, student.class_arm, sub[0].name)
+        }
+        if (!ok) return reply.status(403).send({ ...NOT_YOUR_CLASS, message: 'You can only issue certificates to students you teach.' })
+      }
 
       let rows: any[]
       if (subid) {

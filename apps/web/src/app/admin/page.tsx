@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../hooks/useAuth'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
+import { useTeaching, teachingLevels } from '@/lib/teaching'
 import styles from './overview.module.css'
 
 
@@ -27,7 +28,10 @@ export default function AdminOverview() {
   const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  // Teachers land here too: they see their own exams and classes
+  const [isTeacher, setIsTeacher] = useState(false)
+  const teaching = useTeaching()
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']); setIsTeacher(parseJWT(getToken())?.role === 'teacher') }, [])
 
   useEffect(() => {
   const token = document.cookie.split(';')
@@ -43,10 +47,13 @@ export default function AdminOverview() {
       const examsData = await examsRes.json()
       const exams = examsData.exams ?? []
 
-      // Fetch real students count
-      const usersRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`)
-      const usersData = await usersRes.json()
-      const students = usersData.users ?? []
+      // Fetch real students count (School Admin only)
+      let students: any[] = []
+      if (parseJWT(getToken())?.role !== 'teacher') {
+        const usersRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/users?role=student`)
+        const usersData = await usersRes.json()
+        students = (usersData.users ?? []).filter((u: any) => u.role === 'student')
+      }
 
       const activeExams = exams.filter((e: any) => e.status === 'active')
       const completedExams = exams.filter((e: any) => e.status === 'completed')
@@ -88,7 +95,7 @@ export default function AdminOverview() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.title}>{greeting}, {user?.fullName.split(' ')[1] ?? user?.fullName}</h1>
-          <p className={styles.subtitle}>Here's what's happening at your school today.</p>
+          <p className={styles.subtitle}>{isTeacher ? 'Your classes and exams at a glance.' : "Here's what's happening at your school today."}</p>
         </div>
         <button className={styles.newExamBtn} onClick={() => router.push('/admin/exams/new')}>
           + New exam
@@ -102,11 +109,19 @@ export default function AdminOverview() {
       ) : stats && (
         <>
           <div className={styles.statGrid}>
+            {isTeacher ? (
+            <div className={styles.statCard}>
+              <p className={styles.statLabel}>My classes</p>
+              <p className={styles.statValue}>{teachingLevels(teaching).length}</p>
+              <p className={styles.statSub}>{teaching.subjects.length} subject assignment{teaching.subjects.length === 1 ? '' : 's'}{teaching.classTeacherOf.length ? ` · class teacher of ${teaching.classTeacherOf.map(c => `${c.classLevel} ${c.classArm}`).join(', ')}` : ''}</p>
+            </div>
+            ) : (
             <div className={styles.statCard}>
               <p className={styles.statLabel}>Total students</p>
               <p className={styles.statValue}>{stats.totalStudents}</p>
               <p className={styles.statSub}>enrolled this term</p>
             </div>
+            )}
             <div className={styles.statCard}>
               <p className={styles.statLabel}>Active exams</p>
               <p className={`${styles.statValue} ${styles.statGreen}`}>{stats.activeExams}</p>
@@ -117,18 +132,18 @@ export default function AdminOverview() {
               <p className={styles.statValue}>{stats.completedExams}</p>
               <p className={styles.statSub}>this term</p>
             </div>
-            <div className={styles.statCard}>
+            {!isTeacher && <div className={styles.statCard}>
               <p className={styles.statLabel}>Avg. pass rate</p>
               <p className={`${styles.statValue} ${stats.avgPassRate >= 60 ? styles.statGreen : styles.statAmber}`}>
                 {stats.avgPassRate}%
               </p>
               <p className={styles.statSub}>across all exams</p>
-            </div>
+            </div>}
           </div>
 
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Recent exams</h2>
+              <h2 className={styles.sectionTitle}>{isTeacher ? 'My recent exams' : 'Recent exams'}</h2>
               <button className={styles.seeAll} onClick={() => router.push('/admin/exams')}>See all →</button>
             </div>
             <div className={styles.examTable}>
@@ -146,6 +161,7 @@ export default function AdminOverview() {
                   <span className={styles.cell}>{exam.subject}</span>
                   <span className={styles.cell}>{formatDate(exam.scheduledAt)}</span>
                   <span className={styles.cell}>
+                    {isTeacher ? '—' : <>
                     <span className={styles.subBar}>
                       <span
                         className={styles.subFill}
@@ -153,6 +169,7 @@ export default function AdminOverview() {
                       />
                     </span>
                     <span className={styles.subText}>{exam.submitted}/{exam.total}</span>
+                    </>}
                   </span>
                   <span>
                     <span className={`${styles.statusTag} ${exam.status === 'active' ? styles.statusActive : styles.statusDone}`}>
@@ -172,12 +189,17 @@ export default function AdminOverview() {
           <div className={styles.quickActions}>
             <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>Quick actions</h2>
             <div className={styles.actionGrid}>
-              {[
+              {(isTeacher ? [
+                { label: 'Create exam', desc: 'Set up a CBT for your class', icon: '📋', href: '/admin/exams/new' },
+                { label: 'Add questions', desc: 'Build your question bank', icon: '❓', href: '/admin/qbank/add' },
+                { label: 'Enter results', desc: 'CA and exam scores for your subjects', icon: '📝', href: '/admin/results2' },
+                { label: 'Take attendance', desc: 'Mark your class register', icon: '📋', href: '/admin/attendance' },
+              ] : [
                 { label: 'Add students', desc: 'Upload or create student accounts', icon: '👤', href: '/admin/users' },
                 { label: 'Create exam', desc: 'Set up a new CBT examination', icon: '📋', href: '/admin/exams/new' },
                 { label: 'Add questions', desc: 'Build your question bank', icon: '❓', href: '/admin/qbank/add' },
                 { label: 'View results', desc: 'Analyse student performance', icon: '📊', href: '/admin/results' },
-              ].map(a => (
+              ]).map(a => (
                 <button key={a.label} className={styles.actionCard} onClick={() => router.push(a.href)}>
                   <span className={styles.actionIcon}>{a.icon}</span>
                   <span className={styles.actionLabel}>{a.label}</span>

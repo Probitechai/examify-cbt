@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
+import { useTeaching, classTeacherLevels, classTeacherArms } from '@/lib/teaching'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
@@ -47,7 +48,10 @@ function gradeColor(grade: string) {
 }
 
 export default function BroadsheetPage() {
-  const CLASS_LEVELS = useClassLevels()
+  const schoolLevels = useClassLevels()
+  const teaching = useTeaching()
+  // A teacher sees the broadsheet of the class they are class teacher for
+  const CLASS_LEVELS = teaching.limited ? classTeacherLevels(teaching) : schoolLevels
   const router = useRouter()
   const printRef = useRef<HTMLDivElement>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -63,7 +67,13 @@ export default function BroadsheetPage() {
   const [schoolName, setSchoolName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+  const ARMS = teaching.limited ? classTeacherArms(teaching, classLevel) : CLASS_ARMS
+  useEffect(() => {
+    if (!teaching.limited) return
+    if (CLASS_LEVELS.length && !CLASS_LEVELS.includes(classLevel)) setClassLevel(CLASS_LEVELS[0])
+    else if (ARMS.length && !ARMS.includes(classArm)) setClassArm(ARMS[0])
+  }, [teaching.loaded, classLevel, CLASS_LEVELS.join(), ARMS.join()])
 
   useEffect(() => { loadSessions() }, [])
 
@@ -107,6 +117,7 @@ export default function BroadsheetPage() {
       if (classArm) params.append('classArm', classArm)
       const res = await apiFetch(`${API}/results/broadsheet?${params}`)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load broadsheet'); return }
       setBroadsheet(data.broadsheet)
     } catch { setError('Failed to load broadsheet') } finally { setLoading(false) }
   }
@@ -135,6 +146,11 @@ export default function BroadsheetPage() {
         <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Full class result sheet showing all subjects, grades and positions.</p>
       </div>
 
+      {teaching.limited && teaching.loaded && CLASS_LEVELS.length === 0 && (
+        <div className="no-print" style={{ padding: '0.875rem 1.25rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#92400e' }}>
+          The broadsheet is for class teachers. You are not class teacher of any class yet. Your School Admin can set this under Teacher Assignments.</div>
+      )}
+
       {/* Filter panel */}
       <div className="no-print" style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr) auto', gap: '1rem', alignItems: 'flex-end' }}>
@@ -161,8 +177,8 @@ export default function BroadsheetPage() {
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Arm</label>
             <select style={sel} value={classArm} onChange={e => setClassArm(e.target.value)}>
-              <option value="">All arms</option>
-              {CLASS_ARMS.map(a => <option key={a}>{a}</option>)}
+              {!teaching.limited && <option value="">All arms</option>}
+              {ARMS.map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>

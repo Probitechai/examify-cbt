@@ -1,8 +1,9 @@
 ﻿'use client'
-import { apiFetch, checkAuth } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, parseJWT } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
+import { useTeaching, teachingLevels, isClassTeacherOf, teachesSubjectIn } from '@/lib/teaching'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -16,7 +17,10 @@ function getGrade(pct: number): { grade: string; color: string } {
 }
 
 export default function GradebookPage() {
-  const CLASS_LEVELS = useClassLevels()
+  const schoolLevels = useClassLevels()
+  const teaching = useTeaching()
+  // Teachers choose only from the classes they teach
+  const CLASS_LEVELS = teaching.limited ? teachingLevels(teaching) : schoolLevels
   const router = useRouter()
   const [sessions, setSessions] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
@@ -35,6 +39,9 @@ export default function GradebookPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  const [myId, setMyId] = useState('')
+  useEffect(() => { setMyId(parseJWT(getToken())?.id ?? '') }, [])
+
   // Manual entry form
   const [showEntryForm, setShowEntryForm] = useState(false)
   const [entryForm, setEntryForm] = useState({ studentId: '', title: '', entryType: 'class_test', score: '', maxScore: '100' })
@@ -47,7 +54,16 @@ export default function GradebookPage() {
   const [bulkScores, setBulkScores] = useState<Record<string, string>>({})
   const [savingBulk, setSavingBulk] = useState(false)
 
-  useEffect(() => { checkAuth(router, 'school_admin') }, [])
+  useEffect(() => { checkAuth(router, ['school_admin', 'teacher']) }, [])
+  useEffect(() => {
+    if (teaching.limited && CLASS_LEVELS.length && !CLASS_LEVELS.includes(selectedClass)) setSelectedClass(CLASS_LEVELS[0])
+  }, [teaching.loaded, CLASS_LEVELS.join()])
+  // A subject teacher works one subject at a time; the class teacher may see all
+  const classTeacher = !teaching.limited || isClassTeacherOf(teaching, selectedClass)
+  const visibleSubjects = subjects.filter(s => teachesSubjectIn(teaching, selectedClass, s.name))
+  useEffect(() => {
+    if (!classTeacher && visibleSubjects.length && !visibleSubjects.some(s => s.id === selectedSubject)) setSelectedSubject(visibleSubjects[0].id)
+  }, [classTeacher, visibleSubjects.map(s => s.id).join()])
 
   useEffect(() => { loadInitial() }, [])
 
@@ -87,6 +103,7 @@ export default function GradebookPage() {
       if (selectedSubject) url += `&subjectId=${selectedSubject}`
       const res = await apiFetch(url)
       const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to load gradebook'); setStudents([]); setEntries([]); return }
       setStudents(data.students ?? [])
       setEntries(data.entries ?? [])
       setAssignmentScores(data.assignmentScores ?? [])
@@ -111,7 +128,8 @@ export default function GradebookPage() {
         maxScore: Number(entryForm.maxScore),
       }
       if (selectedSubject) body.subjectId = selectedSubject
-      await fetch(`${API}/gradebook/entries`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/gradebook/entries`, { method: 'POST', body: JSON.stringify(body) })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.message ?? 'Failed to save entry'); return }
       setShowEntryForm(false)
       setEntryForm({ studentId: '', title: '', entryType: 'class_test', score: '', maxScore: '100' })
       setSuccess('Entry saved!'); setTimeout(() => setSuccess(''), 3000)
@@ -135,7 +153,8 @@ export default function GradebookPage() {
         scores,
       }
       if (selectedSubject) body.subjectId = selectedSubject
-      await fetch(`${API}/gradebook/entries/bulk`, { method: 'POST', body: JSON.stringify(body) })
+      const res = await apiFetch(`${API}/gradebook/entries/bulk`, { method: 'POST', body: JSON.stringify(body) })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.message ?? 'Failed to save scores'); return }
       setShowBulkForm(false)
       setBulkTitle(''); setBulkMaxScore('100')
       const reset: Record<string, string> = {}
@@ -147,7 +166,8 @@ export default function GradebookPage() {
   }
 
   async function deleteEntry(id: string) {
-    await apiFetch(`${API}/gradebook/entries/${id}`, { method: 'DELETE' })
+    const res = await apiFetch(`${API}/gradebook/entries/${id}`, { method: 'DELETE' })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.message ?? 'Could not remove this mark'); return }
     setEntries(prev => prev.filter(e => e.id !== id))
   }
 
@@ -174,10 +194,17 @@ export default function GradebookPage() {
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>Gradebook</h1>
         <p style={{ color: '#6b6b65', fontSize: '0.875rem' }}>Unified view of CBT scores, assignment scores and class test results.</p>
+        {teaching.limited && <p style={{ color: '#6b6b65', fontSize: '0.8rem', marginTop: '0.375rem' }}>
+          You see the classes and subjects you teach. As class teacher you see every subject of your class.</p>}
       </div>
 
       {error && <div style={{ padding: '0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#dc2626' }}>{error}</div>}
       {success && <div style={{ padding: '0.875rem', background: '#e8f5ee', border: '1px solid #1a6b4a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#0f4a32', fontWeight: 500 }}>✅ {success}</div>}
+
+      {teaching.limited && teaching.loaded && CLASS_LEVELS.length === 0 && (
+        <div style={{ padding: '0.875rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', marginBottom: '1rem', fontSize: '0.875rem', color: '#92400e' }}>
+          You have not been assigned any classes or subjects yet. Ask your School Admin to add them under Teacher Assignments.</div>
+      )}
 
       {/* Filters */}
       <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -193,8 +220,8 @@ export default function GradebookPage() {
             </select></div>
           <div><label style={lbl}>Subject (optional)</label>
             <select style={sel} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
-              <option value="">All subjects</option>
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {classTeacher && <option value="">All subjects</option>}
+              {visibleSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select></div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button onClick={loadGradebook} disabled={loading}
@@ -243,8 +270,8 @@ export default function GradebookPage() {
                 const { avg, count } = getStudentSummary(s.id)
                 const gradeInfo = avg != null ? getGrade(avg) : null
                 return (
-                  <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 80px 80px', gap: '1rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center', cursor: 'pointer' }}
-                    onClick={() => router.push(`/admin/students/${s.id}`)}>
+                  <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 80px 80px', gap: '1rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center', cursor: teaching.limited ? 'default' : 'pointer' }}
+                    onClick={() => { if (!teaching.limited) router.push(`/admin/students/${s.id}`) }}>
                     <div>
                       <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18' }}>{s.full_name}</p>
                       <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{s.admission_no ?? ''}</p>
@@ -386,8 +413,10 @@ export default function GradebookPage() {
                           <p style={{ fontSize: '0.72rem', color: '#6b6b65', textTransform: 'capitalize' as const }}>{e.entry_type.replace('_', ' ')}</p>
                           <span style={{ textAlign: 'center' as const, fontSize: '0.825rem' }}>{e.score}/{e.max_score}</span>
                           <span style={{ textAlign: 'center' as const, fontSize: '0.875rem', fontWeight: 700, color: gradeInfo.color }}>{pct.toFixed(1)}%</span>
+                          {(!teaching.limited || e.graded_by === myId) ? (
                           <button onClick={() => deleteEntry(e.id)}
                             style={{ padding: '0.25rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', fontSize: '0.65rem', color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}>Del</button>
+                          ) : <span />}
                         </div>
                       )
                     })}

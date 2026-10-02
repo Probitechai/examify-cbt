@@ -1,5 +1,6 @@
 'use client'
-import { getToken, checkAuth } from '@/lib/auth'
+import { getToken, checkAuth, parseJWT } from '@/lib/auth'
+import { useTeaching } from '@/lib/teaching'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
@@ -24,7 +25,7 @@ interface Assignment {
 const inp = { padding: '0.625rem 0.875rem', background: 'white', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', color: 'var(--text-primary)', outline: 'none', width: '100%', fontFamily: 'inherit', boxSizing: 'border-box' as const }
 const lbl = { fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }
 
-export default function TeacherAssignmentsPage() {
+function AdminAssignments() {
   const CLASS_LEVELS = useClassLevels()
   const router = useRouter()
   const [view, setView] = useState<'teacher' | 'class' | 'classTeacher'>('teacher')
@@ -298,6 +299,46 @@ export default function TeacherAssignmentsPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// Teachers see their own classes and subjects; the School Admin manages everyone's
+export default function TeacherAssignmentsPage() {
+  const router = useRouter()
+  const [role, setRole] = useState<string | null>(null)
+  useEffect(() => {
+    checkAuth(router, ['school_admin', 'teacher'])
+    setRole(parseJWT(getToken())?.role ?? '')
+  }, [])
+  if (role === null) return null
+  return role === 'teacher' ? <MyTeaching /> : <AdminAssignments />
+}
+
+function MyTeaching() {
+  const t = useTeaching()
+  const card = { background: 'white', border: '1px solid #e5e5e0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.25rem' }
+  const row = { display: 'flex', justifyContent: 'space-between', padding: '0.625rem 0', borderTop: '1px solid #f0f0ec', fontSize: '0.875rem' }
+  const arm = (a: string | null) => (a ? `${a}` : 'all arms')
+  return (
+    <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 720 }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a18', marginBottom: '0.25rem' }}>My classes and subjects</h1>
+      <p style={{ color: '#6b6b65', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        What you are assigned to teach. Your results, gradebook and report cards follow these. Your School Admin can change them.</p>
+      {!t.loaded ? <p style={{ color: '#6b6b65' }}>Loading…</p> : (<>
+        <div style={card}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Class teacher</h2>
+          {t.classTeacherOf.length === 0
+            ? <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>You are not class teacher of any class.</p>
+            : t.classTeacherOf.map(c => <div key={c.classLevel + c.classArm} style={row}><span>{c.classLevel} {c.classArm}</span><span style={{ color: '#6b6b65' }}>All subjects, broadsheet, conduct</span></div>)}
+        </div>
+        <div style={card}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Subjects</h2>
+          {t.subjects.length === 0
+            ? <p style={{ fontSize: '0.875rem', color: '#6b6b65' }}>No subjects assigned yet.</p>
+            : t.subjects.map((s, i) => <div key={i} style={row}><span>{s.subject}</span><span style={{ color: '#6b6b65' }}>{s.classLevel}, {arm(s.classArm)}</span></div>)}
+        </div>
+      </>)}
     </div>
   )
 }
