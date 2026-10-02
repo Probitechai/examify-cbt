@@ -502,7 +502,7 @@ export async function resultRoutes(app: FastifyInstance) {
 
       // The student must belong to this school
       const studentRows = await tdb.query`
-        SELECT full_name, admission_no, class_level, class_arm
+        SELECT full_name, admission_no, class_level, class_arm, photo_url
         FROM users WHERE id = ${studentId}::uuid AND school_id = ${request.schoolId}::uuid AND role = 'student'
       ` as any[]
       if (!studentRows[0]) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })

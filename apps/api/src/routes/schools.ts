@@ -4,6 +4,7 @@ import { tenantDb, db } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { normalizeTier, TIER_NAMES, FEATURE_TIERS, featuresFor } from '../middleware/tier'
 import { SECTIONS, SECTION_LEVELS, levelsFor, asSections, sectionOf } from '../lib/classLevels'
+import { findStudent, studentAccess } from '../lib/teacherScope'
 
 /**
  * Set a school's sections. Refuses to drop a section that still has active
@@ -105,18 +106,45 @@ app.get('/schools/public', async (request: any, reply: any) => {
       return reply.send({ saved: true })
     })
 
-  // ── Update student photo ──────────────────────────────────────────────────
+  // ── Student photo ───────────────────────────────────────────────────────
+  // The browser shrinks the picture to passport size and sends it here as an
+  // image (data URL); it is kept with the student, so no storage bucket is needed.
+  // photo: null removes it. An https link (photoUrl) is still accepted.
+  const PHOTO_MAX = 300 * 1024
+  app.get('/users/:id/photo', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const tdb = tenantDb(request.schoolId)
+      const student = await findStudent(tdb, request.schoolId, String(id))
+      if (!student || !(await studentAccess(tdb, request, student)).allowed) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })
+      }
+      const rows = await tdb.query`SELECT photo_url FROM users WHERE id = ${student.id}::uuid` as any[]
+      return reply.send({ photo: rows[0]?.photo_url || null })
+    })
+
   app.patch('/users/:id/photo', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
-      const schema = z.object({ photoUrl: z.string().url() })
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id))) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })
+      }
+      const schema = z.object({
+        photo: z.string().regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).max(PHOTO_MAX).nullable().optional(),
+        photoUrl: z.string().url().startsWith('https://').max(1000).optional(),
+      }).refine(b => b.photo !== undefined || b.photoUrl !== undefined)
       const body = schema.safeParse(request.body)
-      if (!body.success) return reply.status(400).send({ error: 'VALIDATION_ERROR' })
+      if (!body.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Send a JPEG, PNG or WebP photo under 300 KB.' })
+      }
+      const value = body.data.photo !== undefined ? body.data.photo : body.data.photoUrl!
 
-      await db()`
-        UPDATE users SET photo_url = ${body.data.photoUrl}
-        WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
-      `
-      return reply.send({ saved: true })
+      const rows = await db()`
+        UPDATE users SET photo_url = ${value}
+        WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid AND role = 'student'
+        RETURNING id
+      ` as any[]
+      if (!rows.length) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Student not found.' })
+      return reply.send({ saved: true, hasPhoto: value !== null })
     })
 }

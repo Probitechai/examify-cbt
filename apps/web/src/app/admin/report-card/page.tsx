@@ -8,9 +8,9 @@ import { useTeaching, teachingLevels } from '@/lib/teaching'
 
 interface Session { id: string; name: string; is_active: boolean }
 interface Term { id: string; name: string; term_number: number; is_active: boolean }
-interface Student { id: string; full_name: string; admission_no: string; class_level: string; class_arm: string; photo_url?: string }
+interface Student { id: string; full_name: string; admission_no: string; class_level: string; class_arm: string; has_photo?: boolean }
 interface ReportCard {
-  student: { full_name: string; admission_no: string; class_level: string; class_arm: string }
+  student: { full_name: string; admission_no: string; class_level: string; class_arm: string; photo_url?: string | null }
   school: { name: string }
   term: { term_name: string; session_name: string; start_date: string; end_date: string }
   results: { subject: string; ca_score: number; exam_score: number; total_score: number; grade: string; remark: string; teacher_comment: string; approved_at: string }[]
@@ -26,8 +26,30 @@ interface ReportCard {
   config: { caWeight: number; examWeight: number }
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Shrinks a picture to passport size (max 300 × 375, JPEG) so it is small enough to keep with the student
+function passportPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, 300 / img.width, 375 / img.height)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(img.width * scale))
+      canvas.height = Math.max(1, Math.round(img.height * scale))
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('no canvas'))
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      let q = 0.85, out = canvas.toDataURL('image/jpeg', q)
+      while (out.length > 280 * 1024 && q > 0.4) { q -= 0.15; out = canvas.toDataURL('image/jpeg', q) }
+      resolve(out)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('not an image')) }
+    img.src = url
+  })
+}
 
 function getSubdomain() {
   try {
@@ -75,6 +97,7 @@ export default function ReportCardPage() {
   const [loading, setLoading] = useState(false)
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const photoInputRef = useRef<HTMLInputElement>(null)
@@ -89,6 +112,16 @@ export default function ReportCardPage() {
   useEffect(() => { if (selectedSession) loadTerms(selectedSession) }, [selectedSession])
 
   useEffect(() => { loadStudents() }, [classLevel, classArm])
+
+  // The chosen student's saved photo
+  useEffect(() => {
+    setPhotoPreview(null)
+    if (!selectedStudent) return
+    let on = true
+    apiFetch(`${API}/users/${selectedStudent}/photo`).then(r => r.ok ? r.json() : null)
+      .then(d => { if (on && d?.photo) setPhotoPreview(d.photo) }).catch(() => {})
+    return () => { on = false }
+  }, [selectedStudent])
 
   useEffect(() => {
     if (selectedStudent) {
@@ -150,34 +183,32 @@ export default function ReportCardPage() {
     } catch { setError('Failed to load report card') } finally { setLoading(false) }
   }
 
+  async function savePhoto(photo: string | null) {
+    const res = await apiFetch(`${API}/users/${selectedStudent}/photo`, { method: 'PATCH', body: JSON.stringify({ photo }) })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? 'Could not save the photo') }
+    setPhotoPreview(photo)
+    setStudents(prev => prev.map(s => s.id === selectedStudent ? { ...s, has_photo: !!photo } : s))
+    setReportCard(prev => prev ? { ...prev, student: { ...prev.student, photo_url: photo } } : prev)
+  }
+
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file || !selectedStudent) return
-    if (file.size > 2 * 1024 * 1024) { setError('Photo must be smaller than 2MB'); return }
-    if (!file.type.startsWith('image/')) { setError('Please upload an image file'); return }
-
+    if (!file.type.startsWith('image/')) { setError('Please choose a picture (JPEG or PNG).'); return }
+    if (file.size > 15 * 1024 * 1024) { setError('That picture is too large. Please choose one under 15 MB.'); return }
     setPhotoUploading(true); setError('')
     try {
-      const ext = file.name.split('.').pop()
-      const fileName = `${selectedStudent}-${Date.now()}.${ext}`
-      const uploadRes = await apiFetch(`${SUPABASE_URL}/storage/v1/object/student-photos/${fileName}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': file.type },
-          body: file,
-        }
-      )
-      if (!uploadRes.ok) throw new Error('Upload failed')
-      const photoUrl = `${SUPABASE_URL}/storage/v1/object/public/student-photos/${fileName}`
+      await savePhoto(await passportPhoto(file))
+    } catch (err: any) {
+      setError(err?.message === 'not an image' ? 'That file could not be read as a picture.' : (err?.message || 'Failed to save photo'))
+    } finally { setPhotoUploading(false) }
+  }
 
-      // Save to database
-            await apiFetch(`${API}/users/${selectedStudent}/photo`, {
-        body: JSON.stringify({ photoUrl })
-      })
-
-      // Update local state
-      setStudents(prev => prev.map(s => s.id === selectedStudent ? { ...s, photo_url: photoUrl } : s))
-      setSelectedStudentData(prev => prev ? { ...prev, photo_url: photoUrl } : null)
-    } catch { setError('Failed to upload photo') } finally { setPhotoUploading(false) }
+  async function removePhoto() {
+    if (!window.confirm('Remove this student\'s photo?')) return
+    setPhotoUploading(true); setError('')
+    try { await savePhoto(null) } catch (err: any) { setError(err?.message || 'Failed to remove photo') } finally { setPhotoUploading(false) }
   }
 
   const sel = { padding: '0.5rem 0.625rem', background: '#f7f7f5', border: '1.5px solid #e5e5e0', borderRadius: '6px', fontSize: '0.875rem', color: '#1a1a18', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', width: '100%', boxSizing: 'border-box' as const }
@@ -241,7 +272,7 @@ export default function ReportCardPage() {
             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Student</label>
             <select style={sel} value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}>
               <option value="">{studentsLoading ? 'Loading…' : 'Select student…'}</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.photo_url ? ' 📷' : ''}</option>)}
+              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.has_photo ? ' 📷' : ''}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
@@ -262,22 +293,28 @@ export default function ReportCardPage() {
         {selectedStudentData && (
           <div style={{ borderTop: '1px solid #e5e5e0', paddingTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid #e5e5e0', flexShrink: 0, background: '#f7f7f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {selectedStudentData.photo_url ? (
-                <img src={selectedStudentData.photo_url} alt={selectedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {photoPreview ? (
+                <img src={photoPreview} alt={selectedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontSize: '1.5rem' }}>👤</span>
               )}
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1a1a18', marginBottom: '0.25rem' }}>{selectedStudentData.full_name}</p>
-              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{selectedStudentData.photo_url ? 'Photo uploaded ✓' : 'No photo yet'}</p>
+              <p style={{ fontSize: '0.78rem', color: '#6b6b65' }}>{selectedStudentData.has_photo ? 'Photo saved ✓' : 'No photo yet'}</p>
             </div>
             {!teaching.limited && <>
             <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             <button onClick={() => photoInputRef.current?.click()} disabled={photoUploading}
               style={{ padding: '0.5rem 1rem', background: 'white', border: '1.5px solid #e5e5e0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#1a1a18', cursor: 'pointer', whiteSpace: 'nowrap' as const, opacity: photoUploading ? 0.6 : 1 }}>
-              {photoUploading ? '⏳ Uploading…' : selectedStudentData.photo_url ? '🔄 Change photo' : '📷 Upload photo'}
+              {photoUploading ? '⏳ Saving…' : selectedStudentData.has_photo ? '🔄 Change photo' : '📷 Upload photo'}
             </button>
+            {selectedStudentData.has_photo && (
+              <button onClick={removePhoto} disabled={photoUploading}
+                style={{ padding: '0.5rem 0.75rem', background: 'white', border: '1.5px solid #fecaca', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#dc2626', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                Remove
+              </button>
+            )}
             </>}
           </div>
         )}
@@ -326,8 +363,8 @@ export default function ReportCardPage() {
           <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #e5e5e0' }}>
             {/* Photo */}
             <div style={{ width: 100, flexShrink: 0, borderRight: '1px solid #e5e5e0', background: '#f7f7f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-              {selectedStudentData?.photo_url ? (
-                <img src={selectedStudentData.photo_url} alt={reportCard.student.full_name}
+              {reportCard.student.photo_url ? (
+                <img src={reportCard.student.photo_url} alt={reportCard.student.full_name}
                   style={{ width: 72, height: 90, objectFit: 'cover', borderRadius: '6px', border: '2px solid #e5e5e0' }} />
               ) : (
                 <div style={{ width: 72, height: 90, background: '#e5e5e0', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>

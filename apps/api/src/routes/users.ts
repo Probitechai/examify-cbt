@@ -38,7 +38,7 @@ export async function userRoutes(app: FastifyInstance) {
       const cl = String(classLevel), ca = classArm ? String(classArm) : null
       const tdb = tenantDb(request.schoolId)
       let students = await tdb.query`
-        SELECT id, full_name, admission_no, class_level, class_arm
+        SELECT id, full_name, admission_no, class_level, class_arm, (photo_url IS NOT NULL AND photo_url <> '') AS has_photo
         FROM users
         WHERE school_id = ${request.schoolId}::uuid AND role = 'student' AND is_active = true
           AND class_level = ${cl} AND (${ca}::text IS NULL OR class_arm = ${ca})
