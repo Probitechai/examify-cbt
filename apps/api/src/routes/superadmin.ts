@@ -587,10 +587,11 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       }
       const tempPassword = newTempPassword()
       const passwordHash = await bcrypt.hash(tempPassword, 10)
+      // Platform admins belong to no school (school_id is NULL, migration 021),
+      // so removing a school can never remove them.
       const rows = await db()`
         INSERT INTO users (school_id, full_name, email, password_hash, role, is_active)
-        SELECT id, ${full_name}, ${email.toLowerCase()}, ${passwordHash}, 'super_admin', true
-        FROM schools WHERE subdomain = 'greensprings'
+        VALUES (NULL, ${full_name}, ${email.toLowerCase()}, ${passwordHash}, 'super_admin', true)
         RETURNING id, full_name, email
       ` as any[]
       return reply.status(201).send({ admin: rows[0], tempPassword })

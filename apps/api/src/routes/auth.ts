@@ -22,15 +22,23 @@ export async function authRoutes(app: FastifyInstance) {
     const { email, password } = body.data
     const tdb = tenantDb(request.schoolId)
 
-    // Super admins can log in from any school subdomain
+    // Platform admins belong to no school and sign in on their own page
     const superAdminRows = await db()`
-      SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm, must_change_password
-      FROM users
-      WHERE email = ${email.toLowerCase()}
-      AND role = 'super_admin'
+      SELECT password_hash FROM users WHERE email = ${email.toLowerCase()} AND role = 'super_admin'
     ` as any[]
+    if (superAdminRows.length > 0) {
+      // Point them to the right page only when the password is right,
+      // so this page can't be used to find out platform admin emails
+      if (!(await bcrypt.compare(password, superAdminRows[0].password_hash))) {
+        return reply.status(401).send({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' })
+      }
+      return reply.status(401).send({
+        error: 'Platform admins sign in at /superadmin/login',
+        message: 'Platform admins sign in at /superadmin/login',
+      })
+    }
 
-    const rows = superAdminRows.length > 0 ? superAdminRows : await tdb.query`
+    const rows = await tdb.query`
       SELECT id, school_id, role, email, full_name, password_hash, is_active, class_level, class_arm, must_change_password
       FROM users
       WHERE email = ${email.toLowerCase()}
