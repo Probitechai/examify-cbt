@@ -8,6 +8,7 @@ import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
 import { requireFeature, normalizeTier } from '../middleware/tier'
 import { logFinance, tempPassword as makeTempPassword } from '../lib/finance'
+import { schoolLink } from '../lib/urls'
 
 export async function proprietorRoutes(app: FastifyInstance) {
 
@@ -55,7 +56,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
         fullName: d.fullName,
         email: d.email.toLowerCase(),
         password: tempPassword,
-        loginUrl: 'https://examify-cbt-web.vercel.app/login',
+        loginUrl: schoolLink(request.school.subdomain, '/login'),
         role: 'school_admin',
       })
       sendEmail({ to: d.email.toLowerCase(), subject, html }).catch(err =>
@@ -119,7 +120,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
         fullName: target.full_name,
         email: target.email,
         password: tempPassword,
-        loginUrl: 'https://examify-cbt-web.vercel.app/login',
+        loginUrl: schoolLink(request.school.subdomain, '/login'),
         role: 'school_admin',
       })
       sendEmail({ to: target.email, subject, html }).catch(err =>
@@ -215,7 +216,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
         fullName: d.fullName,
         email,
         password: tempPassword,
-        loginUrl: `https://${request.school.subdomain}.examify.ng/login`,
+        loginUrl: schoolLink(request.school.subdomain, '/login'),
         role: 'bursar',
       })
       sendEmail({ to: email, subject, html }).catch(err =>
@@ -298,7 +299,7 @@ export async function proprietorRoutes(app: FastifyInstance) {
         fullName: target.full_name,
         email: target.email,
         password: tempPassword,
-        loginUrl: `https://${request.school.subdomain}.examify.ng/login`,
+        loginUrl: schoolLink(request.school.subdomain, '/login'),
         role: 'bursar',
       })
       sendEmail({ to: target.email, subject, html }).catch(err =>
@@ -539,4 +540,4 @@ export async function proprietorRoutes(app: FastifyInstance) {
         trends,
       })
     })
-}
+}

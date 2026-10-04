@@ -1,3 +1,4 @@
+import { db } from '../db/client'
 // Paystack helpers shared by fees, subscriptions and admissions
 import { createHmac, timingSafeEqual } from 'crypto'
 
@@ -15,6 +16,16 @@ export function paystackMode(): 'live' | 'test' | 'unset' {
   return 'unset'
 }
 
+/** The demo school never takes real money: with a live key, its online payments are refused */
+export async function demoPaymentBlocked(schoolId: string): Promise<boolean> {
+  if (paystackMode() !== 'live') return false
+  try {
+    const rows = await db()`SELECT is_demo FROM schools WHERE id = ${schoolId}::uuid` as any[]
+    return rows[0]?.is_demo === true
+  } catch { return false }
+}
+export const DEMO_PAYMENT_REPLY = { error: 'DEMO_SCHOOL', message: 'Online payments are switched off in the demo school.' }
+
 export async function paystackRequest(method: string, path: string, body?: any) {
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -24,11 +35,8 @@ export async function paystackRequest(method: string, path: string, body?: any) 
   return res.json()
 }
 
-/** The school's own web address, e.g. https://greensprings.examify.ng */
-export function schoolUrl(subdomain: string): string {
-  const domain = process.env.APP_DOMAIN ?? 'examify.ng'
-  return `https://${subdomain}.${domain}`
-}
+// schoolUrl moved to lib/urls.ts (kept exported here for older imports)
+export { schoolUrl } from './urls'
 
 /** Checks Paystack's webhook signature against the exact bytes Paystack sent */
 export function validSignature(rawBody: string, signature: unknown): boolean {

@@ -5,6 +5,7 @@ import { db, tenantDb } from '../db/client'
 import { authenticate } from '../middleware/auth'
 import * as crypto from 'crypto'
 import { sendEmail } from '../lib/email'
+import { schoolLink } from '../lib/urls'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -130,7 +131,7 @@ app.post('/auth/forgot-password', async (request: any, reply: any) => {
       WHERE id = ${user.id}
     `
 
-    const resetUrl = `https://${request.school.subdomain}.examify.ng/reset-password?token=${rawToken}`
+    const resetUrl = schoolLink(request.school.subdomain, `/reset-password?token=${rawToken}`)
 
     await sendEmail({
       to: email,

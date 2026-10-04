@@ -6,6 +6,7 @@ import { asJson } from '../lib/json'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireFeature } from '../middleware/tier'
 import { loadTeacherScope, canSeeSubject, isClassTeacher, NOT_YOUR_CLASS } from '../lib/teacherScope'
+import { schoolLink } from '../lib/urls'
 
 const DEFAULT_BOUNDARIES = [
   { grade: 'A', min: 75, max: 100, remark: 'Excellent' },
@@ -384,7 +385,7 @@ export async function resultRoutes(app: FastifyInstance) {
                 schoolName: request.school.name,
                 studentName: s.student_name,
                 termName: termInfo[0]?.name ?? 'this term',
-                loginUrl: 'https://examify-cbt-web.vercel.app/login',
+                loginUrl: schoolLink(request.school.subdomain, '/login'),
               })
               await sendSms({ to: s.parent_phone, message })
             }
@@ -598,4 +599,4 @@ export async function resultRoutes(app: FastifyInstance) {
         }
       })
     })
-}
+}

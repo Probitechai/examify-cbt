@@ -51,9 +51,19 @@ import { examTimetableRoutes } from './routes/exam-timetable'
 
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-in-production'
+const DEV_JWT_SECRET = 'dev-secret-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET ?? DEV_JWT_SECRET
 const APP_DOMAIN = process.env.APP_DOMAIN ?? 'examify.ng'
 const NODE_ENV = process.env.NODE_ENV ?? 'development'
+
+// Every login is signed with JWT_SECRET. Anywhere other than a developer's own
+// machine (NODE_ENV development or test) a real one is required: with the
+// built-in default, anyone who read this code could sign in as anyone.
+const isLocal = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+if (!isLocal && (!process.env.JWT_SECRET || JWT_SECRET === DEV_JWT_SECRET || JWT_SECRET.length < 32)) {
+  console.error('FATAL: JWT_SECRET must be set to a random value of at least 32 characters. Refusing to start.')
+  process.exit(1)
+}
 
 const app = Fastify({
   logger: NODE_ENV !== 'production',

@@ -7,16 +7,7 @@ import styles from './login.module.css'
 
 
 
-function detectSubdomain(): string {
-  if (typeof window === 'undefined') return ''
-  const host = window.location.hostname // e.g. greensprings.examify.ng
-  const parts = host.split('.')
-  // Match: <school>.examify.ng  (3 parts, middle is 'examify')
-  if (parts.length === 3 && parts[1] === 'examify') {
-    return parts[0] // e.g. 'greensprings'
-  }
-  return ''
-}
+import { schoolFromUrl as detectSubdomain } from '@/lib/schoolFromUrl'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -182,4 +173,4 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
+}

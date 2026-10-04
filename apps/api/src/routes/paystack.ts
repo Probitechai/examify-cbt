@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { nextReceiptNo, logFinance } from '../lib/finance'
-import { paystackRequest, paystackMode, schoolUrl, validSignature, usableSubaccount } from '../lib/paystack'
+import { paystackRequest, paystackMode, validSignature, usableSubaccount, demoPaymentBlocked, DEMO_PAYMENT_REPLY } from '../lib/paystack'
+import { schoolUrl } from '../lib/urls'
 import { recordCollection, routingMetadata } from '../lib/settlements'
 
 export { paystackRequest }
@@ -107,6 +108,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   // Initialize subscription payment
   app.post('/paystack/subscription/initialize', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
+      if (await demoPaymentBlocked(request.schoolId)) return reply.status(403).send(DEMO_PAYMENT_REPLY)
       const schema = z.object({
         tier: z.enum(['basic', 'standard', 'premium', 'enterprise']),
         termName: z.string().min(1), // e.g. "Third Term 2025/2026"
@@ -354,6 +356,7 @@ export async function paystackRoutes(app: FastifyInstance) {
   // Initialize fee payment (called by parent portal)
   app.post('/paystack/fees/initialize', { preHandler: [authenticate, requireRole('parent')] },
     async (request: any, reply: any) => {
+      if (await demoPaymentBlocked(request.schoolId)) return reply.status(403).send(DEMO_PAYMENT_REPLY)
       const schema = z.object({
         feeStructureId: z.string().uuid(),
         studentId: z.string().uuid(),

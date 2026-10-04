@@ -7,6 +7,7 @@ import { shuffleOptions, withLabels } from '../lib/shuffle'
 import { authenticate, requireRole } from '../middleware/auth'
 import { sendEmail, sendBulkEmails } from '../lib/email'
 import { resultReadyEmail, examReminderEmail } from '../emails/templates'
+import { schoolLink } from '../lib/urls'
 
 async function isTeacherAssignedToSubject(tdb: any, schoolId: string, teacherId: string, classLevel: string, subject: string): Promise<{ blanket: boolean; arms: string[] }> {
   const rows = await tdb.query`
@@ -45,7 +46,7 @@ async function closeAway(tdb: any, sessionId: string) {
 }
 
 // Result-ready email (fire and forget)
-function sendResultEmail(tdb: any, schoolName: string, examId: string, studentId: string,
+function sendResultEmail(tdb: any, schoolName: string, subdomain: string, examId: string, studentId: string,
   score: number, totalMarks: number, percentage: number, passed: boolean) {
   ;(async () => {
     try {
@@ -54,7 +55,7 @@ function sendResultEmail(tdb: any, schoolName: string, examId: string, studentId
       if (!examInfo || !userInfo) return
       const { subject, html } = resultReadyEmail({
         schoolName, fullName: userInfo.full_name, examTitle: examInfo.title, subject: examInfo.subject,
-        score, totalMarks, percentage, passed, loginUrl: 'https://examify-cbt-web.vercel.app/login',
+        score, totalMarks, percentage, passed, loginUrl: schoolLink(subdomain, '/login'),
       })
       await sendEmail({ to: userInfo.email, subject, html })
     } catch (err: any) {
@@ -486,7 +487,7 @@ export async function examRoutes(app: FastifyInstance) {
 
       // The result email goes when there is a final result the school chose to show
       if (exam.show_result_after && !pending) {
-        sendResultEmail(tdb, request.school.name, session.exam_id, request.user.id, score!, Number(exam.total_marks), percentage!, passed!)
+        sendResultEmail(tdb, request.school.name, request.school.subdomain, session.exam_id, request.user.id, score!, Number(exam.total_marks), percentage!, passed!)
       }
 
       return reply.send({ submitted: true, result })
@@ -566,7 +567,7 @@ export async function examRoutes(app: FastifyInstance) {
         WHERE id = ${session.id}::uuid
       `
       if (complete && !wasComplete && session.show_result_after) {
-        sendResultEmail(tdb, request.school.name, session.exam_id, session.student_id, score!, Number(session.total_marks), percentage!, passed!)
+        sendResultEmail(tdb, request.school.name, request.school.subdomain, session.exam_id, session.student_id, score!, Number(session.total_marks), percentage!, passed!)
       }
       return reply.send({
         markingStatus: complete ? 'complete' : 'pending', stillToMark: paper.waiting.length,
@@ -660,7 +661,7 @@ export async function examRoutes(app: FastifyInstance) {
           subject: exam.subject,
           scheduledAt: exam.scheduled_at,
           durationMinutes: exam.duration_minutes,
-          loginUrl: 'https://examify-cbt-web.vercel.app/login',
+          loginUrl: schoolLink(request.school.subdomain, '/login'),
         })
         return { to: s.email, subject, html }
       })
@@ -686,7 +687,7 @@ export async function examRoutes(app: FastifyInstance) {
       const examRows = await db()`
         SELECT e.id, e.title, e.subject, e.class_level, e.class_arms,
                e.scheduled_at, e.duration_minutes, e.school_id, e.reminder_sent_at,
-               s.name AS school_name
+               s.name AS school_name, s.subdomain AS school_subdomain
         FROM exams e
         JOIN schools s ON s.id = e.school_id
         WHERE e.status IN ('scheduled', 'active')
@@ -724,7 +725,7 @@ export async function examRoutes(app: FastifyInstance) {
               subject: exam.subject,
               scheduledAt: exam.scheduled_at,
               durationMinutes: exam.duration_minutes,
-              loginUrl: 'https://examify-cbt-web.vercel.app/login',
+              loginUrl: schoolLink(exam.school_subdomain, '/login'),
             })
             return { to: s.email, subject, html }
           })
@@ -747,4 +748,4 @@ export async function examRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: 'SERVER_ERROR', message: err.message })
     }
   })
-}
+}

@@ -6,7 +6,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL ?? '',
-  JWT_SECRET: process.env.JWT_SECRET ?? 'dev-secret-change-in-production',
+  JWT_SECRET: process.env.JWT_SECRET ?? 'dev-secret-change-in-production', // index.ts refuses to start without a real one outside development
   NODE_ENV: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
   PORT: parseInt(process.env.PORT ?? '3001', 10),
   APP_DOMAIN: process.env.APP_DOMAIN ?? 'examify.ng',

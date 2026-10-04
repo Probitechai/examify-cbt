@@ -4,7 +4,8 @@ import { db, tenantDb } from '../db/client'
 import { authenticate, requireRole } from '../middleware/auth'
 import { requireFeature } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
-import { paystackRequest, schoolUrl, usableSubaccount } from '../lib/paystack'
+import { paystackRequest, usableSubaccount, demoPaymentBlocked, DEMO_PAYMENT_REPLY } from '../lib/paystack'
+import { schoolUrl } from '../lib/urls'
 import { recordCollection, routingMetadata } from '../lib/settlements'
 import { studentCapacity, limitError } from '../lib/studentLimit'
 import { levelsFor, asSections } from '../lib/classLevels'
@@ -578,7 +579,7 @@ export async function admissionRoutes(app: FastifyInstance) {
       `
 
       // Generate payment link
-      const paymentLink = `${process.env.FRONTEND_URL ?? 'https://examify-cbt-web.vercel.app'}/admissions/pay/${id}?school=${request.school.subdomain}`
+      const paymentLink = `${schoolUrl(request.school.subdomain)}/admissions/pay/${id}?school=${request.school.subdomain}`
 
       // Build offer letter email
       const expiryDate = new Date(d.offerExpiresAt).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -712,6 +713,7 @@ export async function admissionRoutes(app: FastifyInstance) {
 
     const schoolId = schoolRows[0].id
     const tdb = tenantDb(schoolId)
+    if (await demoPaymentBlocked(schoolId)) return reply.status(403).send(DEMO_PAYMENT_REPLY)
 
     const appRows = await tdb.query`
       SELECT a.first_name, a.last_name, a.parent_email, a.application_number,

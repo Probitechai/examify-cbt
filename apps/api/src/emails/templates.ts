@@ -334,6 +334,7 @@ export function schoolWelcomeEmail(params: {
   adminEmail: string
   password: string
   schoolAddress: string   // e.g. https://greensprings.examify.ng
+  loginUrl?: string       // defaults to <schoolAddress>/login
   planName: string
   studentLimit: string    // e.g. "200 active students"
   sections: string        // e.g. "Primary and Secondary"
@@ -366,7 +367,7 @@ export function schoolWelcomeEmail(params: {
       You’ll be asked to choose your own password when you first sign in.
     </p>
 
-    ${button('Sign in to your school →', `${params.schoolAddress}/login`)}
+    ${button('Sign in to your school →', params.loginUrl ?? `${params.schoolAddress}/login`)}
 
     <p style="color:#1a1a18; font-size:15px; font-weight:700; margin:8px 0 12px;">Getting started</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">

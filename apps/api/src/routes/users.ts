@@ -9,6 +9,7 @@ import { normalizeTier, TIER_NAMES } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail } from '../emails/templates'
 import { loadTeacherScope, canSeeClass } from '../lib/teacherScope'
+import { schoolLink } from '../lib/urls'
 async function schoolLevels(schoolId: string): Promise<string[]> {
   const rows = await db()`SELECT sections FROM schools WHERE id = ${schoolId}::uuid` as any[]
   return levelsFor(asSections(rows[0]?.sections))
@@ -106,7 +107,7 @@ export async function userRoutes(app: FastifyInstance) {
         fullName: d.fullName,
         email: d.email.toLowerCase(),
         password: d.password,
-        loginUrl: 'https://examify-cbt-web.vercel.app/login',
+        loginUrl: schoolLink(request.school.subdomain, '/login'),
         role: d.role,
       })
       sendEmail({ to: d.email.toLowerCase(), subject, html }).catch(err =>

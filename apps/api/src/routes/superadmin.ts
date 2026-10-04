@@ -9,7 +9,7 @@ import { asSections } from '../lib/classLevels'
 import { isTier, tierAtLeast, FINANCE_CONTROLS_TIER, TIER_NAMES, getStudentLimit } from '../middleware/tier'
 import { sendEmail } from '../lib/email'
 import { loginCredentialsEmail, schoolWelcomeEmail, schoolCreatedNoticeEmail } from '../emails/templates'
-import { schoolUrl } from '../lib/paystack'
+import { schoolUrl, schoolLink } from '../lib/urls'
 
 // Login details go by email. The temporary password is only returned to
 // Super Admin when the email couldn't be sent, so it can be passed on another way.
@@ -18,7 +18,7 @@ async function emailLoginDetails(schoolId: string, user: { full_name: string; em
   if (!school) return false
   const { subject, html } = loginCredentialsEmail({
     schoolName: school.name, fullName: user.full_name, email: user.email, password,
-    loginUrl: `${schoolUrl(school.subdomain)}/login`, role: user.role,
+    loginUrl: schoolLink(school.subdomain, '/login'), role: user.role,
   })
   return (await sendEmail({ to: user.email, subject, html })).success
 }
@@ -92,6 +92,7 @@ COUNT(*) FILTER (WHERE subscription_tier = 'standard') AS standard_schools,
 COUNT(*) FILTER (WHERE subscription_tier = 'premium') AS premium_schools,
 COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
         FROM schools
+        WHERE NOT is_demo
       ` as any[]
 
       const userStats = await db()`
@@ -101,7 +102,7 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
           COUNT(*) FILTER (WHERE role = 'parent') AS total_parents,
           COUNT(*) FILTER (WHERE role = 'school_admin') AS total_admins
         FROM users
-        WHERE role != 'super_admin'
+        WHERE role != 'super_admin' AND school_id NOT IN (SELECT id FROM schools WHERE is_demo)
       ` as any[]
 
       const examStats = await db()`
@@ -110,6 +111,7 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
           COUNT(*) FILTER (WHERE status = 'active') AS active_exams,
           COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days') AS exams_last_30_days
         FROM exams
+        WHERE school_id NOT IN (SELECT id FROM schools WHERE is_demo)
       ` as any[]
 
       const sessionStats = await db()`
@@ -119,6 +121,7 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
           COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress_sessions,
           COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days') AS sessions_last_30_days
         FROM exam_sessions
+        WHERE school_id NOT IN (SELECT id FROM schools WHERE is_demo)
       ` as any[]
 
       const resultStats = await db()`
@@ -127,6 +130,7 @@ COUNT(*) FILTER (WHERE subscription_tier = 'enterprise') AS enterprise_schools
           COUNT(*) FILTER (WHERE approved_at IS NOT NULL) AS approved_results,
           AVG(total_score) AS avg_score
         FROM student_results
+        WHERE school_id NOT IN (SELECT id FROM schools WHERE is_demo)
       ` as any[]
 
       return reply.send({
@@ -205,7 +209,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       const limit = getStudentLimit(subscription_tier)
       const welcome = schoolWelcomeEmail({
         schoolName: result.school.name, adminName: result.admin.full_name, adminEmail: result.admin.email, password: tempPassword,
-        schoolAddress: address, planName: TIER_NAMES[subscription_tier as keyof typeof TIER_NAMES],
+        schoolAddress: address, loginUrl: schoolLink(result.school.subdomain, '/login'), planName: TIER_NAMES[subscription_tier as keyof typeof TIER_NAMES],
         studentLimit: limit >= 999999 ? 'any number of students' : `${limit} active students`,
         sections: secs.length > 1 ? `${secs.slice(0, -1).join(', ')} and ${secs.at(-1)}` : secs[0],
       })
@@ -236,7 +240,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       const schools = await db()`
         SELECT
           s.id, s.name, s.subdomain, s.is_active, s.subscription_tier, s.sections,
-          s.created_at,
+          s.created_at, s.is_demo,
           COUNT(DISTINCT u.id) FILTER (WHERE u.role = 'student') AS student_count,
           COUNT(DISTINCT u.id) FILTER (WHERE u.role = 'teacher') AS teacher_count,
           COUNT(DISTINCT u.id) FILTER (WHERE u.role = 'parent') AS parent_count,
@@ -639,6 +643,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       const schoolGrowth = await db()`
         SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS count
         FROM schools
+        WHERE NOT is_demo
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month ASC
       ` as any[]
@@ -646,7 +651,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
       const activityTrend = await db()`
         SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS count
         FROM exam_sessions
-        WHERE status = 'submitted'
+        WHERE status = 'submitted' AND school_id NOT IN (SELECT id FROM schools WHERE is_demo)
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month ASC
       ` as any[]
@@ -658,6 +663,7 @@ app.post('/superadmin/schools', { preHandler: [superAuth] },
           ROUND(COUNT(sr.id) FILTER (WHERE sr.grade != 'F')::numeric / NULLIF(COUNT(sr.id), 0) * 100, 1) AS pass_rate
         FROM schools s
         LEFT JOIN student_results sr ON sr.school_id = s.id
+        WHERE NOT s.is_demo
         GROUP BY s.id, s.name
         ORDER BY avg_score DESC NULLS LAST
       ` as any[]

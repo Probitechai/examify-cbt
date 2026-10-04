@@ -2,13 +2,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-function detectSubdomain(): string {
-  if (typeof window === 'undefined') return ''
-  const host = window.location.hostname
-  const parts = host.split('.')
-  if (parts.length === 3 && parts[1] === 'examify') return parts[0]
-  return ''
-}
+import { schoolFromUrl as detectSubdomain } from '@/lib/schoolFromUrl'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -119,4 +113,4 @@ export default function ResetPasswordPage() {
       <ResetPasswordForm />
     </Suspense>
   )
-}
+}
