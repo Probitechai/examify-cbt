@@ -1,0 +1,22 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- EXAMIFY DEMO SCHOOL: build it, or reset it before a demo
+-- Navura Demo College · demo.examify.ng · Premium plan
+--
+-- Paste ALL of this into the Supabase SQL editor and click Run.
+-- Needs migration 022_demo_school.sql to have been run first.
+--
+-- Every run wipes the demo school and builds it again, fresh:
+--   • a current term that started 5 weeks ago, and last session's three terms
+--   • JSS1 A, JSS2 A, SS1 A and SS3 A with 36 students, parents and 6 teachers
+--   • results for every past term; this term's SS3 A Mathematics left empty
+--   • attendance, fees and payments (one SS3 student owes everything)
+--   • a question bank, an open SS3 Mathematics CBT and two finished tests
+--   • JAMB Prep set up for SS3, with finished mocks
+-- Run it the day before each demo so the dates are fresh and the exam is open.
+--
+-- It only touches the school marked as the demo (is_demo). It refuses to run
+-- if the address "demo" belongs to any other school. All demo accounts use the
+-- password Demo@2026; no email or SMS is ever sent to them, and on live the
+-- demo school can't take real online payments.
+-- ═══════════════════════════════════════════════════════════════════════════
+

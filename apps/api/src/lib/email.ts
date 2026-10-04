@@ -11,7 +11,18 @@ interface SendEmailParams {
   html: string
 }
 
+// The demo school's made-up accounts use this domain; nothing is ever sent to them
+export const DEMO_EMAIL_DOMAIN = 'demo.examify.ng'
+const isDemoAddress = (a: string) => a.trim().toLowerCase().endsWith(`@${DEMO_EMAIL_DOMAIN}`)
+
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<{ success: boolean; error?: string }> {
+  const all = (Array.isArray(to) ? to : [to]).filter(Boolean)
+  const real = all.filter(a => !isDemoAddress(a))
+  if (real.length === 0) {
+    return { success: false, error: 'Demo account: emails are not sent' }
+  }
+  to = Array.isArray(to) ? real : real[0]
+
   if (!RESEND_API_KEY) {
     console.warn('[EMAIL] RESEND_API_KEY not set — skipping email send. Would have sent:', subject, 'to', to)
     return { success: false, error: 'Email service not configured' }

@@ -18,6 +18,7 @@ interface School {
   subscription_tier: string
   sections?: string[]
   created_at: string
+  is_demo?: boolean
   student_count: number
   teacher_count: number
   parent_count: number
@@ -32,6 +33,10 @@ const TIER_CONFIG: Record<string, { color: string; bg: string }> = {
   premium: { color: '#7e22ce', bg: '#f5f3ff' },
   enterprise: { color: '#d97706', bg: '#fffbeb' },
 }
+function DemoTag() {
+  return <span title="Demo school: left out of platform figures and revenue" style={{ marginLeft: '0.4rem', padding: '0.05rem 0.45rem', borderRadius: '999px', background: '#fef3c7', color: '#92400e', fontSize: '0.65rem', fontWeight: 700, verticalAlign: 'middle' }}>DEMO</span>
+}
+
 const TIER_PRICES: Record<string, number> = {
   basic: 50000,
   standard: 75000,
@@ -584,7 +589,7 @@ export default function SuperAdminDashboard() {
               {schools.map((school, i) => (
                 <div key={school.id} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 120px 100px 120px 110px', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
                   <div>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}</p>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}{school.is_demo && <DemoTag />}</p>
                     <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{school.subdomain}.examify.ng · {new Date(school.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     {editSections?.id === school.id ? (
                       <div style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', fontSize: '0.72rem' }}>
@@ -647,8 +652,10 @@ export default function SuperAdminDashboard() {
 
         {/* SUBSCRIPTIONS TAB */}
         {activeTab === 'subscriptions' && (() => {
-          const nonEnterprise = schools.filter(s => s.subscription_tier !== 'enterprise')
-          const enterpriseSchools = schools.filter(s => s.subscription_tier === 'enterprise')
+          // The demo school isn't a customer: it is left out of revenue
+          const paying = schools.filter(s => !s.is_demo)
+          const nonEnterprise = paying.filter(s => s.subscription_tier !== 'enterprise')
+          const enterpriseSchools = paying.filter(s => s.subscription_tier === 'enterprise')
           const totalTermly = nonEnterprise.reduce((sum, s) => sum + (TIER_PRICES[s.subscription_tier] ?? 0), 0)
           const totalMonthly = totalTermly / 4
 
@@ -684,8 +691,8 @@ export default function SuperAdminDashboard() {
                   return (
                     <div key={school.id} style={{ display: 'grid', gridTemplateColumns: '2fr 120px 130px 130px 120px', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #e5e5e0', alignItems: 'center' }}>
                       <div>
-                        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}</p>
-                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>Joined {new Date(school.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1a1a18' }}>{school.name}{school.is_demo && <DemoTag />}</p>
+                        <p style={{ fontSize: '0.72rem', color: '#6b6b65' }}>{school.is_demo ? 'Demo school · not counted in revenue' : `Joined ${new Date(school.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}`}</p>
                       </div>
                       <div style={{ textAlign: 'center' as const }}>
                         <select
@@ -1124,4 +1131,4 @@ export default function SuperAdminDashboard() {
       )}
     </div>
   )
-}
+}

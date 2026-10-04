@@ -1,0 +1,6 @@
+type,subject,class_level,topic,question,option_a,option_b,option_c,option_d,answer,explanation,marks,difficulty
+mcq,Mathematics,SS3,Indices,Evaluate 8^(2/3),2,4,8,16,B,Cube root of 8 is 2; 2² = 4.,1,medium
+mcq,Mathematics,SS3,Sets,"If A = {1, 2, 3} and B = {2, 3, 4}, find A ∩ B.","{1, 4}","{2, 3}","{1, 2, 3, 4}",{ },B,Common elements are 2 and 3.,1,easy
+mcq,Mathematics,SS3,Trigonometry,What is sin 30°?,½,√3/2,1,0,A,sin 30° = 0.5.,1,easy
+true_false,Mathematics,SS3,Number bases,101 in base two is equal to 5 in base ten.,,,,,True,1×4 + 0×2 + 1 = 5.,1,easy
+fill_blank,Mathematics,SS3,Mensuration,The area of a circle is π multiplied by the ______ squared.,,,,,radius,A = πr².,1,easy

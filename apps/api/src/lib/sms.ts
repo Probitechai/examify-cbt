@@ -30,7 +30,8 @@ export async function sendSms({ to, message }: SendSmsParams): Promise<{ success
   }
 
   const recipients = Array.isArray(to) ? to : [to]
-  const normalized = recipients.map(normalizePhone).filter(Boolean)
+  // The demo school's made-up numbers (0700 000 0xxx) never receive texts
+  const normalized = recipients.map(normalizePhone).filter(n => n && !n.startsWith('234700000'))
 
   if (normalized.length === 0) {
     console.warn('[SMS] No valid phone numbers provided')
@@ -112,4 +113,4 @@ export function resultReleaseSms(params: {
 }): string {
   const { schoolName, studentName, termName, loginUrl } = params
   return `${schoolName}: ${studentName}'s ${termName} results are now available. Login to view: ${loginUrl} - Examify by Navura`
-}
+}
