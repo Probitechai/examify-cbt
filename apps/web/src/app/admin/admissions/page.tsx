@@ -132,7 +132,8 @@ export default function AdmissionsPage() {
   const sel = { ...inp, cursor: 'pointer' }
   const lbl = { fontSize: '0.78rem', fontWeight: 600, color: '#6b6b65', display: 'block', marginBottom: '0.375rem' }
 
-  const publicLink = `https://examify-cbt-web.vercel.app/apply/${subdomain}`
+  // The application form lives on this same site, wherever it is hosted
+  const publicLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/apply/${subdomain}`
 
   return (
     <div style={{ padding: '1.5rem', fontFamily: 'system-ui', maxWidth: 1100 }}>
@@ -378,4 +379,4 @@ export default function AdmissionsPage() {
       )}
     </div>
   )
-}
+}
