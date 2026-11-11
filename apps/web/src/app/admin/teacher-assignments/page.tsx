@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
 import { CLASS_ARMS } from '@/lib/classArms'
-import { getSubjects } from '@/lib/subjects'
+import { useSchoolSubjects } from '@/lib/subjects'
 
 function getSubdomain() {
   if (typeof window === 'undefined') return 'greensprings'
@@ -43,7 +43,7 @@ function AdminAssignments() {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ classLevel: 'SS2', classArm: '', subject: 'Mathematics' })
   useDefaultClass(CLASS_LEVELS, form.classLevel, v => setForm((f: any) => ({ ...f, classLevel: v })))
-  const subjects = getSubjects()
+  const subjects = useSchoolSubjects()
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
 

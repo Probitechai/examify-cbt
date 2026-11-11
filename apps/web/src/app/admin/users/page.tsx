@@ -1,12 +1,12 @@
 ﻿'use client'
-import { apiFetch, checkAuth, getToken } from '@/lib/auth'
+import { apiFetch, checkAuth, getToken, getSubdomain } from '@/lib/auth'
 // v2 - with student profiles
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './users.module.css'
 import { CLASS_ARMS } from '@/lib/classArms'
 import { useClassLevels, useDefaultClass } from '@/lib/classLevels'
-import { getSubjects } from '@/lib/subjects'
+import { useSchoolSubjects } from '@/lib/subjects'
 
 interface User {
   id: string
@@ -20,16 +20,13 @@ interface User {
   classLevel?: string
   class_arm?: string
   classArm?: string
+  phone?: string | null
+  date_of_birth?: string | null
   is_active: boolean
   isActive?: boolean
   last_login_at?: string
   lastLoginAt?: string
   linkedStudents?: any[]
-}
-
-function getSubdomain() {
-  if (typeof window === 'undefined') return 'greensprings'
-  return window.localStorage.getItem('examify_school') ?? 'greensprings'
 }
 
 export default function UsersPage() {
@@ -43,6 +40,7 @@ export default function UsersPage() {
   const [classFilter, setClassFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [manageLinksParent, setManageLinksParent] = useState<User | null>(null)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [allLinks, setAllLinks] = useState<any[]>([])
 
   useEffect(() => { checkAuth(router, 'school_admin') }, [])
@@ -53,9 +51,12 @@ export default function UsersPage() {
 
       const [deletingUser, setDeletingUser] = useState<string | null>(null)
 
-  async function handleDeleteUser(id: string, name: string) {
-    if (!window.confirm(`Permanently delete ${name}? This cannot be undone.`)) return
-    setDeletingUser(id)
+  async function handleDeleteUser(id: string, name: string, role: string) {
+    const note = role === 'student'
+      ? ' This is only possible if nothing has been recorded for them yet (results, attendance, payments). Their email can then be used again.'
+      : ''
+    if (!window.confirm(`Permanently delete ${name}? This cannot be undone.${note}`)) return
+    setDeletingUser(id); setStatusError('')
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
         method: 'DELETE',
@@ -65,7 +66,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error(data.message ?? 'Failed to delete')
       loadUsers()
     } catch (err: any) {
-      alert(err.message ?? 'Failed to delete user')
+      setStatusError(err.message ?? 'Failed to delete user')
     } finally { setDeletingUser(null) }
   }
 
@@ -250,12 +251,14 @@ export default function UsersPage() {
                 style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 20, border: 'none', cursor: 'pointer', background: getActive(u) ? '#e8f5ee' : '#fef2f2', color: getActive(u) ? '#0f4a32' : '#dc2626', opacity: togglingUser === u.id ? 0.6 : 1 }}>
                 {togglingUser === u.id ? '…' : getActive(u) ? 'Active' : 'Inactive'}
               </button>
-              {(tab === 'teacher' || tab === 'admin') && (
-                <button onClick={() => handleDeleteUser(u.id, getName(u))} disabled={deletingUser === u.id}
-                  style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', opacity: deletingUser === u.id ? 0.6 : 1 }}>
-                  {deletingUser === u.id ? '…' : 'Delete'}
-                </button>
-              )}
+              <button onClick={() => setEditingUser(u)}
+                style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#eff6ff', color: '#1e40af' }}>
+                Edit
+              </button>
+              <button onClick={() => handleDeleteUser(u.id, getName(u), u.role)} disabled={deletingUser === u.id}
+                style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#dc2626', opacity: deletingUser === u.id ? 0.6 : 1 }}>
+                {deletingUser === u.id ? '…' : 'Delete'}
+              </button>
             </span>
           </div>
         ))}
@@ -265,6 +268,14 @@ export default function UsersPage() {
         <AddUserModal
           onClose={() => setShowAddModal(false)}
           onSaved={() => { setShowAddModal(false); loadUsers() }}
+        />
+      )}
+
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => { setEditingUser(null); loadUsers() }}
         />
       )}
 
@@ -291,7 +302,7 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   useDefaultClass(CLASS_LEVELS, assignClassLevel, setAssignClassLevel)
   const [assignClassArm, setAssignClassArm] = useState('')
   const [assignSubject, setAssignSubject] = useState('')
-  const subjects = getSubjects()
+  const subjects = useSchoolSubjects()
   const [form, setForm] = useState({
     role: 'student', fullName: '', email: '', password: 'Student@1234',
     admissionNo: '', classLevel: 'SS2', classArm: 'A', phone: '', dateOfBirth: '',
@@ -445,6 +456,115 @@ function AddUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             <button onClick={handleSave} disabled={saving}
               style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
               {saving ? 'Saving...' : 'Create user'}
+            </button>
+            <button onClick={onClose}
+              style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.875rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditUserModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void }) {
+  const CLASS_LEVELS = useClassLevels()
+  const isStudent = user.role === 'student'
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({
+    fullName: user.full_name ?? user.fullName ?? '',
+    email: user.email ?? '',
+    phone: user.phone ?? '',
+    admissionNo: user.admission_no ?? user.admissionNo ?? '',
+    dateOfBirth: (user.date_of_birth ?? '').slice(0, 10),
+    classLevel: user.class_level ?? user.classLevel ?? '',
+    classArm: user.class_arm ?? user.classArm ?? '',
+  })
+  function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
+
+  async function handleSave() {
+    if (!form.fullName.trim() || !form.email.trim()) { setError('Full name and email are required'); return }
+    if (isStudent && !form.dateOfBirth) { setError('Date of birth is required for students'); return }
+    setSaving(true); setError('')
+    try {
+      const body: Record<string, string> = { fullName: form.fullName, email: form.email, phone: form.phone }
+      if (isStudent) Object.assign(body, {
+        admissionNo: form.admissionNo, dateOfBirth: form.dateOfBirth,
+        classLevel: form.classLevel, classArm: form.classArm,
+      })
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'X-School-Subdomain': getSubdomain(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Could not save the changes')
+      onSaved()
+    } catch (err: any) {
+      setError(err.message ?? 'Could not save the changes')
+    } finally { setSaving(false) }
+  }
+
+  const inp = { padding: '0.625rem 0.875rem', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', color: 'var(--text-primary)', outline: 'none', width: '100%', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const lbl = { fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }
+  const levels = form.classLevel && !CLASS_LEVELS.includes(form.classLevel) ? [form.classLevel, ...CLASS_LEVELS] : CLASS_LEVELS
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'white', borderRadius: '20px', padding: '1.75rem', width: '100%', maxWidth: '480px', border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' as const }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Edit details</h2>
+          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={lbl}>Full name</label>
+            <input style={inp} value={form.fullName} onChange={e => set('fullName', e.target.value)} />
+          </div>
+          <div>
+            <label style={lbl}>Email (used to sign in)</label>
+            <input style={inp} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+          </div>
+          <div>
+            <label style={lbl}>Phone number (optional)</label>
+            <input style={inp} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} />
+          </div>
+          {isStudent && (
+            <>
+              <div>
+                <label style={lbl}>Admission No. (optional)</label>
+                <input style={inp} value={form.admissionNo} onChange={e => set('admissionNo', e.target.value)} />
+              </div>
+              <div>
+                <label style={lbl}>Date of birth</label>
+                <input style={inp} type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+                <div>
+                  <label style={lbl}>Class level</label>
+                  <select style={inp} value={form.classLevel} onChange={e => set('classLevel', e.target.value)}>
+                    {levels.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Class arm</label>
+                  <select style={inp} value={form.classArm} onChange={e => set('classArm', e.target.value)}>
+                    <option value="">Select arm</option>
+                    {(form.classArm && !CLASS_ARMS.includes(form.classArm) ? [form.classArm, ...CLASS_ARMS] : CLASS_ARMS).map(a => <option key={a}>{a}</option>)}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+          <p style={{ fontSize: '0.75rem', color: '#6b6b65' }}>The password doesn’t change. If you change the email, tell the person to sign in with the new one.</p>
+          {error && <p style={{ fontSize: '0.825rem', color: '#dc2626' }}>{error}</p>}
+          <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
+            <button onClick={handleSave} disabled={saving}
+              style={{ flex: 1, padding: '0.75rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'Saving...' : 'Save changes'}
             </button>
             <button onClick={onClose}
               style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.875rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>

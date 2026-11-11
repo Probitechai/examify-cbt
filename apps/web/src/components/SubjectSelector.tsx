@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { getSubjects, addCustomSubject } from '../lib/subjects'
+import { useState } from 'react'
+import { addCustomSubject, useSchoolSubjects } from '../lib/subjects'
 
 interface Props {
   value: string
@@ -12,16 +12,13 @@ interface Props {
 }
 
 export default function SubjectSelector({ value, onChange, style, className, options, allowCustom = true }: Props) {
-  const [subjects, setSubjects] = useState<string[]>([])
+  const schoolSubjects = useSchoolSubjects()
+  const [added, setAdded] = useState<string[]>([])
   const [showCustom, setShowCustom] = useState(false)
   const [customValue, setCustomValue] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (!options) setSubjects(getSubjects())
-  }, [options])
-
-  const displayedSubjects = options ?? subjects
+  const displayedSubjects = options ?? [...new Set([...schoolSubjects, ...added])].sort((a, b) => a.localeCompare(b))
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value
@@ -37,8 +34,7 @@ export default function SubjectSelector({ value, onChange, style, className, opt
     if (!trimmed) { setError('Please enter a subject name'); return }
     if (trimmed.length < 2) { setError('Subject name too short'); return }
     addCustomSubject(trimmed)
-    const updated = getSubjects()
-    setSubjects(updated)
+    setAdded(a => [...a, trimmed])
     onChange(trimmed)
     setCustomValue('')
     setShowCustom(false)

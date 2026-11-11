@@ -39,6 +39,14 @@ const NIGERIAN_JSS = [
   { name: 'Physical Education', category: 'elective', levels: ['JSS1','JSS2','JSS3'] },
   { name: 'Music', category: 'elective', levels: ['JSS1','JSS2','JSS3'] },
   { name: 'Business Studies', category: 'elective', levels: ['JSS1','JSS2','JSS3'] },
+  // Subjects in the revised national curriculum
+  { name: 'Intermediate Science', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
+  { name: 'Social and Citizenship Studies', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
+  { name: 'Nigerian History', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
+  { name: 'Physical and Health Education', category: 'core', levels: ['JSS1','JSS2','JSS3'] },
+  { name: 'Digital Technology', category: 'core', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
+  { name: 'Yoruba', category: 'elective', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
+  { name: 'Livestock Farming', category: 'vocational', levels: ['JSS1','JSS2','JSS3','SS1','SS2','SS3'] },
 ]
 
 const NIGERIAN_SS = [
@@ -60,6 +68,8 @@ const NIGERIAN_SS = [
   { name: 'Computer Science', category: 'elective', levels: ['SS1','SS2','SS3'] },
   { name: 'French', category: 'elective', levels: ['SS1','SS2','SS3'] },
   { name: 'Physical Education', category: 'elective', levels: ['SS1','SS2','SS3'] },
+  { name: 'Marketing', category: 'vocational', levels: ['SS1','SS2','SS3'] },
+  { name: 'Catering Craft', category: 'vocational', levels: ['SS1','SS2','SS3'] },
 ]
 
 const BRITISH_SUBJECTS = [

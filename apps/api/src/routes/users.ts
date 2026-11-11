@@ -15,7 +15,34 @@ async function schoolLevels(schoolId: string): Promise<string[]> {
   return levelsFor(asSections(rows[0]?.sections))
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  student: 'student', teacher: 'teacher', parent: 'parent', school_admin: 'school admin',
+  bursar: 'bursar', proprietor: 'proprietor',
+}
+
+function emailTakenMessage(email: string, owner: { full_name: string; role: string; is_active: boolean }) {
+  const who = `${owner.full_name} (${ROLE_LABEL[owner.role] ?? owner.role}${owner.is_active ? '' : ', deactivated'})`
+  return `${email.toLowerCase()} is already used by ${who}. Each person signs in with their own email address. ` +
+    `Edit or delete that account first, or use a different email.`
+}
+
 export async function userRoutes(app: FastifyInstance) {
+
+  // Every subject name this school uses: its curriculum, plus any already given to teachers.
+  // The staff and teacher-assignment forms list these, so subjects added under Curriculum show up there.
+  app.get('/subjects/names', { preHandler: [authenticate] },
+    async (request: any, reply: any) => {
+      const tdb = tenantDb(request.schoolId)
+      const rows = await tdb.query`
+        SELECT name FROM curriculum_subjects
+        WHERE school_id = ${request.schoolId}::uuid AND is_active IS NOT FALSE
+        UNION
+        SELECT subject FROM teacher_subject_assignments
+        WHERE school_id = ${request.schoolId}::uuid
+      ` as any[]
+      const names = rows.map((r: any) => String(r.name ?? '').trim()).filter(Boolean)
+      return reply.send({ subjects: [...new Set(names)].sort((a, b) => a.localeCompare(b)) })
+    })
 
   app.get('/users', { preHandler: [authenticate, requireRole('school_admin', 'proprietor')] },
     async (request: any, reply: any) => {
@@ -80,8 +107,14 @@ export async function userRoutes(app: FastifyInstance) {
           return reply.status(400).send({ error: 'UNKNOWN_CLASS', message: `“${d.classLevel}” isn’t one of this school’s classes (${levels.join(', ')}).` })
         }
       }
-      const passwordHash = await bcrypt.hash(d.password, 12)
       const tdb = tenantDb(request.schoolId)
+      // Each account signs in with its own email, so it can only be used once per school
+      const taken = await tdb.query`
+        SELECT full_name, role, is_active FROM users
+        WHERE school_id = ${request.schoolId}::uuid AND lower(email) = ${d.email.toLowerCase()}
+      ` as any[]
+      if (taken[0]) return reply.status(409).send({ error: 'EMAIL_TAKEN', message: emailTakenMessage(d.email, taken[0]) })
+      const passwordHash = await bcrypt.hash(d.password, 12)
 
       // Student limit: checked and the student added in one locked transaction
       const result = await tdb.transaction(async (tx: any) => {
@@ -250,7 +283,75 @@ export async function userRoutes(app: FastifyInstance) {
       if (result.limit) return reply.status(403).send(result.limit)
       return reply.send({ updated: true })
     })
-      app.delete('/users/:id', { preHandler: [authenticate, requireRole('school_admin')] },
+  // Correct a profile entered with a mistake: name, email, phone, date of birth,
+  // admission number, class. Bursar and Proprietor accounts are managed by the Proprietor.
+  app.patch('/users/:id', { preHandler: [authenticate, requireRole('school_admin')] },
+    async (request: any, reply: any) => {
+      const { id } = request.params as any
+      const opt = z.string().trim().nullable().optional()
+      const schema = z.object({
+        fullName: z.string().trim().min(1).optional(),
+        email: z.string().trim().email().optional(),
+        phone: opt,
+        dateOfBirth: opt,
+        admissionNo: opt,
+        classLevel: z.string().trim().min(1).optional(),
+        classArm: opt,
+      })
+      const body = schema.safeParse(request.body)
+      if (!body.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Please check the name and email address.', issues: body.error.flatten() })
+      }
+      const d = body.data
+      const tdb = tenantDb(request.schoolId)
+
+      const [target] = await tdb.query`
+        SELECT role, email FROM users WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+      ` as any[]
+      if (!target) return reply.status(404).send({ error: 'NOT_FOUND', message: 'This account no longer exists.' })
+      if (PROTECTED_ROLES.includes(target.role)) {
+        return reply.status(403).send({ error: 'PROTECTED_ACCOUNT', message: 'Only the Proprietor can change this account.' })
+      }
+
+      const isStudent = target.role === 'student'
+      if (isStudent && d.classLevel !== undefined) {
+        const levels = await schoolLevels(request.schoolId)
+        if (!levels.includes(d.classLevel)) {
+          return reply.status(400).send({ error: 'UNKNOWN_CLASS', message: `“${d.classLevel}” isn’t one of this school’s classes (${levels.join(', ')}).` })
+        }
+      }
+      const blank = (v: string | null | undefined) => (v == null || v === '' ? null : v)
+      if (isStudent && d.dateOfBirth !== undefined && !blank(d.dateOfBirth)) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'Date of birth is required for students.' })
+      }
+
+      const email = d.email?.toLowerCase()
+      if (email && email !== String(target.email).toLowerCase()) {
+        const taken = await tdb.query`
+          SELECT full_name, role, is_active FROM users
+          WHERE school_id = ${request.schoolId}::uuid AND lower(email) = ${email} AND id <> ${id}::uuid
+        ` as any[]
+        if (taken[0]) return reply.status(409).send({ error: 'EMAIL_TAKEN', message: emailTakenMessage(email, taken[0]) })
+      }
+
+      // Each field changes only when it was sent
+      const has = (k: keyof typeof d) => d[k] !== undefined
+      const classOk = isStudent
+      await tdb.query`
+        UPDATE users SET
+          full_name    = CASE WHEN ${has('fullName')} THEN ${d.fullName ?? null}::text ELSE full_name END,
+          email        = CASE WHEN ${!!email} THEN ${email ?? null}::text ELSE email END,
+          phone        = CASE WHEN ${has('phone')} THEN ${blank(d.phone)}::text ELSE phone END,
+          date_of_birth = CASE WHEN ${has('dateOfBirth')} THEN ${blank(d.dateOfBirth)}::date ELSE date_of_birth END,
+          admission_no = CASE WHEN ${has('admissionNo')} THEN ${blank(d.admissionNo)}::text ELSE admission_no END,
+          class_level  = CASE WHEN ${classOk && has('classLevel')} THEN ${d.classLevel ?? null}::text ELSE class_level END,
+          class_arm    = CASE WHEN ${classOk && has('classArm')} THEN ${blank(d.classArm)}::text ELSE class_arm END
+        WHERE id = ${id}::uuid AND school_id = ${request.schoolId}::uuid
+      `
+      return reply.send({ updated: true })
+    })
+
+  app.delete('/users/:id', { preHandler: [authenticate, requireRole('school_admin')] },
     async (request: any, reply: any) => {
       const { id } = request.params as any
       const tdb = tenantDb(request.schoolId)
@@ -265,8 +366,35 @@ export async function userRoutes(app: FastifyInstance) {
       const target = targetRows[0]
       if (!target) return reply.status(404).send({ error: 'NOT_FOUND' })
 
-      if (!['teacher', 'school_admin'].includes(target.role)) {
-        return reply.status(400).send({ error: 'UNSUPPORTED_ROLE', message: 'Only teacher and admin accounts can be permanently deleted. Use deactivate for students and parents.' })
+      if (PROTECTED_ROLES.includes(target.role)) {
+        return reply.status(403).send({ error: 'PROTECTED_ACCOUNT', message: 'Only the Proprietor can change this account.' })
+      }
+
+      // A student can be deleted only while nothing has been recorded for them yet
+      // (a profile created by mistake). After that, edit or deactivate instead, so
+      // results, attendance and payments are never lost.
+      if (target.role === 'student') {
+        const [act] = await tdb.query`
+          SELECT
+            EXISTS (SELECT 1 FROM student_results    WHERE student_id = ${id}::uuid) AS results,
+            EXISTS (SELECT 1 FROM exam_sessions      WHERE student_id = ${id}::uuid) AS exams,
+            EXISTS (SELECT 1 FROM attendance_records WHERE student_id = ${id}::uuid) AS attendance,
+            EXISTS (SELECT 1 FROM fee_payments       WHERE student_id = ${id}::uuid) AS payments,
+            EXISTS (SELECT 1 FROM gradebook_entries  WHERE student_id = ${id}::uuid) AS gradebook,
+            EXISTS (SELECT 1 FROM conduct_reports    WHERE student_id = ${id}::uuid) AS conduct,
+            EXISTS (SELECT 1 FROM jamb_mock_attempts WHERE student_id = ${id}::uuid) AS jamb
+        ` as any[]
+        const found = [
+          act.results && 'results', act.exams && 'exam attempts', act.attendance && 'attendance',
+          act.payments && 'fee payments', act.gradebook && 'gradebook scores', act.conduct && 'conduct reports',
+          act.jamb && 'JAMB practice',
+        ].filter(Boolean)
+        if (found.length) {
+          return reply.status(400).send({
+            error: 'HAS_RECORDS',
+            message: `This student already has ${found.join(', ')}, so the account can't be deleted. Use Edit to correct their details, or Deactivate it.`,
+          })
+        }
       }
 
       if (target.role === 'school_admin') {
@@ -285,9 +413,10 @@ export async function userRoutes(app: FastifyInstance) {
         `
         return reply.send({ deleted: true })
       } catch (err: any) {
+        console.error('Delete user blocked:', err.message)
         return reply.status(400).send({
           error: 'DELETE_BLOCKED',
-          message: 'This person has existing records (results entered, attendance marked, etc.) linked to their account, so they cannot be permanently deleted. Please use Deactivate instead.',
+          message: 'This account has records linked to it (results, attendance, exams and so on), so it can\'t be deleted. Use Edit to correct the details, or Deactivate it.',
         })
       }
     })
